@@ -85,7 +85,7 @@ sealed class LegitimateForce(BossModule module) : Components.GenericAOEs(module)
             var o = new WDir(default, 20f);
             hints.AddForbiddenZone(new SDInvertedRect(center + o, center - o, 3f), aoes[0].Activation);
         }
-        else if (count != 2 && besiegeCount == 0 && gravityBounds)
+        else if (count != 2 && besiegeCount == 0 && gravityBounds && center == new WPos(100f, 94f))
         {
             hints.AddForbiddenZone(stayInBounds, count != 0 ? aoes[0].Activation : default);
         }

@@ -50,7 +50,10 @@ sealed class UnbowedSpirit(BossModule module) : Components.GenericAOEs(module)
                 circular = Math.Abs(offset.X % 10f) > 1f || Math.Abs(offset.Z % 10f) > 1f;
             }
 
-            puddles.Add(actor);
+            if (!puddles.Contains(actor))
+            {
+                puddles.Add(actor);
+            }
         }
     }
 
@@ -58,12 +61,12 @@ sealed class UnbowedSpirit(BossModule module) : Components.GenericAOEs(module)
     {
         if (spell.Action.ID is (uint)AID.InspiritedCrosswinds or (uint)AID.InspiritedCyclone)
         {
-            if (puddles.Count > 0)
-            {
-                puddles.RemoveAt(0);
-            }
+            // The resolving order is independent of spawn order.
+            puddles.Remove(caster);
         }
     }
+
+    public override void OnActorDestroyed(Actor actor) => puddles.Remove(actor);
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {

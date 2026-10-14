@@ -79,7 +79,26 @@ sealed class KnowledgeLevelCorrection(BossModule module) : Components.RaidwideCa
 sealed class Summon(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Summon, 4f);
 sealed class Marginalia(BossModule module) : Components.RaidwideCast(module, (uint)AID.Marginalia);
 sealed class UnboundInk(BossModule module) : Components.SimpleAOEs(module, (uint)AID.UnboundInk, 9f);
-sealed class BookDrop(BossModule module) : Components.CastTowersOpenWorld(module, (uint)AID.BookDrop, 3f, 3, 5);
+sealed class BookDrop(BossModule module) : Components.CastTowersOpenWorld(module, (uint)AID.BookDrop, 3f, 3, 5)
+{
+    public override void Update()
+    {
+        // The open-world base caches its pool at first use, including dead actors.
+        // Refresh this encounter's pool so arrivals can soak and deaths cannot count.
+        HashSet<Actor> living = [];
+        foreach (var actor in WorldState.Actors.Actors.Values)
+        {
+            if (actor.Type == ActorType.Player && !actor.IsDead && !actor.IsDestroyed && actor.HPMP.CurHP > 0)
+            {
+                living.Add(actor);
+            }
+        }
+        foreach (var tower in Towers)
+        {
+            tower.AllowedSoakers = living;
+        }
+    }
+}
 sealed class ThunderII(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ThunderII, new AOEShapeRect(50f, 2.5f), 10);
 sealed class FireII(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FireII, new AOEShapeCone(60f, 22.5f.Degrees()));
 sealed class QuadRule(BossModule module) : Components.SimpleAOEs(module, (uint)AID.QuadRule, new AOEShapeCross(25f, 5f));

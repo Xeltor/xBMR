@@ -245,7 +245,8 @@ sealed class Roulette(BossModule module) : Components.GenericAOEs(module)
         if (spell.Action.ID == (uint)AID.RouletteVisual)
         {
             var pos = Arena.Center;
-            aoes.Add(new(circle, pos, activation: WorldState.FutureTime(18.3d), shapeDistance: circle.Distance(pos, default)));
+            // Recorded circle effects arrive about 14.36s after the visual cast finishes.
+            aoes.Add(new(circle, pos, activation: WorldState.FutureTime(14.3d), shapeDistance: circle.Distance(pos, default)));
         }
     }
 

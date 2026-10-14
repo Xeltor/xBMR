@@ -132,7 +132,6 @@ class LevinSignal(BossModule module) : Components.GenericAOEs(module)
 sealed class WindpipeDrawIn(BossModule module) : Components.SimpleKnockbacks(module, (uint)AID.WindpipeDrawIn, 20f)
 {
     private readonly CarGeometry _car = module.FindComponent<CarGeometry>()!;
-    private List<Knockback> _kb = [];
 
     // need safe walls for car 2 and car 5
     private readonly List<SafeWall> safeWalls2 = [new(new(100.1f, 150.1f), new(104.9f, 150.1f)), new(new(95.1f, 160.1f), new(99.9f, 160.1f))];
@@ -142,32 +141,23 @@ sealed class WindpipeDrawIn(BossModule module) : Components.SimpleKnockbacks(mod
     {
         if (spell.Action.ID == (uint)AID.WindpipeDrawIn)
         {
-            switch (_car.Car)
+            var walls = _car.Car switch
             {
-                case 2:
-                    _kb = [new(spell.LocXZ, 20f, Module.CastFinishAt(spell), safeWalls: safeWalls2, kind: Kind.DirBackward, ignoreImmunes: true)];
-                    break;
-                case 5:
-                    _kb = [new(spell.LocXZ, 20f, Module.CastFinishAt(spell), safeWalls: safeWalls5, kind: Kind.DirBackward, ignoreImmunes: true)];
-                    break;
-            }
-        }
-    }
-
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
-    {
-        if (spell.Action.ID == (uint)AID.WindpipeDrawIn)
-        {
-            _kb.Clear();
+                2 => safeWalls2,
+                5 => safeWalls5,
+                _ => null
+            };
+            Casters.Add(new(spell.LocXZ, 20f, Module.CastFinishAt(spell), direction: spell.Rotation,
+                safeWalls: walls, kind: Kind.DirBackward, ignoreImmunes: true, actorID: caster.InstanceID));
         }
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (_kb.Count != 0)
+        if (Casters.Count != 0 && _car.Car is 2 or 5)
         {
-            var kb = _kb[slot];
-            if (!IsImmune(slot, WorldState.CurrentTime))
+            ref readonly var kb = ref Casters.Ref(0);
+            if (!IsImmune(slot, kb.Activation))
             {
                 // It is a draw in, we use mirrorZ to make safe zones to keep us from moving towards boss.
                 var dir = kb.Direction.ToDirection().MirrorZ();
@@ -180,7 +170,7 @@ sealed class WindpipeDrawIn(BossModule module) : Components.SimpleKnockbacks(mod
                     {
                         swalls[i] = _walls[i];
                     }
-                    hints.AddForbiddenZone(new SDKnockbackFixedDirectionAgainstSafewalls(dir, swalls, 20f, len), WorldState.CurrentTime);
+                    hints.AddForbiddenZone(new SDKnockbackFixedDirectionAgainstSafewalls(dir, swalls, 20f, len), kb.Activation);
                 }
             }
         }

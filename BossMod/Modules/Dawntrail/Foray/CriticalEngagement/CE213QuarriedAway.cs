@@ -103,6 +103,7 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
     private readonly AOEShapeCone shape = new(40.0f, 45.0f.Degrees());
     private readonly List<(Actor caster, int turns)> golemCasters = [];
     private int totalGolems = 0;
+    private readonly HashSet<Actor> expandedGolems = [];
     private readonly double RiskyWithSecondsLeft = 5.0f;
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -111,7 +112,18 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
         {
             if (caster.OID == (uint)OID.AlabasterGolemVisual)
             {
-                aoes.Add(new(shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell)));
+                var activation = Module.CastFinishAt(spell);
+                if (aoes.Exists(aoe => aoe.ActorID == caster.InstanceID && aoe.Activation == activation))
+                {
+                    return;
+                }
+                if (aoes.Count == 0)
+                {
+                    expandedGolems.Clear();
+                    totalGolems = 0;
+                }
+                aoes.Add(new(shape, spell.LocXZ, spell.Rotation, activation, actorID: caster.InstanceID));
+                ++totalGolems;
             }
         }
     }
@@ -128,10 +140,11 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
                 _ => 0,
             };
 
-            if (turns != 0)
+            if (turns != 0 && !expandedGolems.Contains(actor))
             {
+                // Status gain includes updates to an existing slot.
+                golemCasters.RemoveAll(golem => golem.caster == actor);
                 golemCasters.Add((actor, turns));
-                totalGolems++;
             }
         }
     }
@@ -148,6 +161,7 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
             if (aoes.Count == 0)
             {
                 golemCasters.Clear();
+                expandedGolems.Clear();
                 totalGolems = 0;
             }
         }
@@ -190,6 +204,7 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
         foreach (var golem in processedGolems)
         {
             golemCasters.Remove(golem);
+            expandedGolems.Add(golem.caster);
         }
 
         if (incomingAOEs.Count > 0)

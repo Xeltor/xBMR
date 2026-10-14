@@ -3,8 +3,9 @@
 Xel's fork of [BossMod Reborn](https://github.com/FFXIV-CombatReborn/BossmodReborn),
 based on [BossMod by awgil](https://github.com/awgil/ffxiv_bossmod).
 It includes the upstream radar, mechanic hints, replay viewer, cooldown planner,
-autorotation and optional AI features. This initial release changes branding and
-distribution; encounter mechanics remain those of the upstream source.
+autorotation and optional AI features. The fork preserves upstream compatibility and keeps validated encounter corrections
+in their existing modules. See [the encounter migration audit](docs/xcai-encounter-migration.md)
+for the source changes, retired workarounds and remaining validation.
 
 ## Install
 
