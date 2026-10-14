@@ -6,6 +6,10 @@ It includes the upstream radar, mechanic hints, replay viewer, cooldown planner,
 autorotation and optional AI features. The fork preserves upstream compatibility and keeps validated encounter corrections
 in their existing modules. See [the encounter migration audit](docs/xcai-encounter-migration.md)
 for the source changes, retired workarounds and remaining validation.
+The subsequent [Shinryu floor corrections](docs/shinryu-floor-corrections.md)
+document the bounded Twilight repair and its replay evidence.
+See the [7.5.6.35.3 release notes](docs/release-7.5.6.35.3.md) for the encounter
+changes, new partial Aloalo coverage and validation limits.
 
 ## Install
 

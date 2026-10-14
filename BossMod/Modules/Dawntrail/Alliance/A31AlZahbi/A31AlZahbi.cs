@@ -67,7 +67,31 @@ public enum AID : uint
 
 sealed class Earthshatter(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Earthshatter, 8f);
 sealed class TranscendentShot(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TranscendentShot, new AOEShapeRect(60f, 2.5f), maxCasts: 4);
-sealed class LeapingCleave(BossModule module) : Components.SimpleKnockbacks(module, (uint)AID.LeapingCleave, 22f);
+sealed class LeapingCleave(BossModule module) : Components.SimpleKnockbacks(module, (uint)AID.LeapingCleave, 22f)
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == WatchedAction)
+            Casters.RemoveAll(k => k.ActorID == caster.InstanceID);
+        base.OnCastStarted(caster, spell);
+    }
+
+    public override void OnActorDestroyed(Actor actor) => Casters.RemoveAll(k => k.ActorID == actor.InstanceID);
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Arena.Bounds is not ArenaBoundsRect bounds)
+            return;
+
+        foreach (var kb in Casters)
+        {
+            if (!IsImmune(slot, kb.Activation))
+                hints.AddForbiddenZone(new SDUnion([new SDCircle(kb.Origin, 0f),
+                    new SDKnockbackInAABBRectAwayFromOrigin(Arena.Center, kb.Origin, kb.Distance,
+                        bounds.HalfWidth, bounds.HalfHeight)]), kb.Activation);
+        }
+    }
+}
 sealed class FeralLunge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FeralLunge, 10f);
 sealed class WhirlingSlash(BossModule module) : Components.SimpleAOEs(module, (uint)AID.WhirlingSlash, 6f);
 sealed class Perdition(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Perdition, 9f);
@@ -77,12 +101,20 @@ sealed class FulminationKhalkeos(BossModule module) : Components.RaidwideCast(mo
 sealed class FulminationKhryseos(BossModule module) : Components.CastInterruptHint(module, (uint)AID.FulminationKhryseos, showNameInHint: true);
 sealed class DanceToDust(BossModule module) : Components.Exaflare(module, 7f)
 {
+    private readonly Dictionary<ulong, (Line Line, int Explosions)> _casters = [];
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.DanceToDustFirst)
         {
-            Lines.Add(new(caster.Position, caster.Rotation.ToDirection() * 8, Module.CastFinishAt(spell), 2,
-                caster.Rotation.AlmostEqual(default, 0.1f) || caster.Rotation.AlmostEqual(180.Degrees(), 0.1f) ? 2 : 3, 3));
+            if (_casters.Remove(caster.InstanceID, out var previous))
+                Lines.Remove(previous.Line);
+            var explosions = spell.Rotation.AlmostEqual(default, 0.1f) || spell.Rotation.AlmostEqual(180.Degrees(), 0.1f) ? 2 : 3;
+            // Recorded helpers advance 9 yalms, with follow-up effects about 1.1 seconds apart.
+            var line = new Line(caster.Position, spell.Rotation.ToDirection() * 9f, Module.CastFinishAt(spell), 1.1d, explosions, 3);
+            _casters[caster.InstanceID] = (line, explosions);
+            Lines.Add(line);
+            ++currentVersion;
         }
     }
 
@@ -90,9 +122,28 @@ sealed class DanceToDust(BossModule module) : Components.Exaflare(module, 7f)
     {
         if (spell.Action.ID is (uint)AID.DanceToDustFirst or (uint)AID.DanceToDustRest)
         {
-            var ix = Lines.FindIndex(l => l.Next.AlmostEqual(caster.Position, 1));
-            if (ix >= 0)
-                AdvanceLine(Lines[ix], caster.Position);
+            if (_casters.TryGetValue(caster.InstanceID, out var source))
+            {
+                AdvanceLine(source.Line, caster.Position);
+                if (source.Line.ExplosionsLeft == 0)
+                    OnActorDestroyed(caster);
+            }
+        }
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.DanceToDustFirst && _casters.TryGetValue(caster.InstanceID, out var source)
+            && source.Line.ExplosionsLeft == source.Explosions)
+            OnActorDestroyed(caster); // Cast ended without its first explosion: cancelled.
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        if (_casters.Remove(actor.InstanceID, out var source))
+        {
+            Lines.Remove(source.Line);
+            ++currentVersion;
         }
     }
 }
@@ -103,6 +154,25 @@ sealed class DisregardRect(BossModule module) : Components.SimpleAOEs(module, (u
 sealed class Petrifaction(BossModule module) : Components.CastGaze(module, (uint)AID.Petrifaction);
 
 sealed class AlZahbiTrash(BossModule module) : Components.AddsMulti(module, A31AlZahbi.AlZahbiMobs);
+
+sealed class A31AlZahbiWave1States : StateMachineBuilder
+{
+    private static readonly uint[] Wave1Mobs = [(uint)OID.Acrolith1, (uint)OID.LamiaRover1];
+
+    public A31AlZahbiWave1States(BossModule module) : base(module)
+    {
+        TrivialPhase()
+            .ActivateOnEnter<AlZahbiTrash>()
+            .ActivateOnEnter<Earthshatter>()
+            .Raw.Update = () => AllDeadOrDestroyed(Wave1Mobs);
+    }
+}
+
+// Abazohn is created only with wave 2. Register wave 1 separately so its
+// Earthshatter casts are handled before the main encounter module exists.
+[ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "Xan, ported by wen, Xeltor", PrimaryActorOID = (uint)OID.Acrolith1,
+    GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1117u, NameID = 14839u)]
+public sealed class A31AlZahbiWave1(WorldState ws, Actor primary) : A31AlZahbi(ws, primary);
 
 sealed class A31AlZahbiStates : StateMachineBuilder
 {
@@ -119,6 +189,7 @@ sealed class A31AlZahbiStates : StateMachineBuilder
             .ActivateOnEnter<Tourbillion>()
             .ActivateOnEnter<PinningShot>()
             .ActivateOnEnter<FulminationKhalkeos>()
+            .ActivateOnEnter<FulminationKhryseos>()
             .ActivateOnEnter<DanceToDust>()
             .ActivateOnEnter<ShadowSlash>()
             .ActivateOnEnter<BellowingGrunt>()

@@ -1,0 +1,178 @@
+{
+  "counts": {
+    "reports": 17,
+    "original_sources": 6,
+    "native_samples": 728,
+    "twintides_progression_checks": 22,
+    "raidwide_helper_resolution_checks": 9,
+    "water_iii_visual_preserves_damage_checks": 6,
+    "water_iii_helper_resolution_checks": 6,
+    "individual_crystal_resolution_checks": 96,
+    "native_destinations_inside_nominal_arena": 14,
+    "native_arena_grid_checks": 18,
+    "crystal_cast_origin_and_deadline_checks": 96,
+    "nominal_boundary_probes": 192,
+    "individual_lane_resolution_checks": 24
+  },
+  "navigation": [
+    {
+      "source": 1,
+      "sample": "147247-after_seq",
+      "destination": {
+        "x": -790.75,
+        "z": -387.25
+      },
+      "casting": false
+    },
+    {
+      "source": 1,
+      "sample": "131734-after_seq",
+      "destination": null,
+      "casting": false
+    },
+    {
+      "source": 1,
+      "sample": "142311-after_seq",
+      "destination": {
+        "x": -770.25,
+        "z": -414.75
+      },
+      "casting": false
+    },
+    {
+      "source": 2,
+      "sample": "151196-after_seq",
+      "destination": {
+        "x": -779.75,
+        "z": -397.25
+      },
+      "casting": false
+    },
+    {
+      "source": 2,
+      "sample": "136837-after_seq",
+      "destination": null,
+      "casting": false
+    },
+    {
+      "source": 2,
+      "sample": "145878-after_seq",
+      "destination": {
+        "x": -770.25,
+        "z": -414.75
+      },
+      "casting": false
+    },
+    {
+      "source": 3,
+      "sample": "155571-after_seq",
+      "destination": {
+        "x": -789.75,
+        "z": -387.25
+      },
+      "casting": false
+    },
+    {
+      "source": 3,
+      "sample": "137743-after_seq",
+      "destination": null,
+      "casting": true
+    },
+    {
+      "source": 3,
+      "sample": "149578-after_seq",
+      "destination": {
+        "x": -780.25,
+        "z": -414.75
+      },
+      "casting": false
+    },
+    {
+      "source": 4,
+      "sample": "181529-after_seq",
+      "destination": {
+        "x": -790.75,
+        "z": -382.75
+      },
+      "casting": false
+    },
+    {
+      "source": 4,
+      "sample": "164368-after_seq",
+      "destination": null,
+      "casting": false
+    },
+    {
+      "source": 4,
+      "sample": "175705-after_seq",
+      "destination": {
+        "x": -770.25,
+        "z": -414.75
+      },
+      "casting": false
+    },
+    {
+      "source": 5,
+      "sample": "411033-after_seq",
+      "destination": {
+        "x": -779.25,
+        "z": -392.75
+      },
+      "casting": false
+    },
+    {
+      "source": 5,
+      "sample": "393125-after_seq",
+      "destination": {
+        "x": -790.75,
+        "z": -389.25
+      },
+      "casting": false
+    },
+    {
+      "source": 5,
+      "sample": "405055-after_seq",
+      "destination": {
+        "x": -770.25,
+        "z": -414.75
+      },
+      "casting": false
+    },
+    {
+      "source": 6,
+      "sample": "149462-after_seq",
+      "destination": {
+        "x": -790.75,
+        "z": -387.25
+      },
+      "casting": false
+    },
+    {
+      "source": 6,
+      "sample": "134509-after_seq",
+      "destination": {
+        "x": -790.25,
+        "z": -395.75
+      },
+      "casting": false
+    },
+    {
+      "source": 6,
+      "sample": "143905-after_seq",
+      "destination": {
+        "x": -780.25,
+        "z": -414.75
+      },
+      "casting": false
+    }
+  ],
+  "early_origin_comparisons": 96,
+  "max_early_origin_residual_yalms": 0.033764975936570185,
+  "early_origins_exceeding_previous_trial_0_03_yalm_tolerance": 12,
+  "source_sha256": "44669bc6b43fcfcf9d5cf5c93c964742713fc7bfe5144ca25a2fef23c6c64e51",
+  "assembly_sha256": "0f7668728c748e3f4149bb8a1b8f50769ade511a1b44f2f7611dfb8d7e8edc28",
+  "physical_geometry_verified": false,
+  "live_gameplay_verified": false,
+  "exact_historical_game_assets_available": false,
+  "pristine_holdout": false
+}

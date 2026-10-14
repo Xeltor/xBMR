@@ -8,6 +8,9 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
     private readonly AOEShapeDonut topHole = new(6f, 50f);
     private readonly WPos holePos = new(820f, -826f);
     private bool twilight;
+    private byte twilightHits;
+    private uint activeAction;
+    private ActorCastInfo? twilightCast;
     private int wantLayer = -1;
     private BitMask _dark;
     private BitMask _light;
@@ -17,16 +20,16 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
         if (twilight && _aoes.Length == 2)
         {
             var shouldBeTop = _light[slot];
-            if (!shouldBeTop && !_dark[slot])
+            if (shouldBeTop == _dark[slot])
             {
-                return []; // player must have died during debuff application and doesn't care
+                return []; // Missing or conflicting assignments cannot select a floor.
             }
             ref var aoe0 = ref _aoes[0];
             var safeColor = Colors.SafeFromAOE;
-            aoe0.ShapeDistance = shouldBeTop ? topHole.Distance(holePos, default) : topHole.InvertedDistance(holePos, default);
+            aoe0.ShapeDistance = shouldBeTop ? topHole.InvertedDistance(holePos, default) : topHole.Distance(holePos, default);
             aoe0.Color = shouldBeTop ? safeColor : default;
             ref var aoe1 = ref _aoes[1];
-            aoe1.ShapeDistance = !shouldBeTop ? bottomTeleporter.Distance(holePos, default) : bottomTeleporter.InvertedDistance(holePos, default);
+            aoe1.ShapeDistance = shouldBeTop ? bottomTeleporter.Distance(holePos, default) : bottomTeleporter.InvertedDistance(holePos, default);
             aoe1.Color = !shouldBeTop ? safeColor : default;
         }
         return _aoes;
@@ -35,14 +38,22 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         var id = spell.Action.ID;
+        if (id is not ((uint)AID.CosmicBreath or (uint)AID.CosmicTail or (uint)AID.AtomicTail or (uint)AID.TwilightNebula1))
+        {
+            return;
+        }
+        if (twilight && ReferenceEquals(twilightCast, spell))
+        {
+            return;
+        }
+        activeAction = id;
+        twilight = id == (uint)AID.TwilightNebula1;
+        twilightCast = twilight ? spell : null;
+        twilightHits = 0;
         switch (id)
         {
             case (uint)AID.CosmicBreath:
             case (uint)AID.TwilightNebula1:
-                if (id == (uint)AID.TwilightNebula1)
-                {
-                    twilight = true;
-                }
                 var act = Module.CastFinishAt(spell);
                 _aoes =
                 [
@@ -74,22 +85,67 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
         {
             SetBitMask(ref _dark, actor.InstanceID);
         }
-        void SetBitMask(ref BitMask mask, ulong targetID) => mask.Set(Raid.FindSlot(targetID));
+        void SetBitMask(ref BitMask mask, ulong targetID)
+        {
+            var slot = Raid.FindSlot(targetID);
+            if (slot >= 0)
+            {
+                mask.Set(slot);
+            }
+        }
+    }
+
+    public override void OnStatusLose(Actor actor, ref ActorStatus status)
+    {
+        var slot = Raid.FindSlot(actor.InstanceID);
+        if (slot >= 0)
+        {
+            if (status.ID == (uint)SID.CloakOfWaningLight)
+            {
+                _light.Clear(slot);
+            }
+            else if (status.ID == (uint)SID.CloakOfWaxingDark)
+            {
+                _dark.Clear(slot);
+            }
+        }
     }
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID is var id && id is (uint)AID.CosmicBreath or (uint)AID.CosmicTail or (uint)AID.AtomicTail or (uint)AID.TwilightNebula1)
+        // Twilight's visual can end before either helper, or after both within
+        // the same timestamp. It cannot retire the damaging sequence.
+        if (!twilight && spell.Action.ID == activeAction)
         {
             _aoes = [];
-            if (id == (uint)AID.TwilightNebula1)
-            {
-                twilight = false;
-                _dark.Reset();
-                _light.Reset();
-                ++NumCasts;
-            }
             wantLayer = -1;
+            activeAction = 0;
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (!twilight)
+        {
+            return;
+        }
+        var hit = spell.Action.ID switch
+        {
+            (uint)AID.TwilightRadiance => 1,
+            (uint)AID.TwilightShadow => 2,
+            _ => 0
+        };
+        twilightHits |= (byte)hit;
+        if (twilightHits == 3)
+        {
+            _aoes = [];
+            twilight = false;
+            twilightCast = null;
+            activeAction = 0;
+            _dark.Reset();
+            _light.Reset();
+            wantLayer = -1;
+            ++NumCasts;
         }
     }
 
@@ -102,10 +158,7 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
 
         var onBottomFloor = actor.PosRot.Y < -890f;
 
-        bool? shouldBeOnBottom = twilight ? _light[slot] ? false
-            : _dark[slot] ? true
-            : null
-            : wantLayer == 0;
+        bool? shouldBeOnBottom = twilight ? _light[slot] != _dark[slot] ? !_light[slot] : null : wantLayer == 0;
 
         if (shouldBeOnBottom is bool bottom)
         {

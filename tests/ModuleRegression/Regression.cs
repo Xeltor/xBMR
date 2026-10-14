@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using BossMod;
 using BossMod.Components;
 
-static class Regression
+static partial class Regression
 {
     private static readonly Assembly Bmr = typeof(BossModule).Assembly;
     private static readonly DateTime Now = new(2026, 10, 14, 12, 0, 0, DateTimeKind.Utc);
@@ -58,10 +58,10 @@ static class Regression
         Service.LuminaGameData = game;
         Service.Config.Initialize();
         List<string> failures = [];
-        foreach (var test in new Action[] { Elm, Queen, Acclaim, Book, Windpipe, Roulette })
+        foreach (var test in new Action[] { Elm, Queen, Acclaim, Book, Windpipe, Roulette, ShinryuDirections, ShinryuResolution, ShinryuAssignments, ShinryuBootstrap, PromathiaGenesis, PromathiaKnockback, PromathiaRingDeadlines, PromathiaTowerPuddles, AlZahbiKnockback, AlZahbiExaflares, AlZahbiWave1 })
         {
             try { test(); }
-            catch (Exception error) { failures.Add(test.Method.Name + ": " + error.Message); }
+            catch (Exception error) { failures.Add(test.Method.Name + ": " + error); }
         }
         if (failures.Count != 0)
             throw new InvalidOperationException(string.Join(Environment.NewLine, failures));

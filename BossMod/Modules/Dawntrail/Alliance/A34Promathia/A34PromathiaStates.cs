@@ -6,6 +6,7 @@ sealed class A34PromathiaStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<EmptySalvation>()
+            .ActivateOnEnter<EmptySalvationPuddles>()
             .ActivateOnEnter<Explosion>()
             .ActivateOnEnter<WheelofImpregnability>()
             .ActivateOnEnter<BastionOfTwilight>()
