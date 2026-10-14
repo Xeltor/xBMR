@@ -49,15 +49,10 @@ DALAMUD_HOME=/path/to/dalamud dotnet build BossMod/BossModReborn.csproj -c Relea
 
 `origin` is this fork; `upstream` is Combat Reborn. Preserve fork changes when
 merging upstream; do not force-sync over them. GitHub validates builds on pushes
-and pull requests. When updating upstream, update `upstream_version` and
-`upstream_commit` in `fork-version.json` and reset `fork_revision` to zero; keep
-fork changes when merging. Increment only `fork_revision` for subsequent local
-releases. Update the project's `Version` and `InformationalVersion` to match,
-then run `python scripts/release-version.py` and
-`python -m unittest discover -s tests`. Publish the reported immutable source tag,
-then manually run **Publish xBMR Stable** in the Forgejo feed with that tag and
-its full commit SHA. The workflow derives the install version from the source. The workflow builds the pinned source, includes licence notices, publishes
-namespaced public assets and updates only this plugin's stable feed entry.
+and pull requests. [AGENTS.md](AGENTS.md) contains the version policy, validation
+commands and complete release procedure. Releases use the manual **Publish xBMR
+Stable** workflow in the Forgejo feed, which derives the install version from
+the tagged source and publishes the package and generated feed entry together.
 
 Upstream's contribution policy is retained in `CONTRIBUTING.md`; AI-assisted fork
 changes must not be submitted upstream against that policy. This fork is maintained
