@@ -21,6 +21,7 @@ sealed class A34PromathiaStates : StateMachineBuilder
             .ActivateOnEnter<WindsOfPromyvion>()
             .ActivateOnEnter<EmptySeed>()
             .ActivateOnEnter<DeadlyRebirth>()
+            .ActivateOnEnter<DeadlyRebirthKnockback>()
             .ActivateOnEnter<MalevolentBlessingCone>()
             .ActivateOnEnter<MalevolentBlessingRect>()
             .ActivateOnEnter<PestilentPenanceLink>()

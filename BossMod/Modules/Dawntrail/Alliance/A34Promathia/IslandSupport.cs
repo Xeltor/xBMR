@@ -68,12 +68,22 @@ sealed class IslandSupport(BossModule module) : BossComponent(module)
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (!_islands || actor.IsDeadOrDestroyed || !_receptacles.Any(a => !a.IsDeadOrDestroyed && a.IsTargetable))
+        if (!_islands || actor.IsDeadOrDestroyed)
             return;
 
         // Lock is observed as roughly four seconds in this recording. Use the
         // actual status presence, not an assumed three-second countdown.
         var island = IslandAt(actor.Position);
+        var locked = actor.FindStatus((uint)SID.SystemLock) != null;
+        var allCleared = !_receptacles.Any(a => !a.IsDeadOrDestroyed && a.IsTargetable);
+        // Removing graph edges does not disable the physical pad. Leave its
+        // trigger before Lock expires, including while waiting for arena restore.
+        if (island >= 0 && (locked || allCleared && PadsEnabled(island)))
+            for (var destination = 0; destination < 3; ++destination)
+                if (destination != island)
+                    hints.AddForbiddenZone(new SDCircle(Pads[island, destination], 1.5f));
+        if (allCleared)
+            return;
         var support = SupportTarget(actor);
         var waitingForTransfer = support is { } selected && actor.Position.InCircle(selected.Entrance, 1f);
         // Offer only one hop from the current cleared island to a live add.

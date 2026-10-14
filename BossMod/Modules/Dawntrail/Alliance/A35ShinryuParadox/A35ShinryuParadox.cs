@@ -149,6 +149,25 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
         }
     }
 
+    private bool? ShouldBeOnBottom(int slot) => wantLayer == -1 ? null
+        : twilight ? _light[slot] != _dark[slot] ? !_light[slot] : null : wantLayer == 0;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        // The upper hole is only a rendering exclusion, not a pathfinding hole.
+        // Ordinary dodges must stay on this floor; only a required floor change
+        // may use its transition. Once there, do not immediately cross back.
+        if (Arena.Bounds is ArenaBoundsCustom { WorldProjectionLayers: { Length: > 1 } })
+        {
+            var onBottom = actor.PosRot.Y < -890f;
+            if (wantLayer == -1 || ShouldBeOnBottom(slot) == onBottom)
+            {
+                hints.AddForbiddenZone(new SDCircle(holePos, onBottom ? bottomTeleporter.InnerRadius : topHole.InnerRadius));
+            }
+        }
+    }
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (wantLayer == -1)
@@ -158,7 +177,7 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
 
         var onBottomFloor = actor.PosRot.Y < -890f;
 
-        bool? shouldBeOnBottom = twilight ? _light[slot] != _dark[slot] ? !_light[slot] : null : wantLayer == 0;
+        var shouldBeOnBottom = ShouldBeOnBottom(slot);
 
         if (shouldBeOnBottom is bool bottom)
         {

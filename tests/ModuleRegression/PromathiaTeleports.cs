@@ -71,6 +71,11 @@ static partial class Regression
         hints = Read();
         Check(hints.Teleporters.Count == 0 && hints.GoalZones.Count == 0,
             "observed System Lock suppresses support routing without an assumed three-second expiry");
+        Check(hints.ForbiddenZones.Count == 2 && hints.ForbiddenZones.Any(z => z.shapeDistance.Contains(player.Position)),
+            "System Lock explicitly moves off the physical pad before it can retrigger");
+        decision = NavigationDecision.Build(new(), Now, hints, player);
+        Check(decision.Destination is { } leave && !leave.InCircle(player.Position, 1f) && module.Arena.InBounds(leave),
+            "native navigation leaves the pad during Lock without leaving its island");
         player.Statuses[0] = default;
         player.PosRot = new Vector4(-820, -900, -807, 0);
         adds[1].IsDead = true;
@@ -88,10 +93,19 @@ static partial class Regression
         var text = new BossComponent.TextHints();
         component.AddHints(0, player, text);
         Check(Read().Teleporters.Count == 0 && text.Count == 0, "no support request remains after all adds die");
+        player.PosRot = new Vector4(-828.9281f, -900, -820.5359f, 0);
+        hints = Read();
+        Check(hints.Teleporters.Count == 0 && hints.GoalZones.Count == 0 && hints.ForbiddenZones.Count == 2
+            && hints.ForbiddenZones.Any(z => z.shapeDistance.Contains(player.Position)),
+            "all-cleared wait avoids both still-active pads even without System Lock");
+        decision = NavigationDecision.Build(new(), Now, hints, player);
+        Check(decision.Destination is { } wait && !wait.InCircle(player.Position, 1f) && module.Arena.InBounds(wait),
+            "native all-cleared wait steps off the pad instead of passively repeating transfers");
         adds[2].IsDead = false;
         player.PosRot = new Vector4(-820, -900, -807, 0);
         component.OnMapEffect(0x0C, 0x00080004);
         Check(Read().Teleporters.Count == 0 && Read().GoalZones.Count == 0, "restored arena retires all transfer state");
+        Check(Read().ForbiddenZones.Count == 0, "arena restore also removes physical pad avoidance");
         component.OnEventCast(boss, Effect(50343));
         Check(Read().Teleporters.Count == 0, "a new island phase cannot reuse previously enabled pads");
         component.OnMapEffect(0x5F, 0x00020001);

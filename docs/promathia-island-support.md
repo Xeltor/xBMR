@@ -107,3 +107,10 @@ and urgent hazards can suppress the optional destination goal; safety and manual
 movement retain authority. Mid-phase reload cannot recover historical map-effect
 activation state, so support routing conservatively waits for observed cues.
 The build is ready for a fresh pull, not certified live gameplay acceptance.
+
+## Completion wait correction
+
+The subsequent [phase-return repair](promathia-phase-return.md) adds explicit
+pad avoidance during System Lock and after all receptacles die. Suppressing the
+route alone did not prevent a physical pad from transferring a stationary player
+again when Lock expired. The earlier validation above remains historical.

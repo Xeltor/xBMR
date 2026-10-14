@@ -100,19 +100,21 @@ sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(m
     // footprint follows the 8y Infernal Deliverance helper. Physical edges need live checking.
     private readonly Dictionary<ulong, (Actor Source, float Radius, DateTime Activation)> _sources = [];
     private ActorCastInfo? _salvation;
-    private readonly AOEShapeCircle _small = new(4f), _large = new(8f);
+    // Post-Rebirth objects have two endpoints 15y apart. Their layout event
+    // ranges are nominal 2.5y circles; only the endpoints inflict Heavy.
+    private readonly AOEShapeCircle _small = new(4f), _large = new(8f), _linked = new(2.5f);
     private readonly List<AOEInstance> _aoes = [];
 
     public override void OnActorCreated(Actor actor)
     {
         // The same OID also supplies a central link visual, not one of the six pools.
-        if (actor.OID != (uint)OID.Actor1ec097 || actor.Position.InCircle(new(-820f, -820f), 1f))
+        if (actor.OID != (uint)OID.LinkedPuddle && (actor.OID != (uint)OID.Actor1ec097 || actor.Position.InCircle(new(-820f, -820f), 1f)))
             return;
         if (_sources.TryGetValue(actor.InstanceID, out var previous) && ReferenceEquals(previous.Source, actor))
             return;
         var cast = Module.PrimaryActor.CastInfo;
         var activation = cast?.Action.ID == (uint)AID.EmptySalvation ? Module.CastFinishAt(cast, 0.8d) : WorldState.CurrentTime;
-        _sources[actor.InstanceID] = (actor, 4f, activation);
+        _sources[actor.InstanceID] = (actor, actor.OID == (uint)OID.LinkedPuddle ? 2.5f : 4f, activation);
     }
 
     public override void OnActorEAnim(Actor actor, uint state)
@@ -123,7 +125,7 @@ sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(m
         {
             case 0x00010002u: // small puddle becomes active
             case 0x00011000u: // returns to small after the tower follow-up
-                _sources[actor.InstanceID] = (actor, 4f, WorldState.CurrentTime);
+                _sources[actor.InstanceID] = (actor, actor.OID == (uint)OID.LinkedPuddle ? 2.5f : 4f, WorldState.CurrentTime);
                 break;
             case 0x04000800u: // tower puddle expands
                 _sources[actor.InstanceID] = (actor, 8f, WorldState.CurrentTime);
@@ -172,8 +174,12 @@ sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(m
             if (source.Source.IsDestroyed)
                 continue;
             var soaking = tower is { } t && t.Position.AlmostEqual(source.Source.Position, 1f);
-            _aoes.Add(new(source.Radius == 4f ? _small : _large, source.Source.Position, activation: source.Activation,
+            var shape = source.Radius == 2.5f ? _linked : source.Radius == 4f ? _small : _large;
+            _aoes.Add(new(shape, source.Source.Position, activation: source.Activation,
                 risky: !soaking, actorID: source.Source.InstanceID));
+            if (source.Source.OID == (uint)OID.LinkedPuddle)
+                _aoes.Add(new(shape, source.Source.Position + 15f * source.Source.Rotation.ToDirection(),
+                    activation: source.Activation, actorID: source.Source.InstanceID));
         }
         return CollectionsMarshal.AsSpan(_aoes);
     }
@@ -477,7 +483,7 @@ sealed class Meteor(BossModule module) : Components.SpreadFromIcon(module, (uint
 
 sealed class DeadlyRebirth(BossModule module) : Components.RaidwideCast(module, (uint)AID.DeadlyRebirth);
 
-[ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "The Combat Reborn Team, HerStolenLight", PrimaryActorOID = (uint)OID.Promathia, GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1117u, NameID = 14779u)]
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team, HerStolenLight", PrimaryActorOID = (uint)OID.Promathia, GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1117u, NameID = 14779u)]
 
 public sealed class A34Promathia(WorldState ws, Actor primary) : BossModule(ws, primary, new(-820f, -820f), new ArenaBoundsCircle(25f))
 {

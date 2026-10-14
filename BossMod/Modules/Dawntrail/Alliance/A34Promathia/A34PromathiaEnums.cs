@@ -12,7 +12,7 @@ public enum OID : uint
     EmptyWanderer = 0x4DF1, // R1.200, x0 (spawn during fight)
     EmptyThinker1 = 0x4DF3, // R2.300, x0 (spawn during fight)
     MemoryReceptacle = 0x4DF0, // R2.040, x0 (spawn during fight)
-    Actor1ec098 = 0x1EC098, // R0.500, x0 (spawn during fight), EventObj type
+    LinkedPuddle = 0x1EC098, // R0.500, x0 (spawn during fight), EventObj type
 }
 
 public enum AID : uint

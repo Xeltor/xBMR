@@ -49,7 +49,7 @@ static partial class Regression
                     && text[0].Item2 == !shouldStay, "text hint reports the same floor and current risk");
                 var hints = new AIHints();
                 component.AddAIHints(0, player, default, hints);
-                Check(hints.ForbiddenZones.Count == 1, "AI receives only the actor's authored physical layer");
+                Check(hints.ForbiddenZones.Count == (shouldStay ? 2 : 1), "AI receives its floor constraint and guards an already-correct floor immediately");
                 Check((hints.ForbiddenZones[0].shapeDistance.Distance(ShinryuPad) <= 0) == shouldStay,
                     "native AI predicate agrees with the floor assignment");
             }
@@ -127,6 +127,7 @@ static partial class Regression
 
     private static void ShinryuBootstrap()
     {
+        ShinryuTransitions();
         var (module, component, player) = Shinryu();
         typeof(BossModule).GetMethod("DeactivateComponent")!.MakeGenericMethod(component.GetType()).Invoke(module, null);
         player.Statuses[0] = new ActorStatus(5352, 0, Now.AddSeconds(20), 0);
