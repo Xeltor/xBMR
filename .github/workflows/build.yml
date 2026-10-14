@@ -1,5 +1,8 @@
 name: Build
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -15,7 +18,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
 
       - name: Download Dalamud Latest
         run: |

@@ -1,29 +1,46 @@
-# [![](https://raw.githubusercontent.com/FFXIV-CombatReborn/RebornAssets/main/IconAssets/BMR_Icon.png)](https://github.com/FFXIV-CombatReborn/BossmodReborn)
+# Xel's Boss Mods Reborn (xBMR)
 
-**BossmodReborn**
+Xel's fork of [BossMod Reborn](https://github.com/FFXIV-CombatReborn/BossmodReborn),
+based on [BossMod by awgil](https://github.com/awgil/ffxiv_bossmod).
+It includes the upstream radar, mechanic hints, replay viewer, cooldown planner,
+autorotation and optional AI features. This initial release changes branding and
+distribution; encounter mechanics remain those of the upstream source.
 
-![Github Latest Releases](https://img.shields.io/github/downloads/FFXIV-CombatReborn/BossmodReborn/latest/total.svg?style=for-the-badge)
-![Github License](https://img.shields.io/github/license/FFXIV-CombatReborn/BossmodReborn.svg?label=License&style=for-the-badge)
-[![](https://dcbadge.limes.pink/api/server/p54TZMPnC9)](https://discord.gg/p54TZMPnC9)
+## Install
 
-BossmodReborn is a community-driven fork of the original Bossmod plugin for Final Fantasy XIV. It aims to enhance your gameplay by providing real-time tactical guidance and tools that simplify complex raid mechanics. This tool is invaluable for optimizing in-game strategies, ensuring precise positioning, and enhancing overall raid performance.
+Add this custom repository in Dalamud:
 
-## Features
+```text
+https://forge.xel-serv.com/xelsplugins/XelsDalamudRepo/raw/branch/main/pluginmaster.json
+```
 
-- **Advanced Radar System**: A sophisticated on-screen map displaying player and boss positions, imminent AOEs, and other crucial mechanics. This system helps players visualize the battlefield, simplifying decision-making processes.
-- **Mechanic Descriptors**: Near the radar, you’ll find clear, concise descriptions of upcoming mechanics, global hints for resolving current challenges, and personalized player advice to optimize your response to each situation.
-- **Cooldown Planner**: A tool for meticulous planning of ability usage, ensuring optimal timing for cooldowns and abilities in coordination with raid strategies.
-- **User-Friendly Interface**: Designed with accessibility in mind with a wonderful module viewer by Croizat, the interface is intuitive, allowing players of all skill levels to benefit from the plugin.
-- **Regular Updates**: Committed to staying current with the latest game patches, class updates, and community feedback. PRs will be reviewed, tested, and approved.
+Install **Xel's Boss Mods Reborn (xBMR)**. Releases and public downloads live in
+[Xel's Dalamud repository](https://forge.xel-serv.com/xelsplugins/XelsDalamudRepo/releases).
+Use [xBMR issues](https://github.com/Xeltor/xBMR/issues) for fork-specific support.
 
-## Want to contribute?
+xBMR retains the `BossModReborn` internal name, assembly, settings directory,
+commands and IPC for compatibility with existing settings and XCAI. It replaces
+BMR; run only one BossMod variant at a time. Back up your existing settings before
+switching distributions. The fork uses its own release versions; its first release
+is `v7.5.7` (`7.5.7.0`), based on upstream commit
+`be8ff771cc545f8f8b5b548b5dd7271d80460f89`.
 
-- Create a fork
-- Make your changes
-- Test the changes
-- Create a PR and point it to main
+## Development and releases
 
-## Fork for CN client
-- A fork for players on the CN client can be found on https://github.com/44451516-ff14/BossmodRebornCN.
-- It is not directly supported by the Combat Reborn Team, so any bugs exclusive to that fork need to be fixed by the fork maintainer.
-- Bugs that likely affect both BossmodReborn and the CN fork can still be reported to the Combat Reborn Team.
+Build with .NET SDK 10.0.401 and current Dalamud API 15 dependencies:
+
+```sh
+DALAMUD_HOME=/path/to/dalamud dotnet build BossMod/BossModReborn.csproj -c Release -p:EnableWindowsTargeting=true
+```
+
+`origin` is this fork; `upstream` is Combat Reborn. Preserve fork changes when
+merging upstream; do not force-sync over them. GitHub validates builds on pushes
+and pull requests. Publish an immutable source tag, then manually run **Publish
+xBMR Stable** in the Forgejo feed with that tag, its full commit SHA and assembly
+version. The workflow builds the pinned source, includes licence notices, publishes
+namespaced public assets and updates only this plugin's stable feed entry.
+
+Upstream's contribution policy is retained in `CONTRIBUTING.md`; AI-assisted fork
+changes must not be submitted upstream against that policy. This fork is maintained
+independently and is not endorsed by the upstream authors. The original BSD licence
+and third-party notices remain in source and binary distributions.

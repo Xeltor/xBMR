@@ -1,9 +1,9 @@
 {
-  "Author": "The Combat Reborn Team",
-  "Name": "BossMod Reborn",
+  "Author": "xeltor (fork); The Combat Reborn Team and original contributors",
+  "Name": "Xel's Boss Mods Reborn (xBMR)",
   "InternalName": "BossModReborn",
-  "RepoUrl": "https://github.com/FFXIV-CombatReborn/BossmodReborn",
-  "Description": "A bunch of utilities to simplify boss mechanics",
+  "RepoUrl": "https://github.com/Xeltor/xBMR",
+  "Description": "Xel's fork of BossMod Reborn: boss radar, mechanic hints, replay tools, cooldown planning and optional automation.",
   "ApplicableVersion": "any",
   "Tags": [
     "combat",
@@ -21,11 +21,11 @@
   "LoadPriority": 0,
   "IsTestingExclusive": false,
   "IconUrl": "https://raw.githubusercontent.com/FFXIV-CombatReborn/RebornAssets/main/IconAssets/BMR_Icon.png",
-  "Punchline": "Don't fail at raid mechanics anymore",
+  "Punchline": "Xel's Boss Mods Reborn \u2014 xBMR",
   "AcceptsFeedback": true,
   "ImageUrls": [
-    "https://raw.githubusercontent.com/FFXIV-CombatReborn/BossmodReborn/master/Data/image1.png",
-    "https://raw.githubusercontent.com/FFXIV-CombatReborn/BossmodReborn/master/Data/image2.png",
-    "https://raw.githubusercontent.com/FFXIV-CombatReborn/BossmodReborn/master/Data/image3.png"
+    "https://raw.githubusercontent.com/Xeltor/xBMR/main/Data/image1.png",
+    "https://raw.githubusercontent.com/Xeltor/xBMR/main/Data/image2.png",
+    "https://raw.githubusercontent.com/Xeltor/xBMR/main/Data/image3.png"
   ]
 }

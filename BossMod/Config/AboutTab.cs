@@ -18,8 +18,8 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
     {
         using var wrap = ImRaii.TextWrapPos(0);
 
-        ImGui.TextUnformatted("BossModReborn (BMR) provides boss fight radar, auto-rotation, cooldown planning, and AI. All of its modules can be toggled individually. Support for it can be found in the Discord server linked at the bottom of this tab.");
-        ImGui.TextUnformatted("This is a FORK of the original BossMod (VBM). Only ask for support on the Combat Reborn Discord.");
+        ImGui.TextUnformatted("Xel's Boss Mods Reborn (xBMR) provides boss fight radar, auto-rotation, cooldown planning, and AI. All of its modules can be toggled individually. Support for this fork is available through the xBMR issues link below.");
+        ImGui.TextUnformatted("This is Xel's fork of BossMod Reborn, based on the original BossMod by awgil. Please report fork-specific issues to xBMR.");
         ImGui.TextUnformatted("Please also make sure to not load VBM and this fork at the same time. The consequences of doing that are unexplored and unsupported.");
         ImGui.Spacing();
         DrawSection("Radar",
@@ -66,16 +66,16 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
 
         using (ImRaii.PushColor(ImGuiCol.Button, DiscordColor.ABGR))
         {
-            if (ImGui.Button("Combat Reborn Discord", new(220, 0)))
+            if (ImGui.Button("xBMR issues", new(220, 0)))
             {
-                _lastErrorMessage = OpenLink("https://discord.gg/p54TZMPnC9");
+                _lastErrorMessage = OpenLink("https://github.com/Xeltor/xBMR/issues");
             }
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("BossModReborn GitHub", new(220, 0)))
+        if (ImGui.Button("xBMR GitHub", new(220, 0)))
         {
-            _lastErrorMessage = OpenLink("https://github.com/FFXIV-CombatReborn/BossmodReborn");
+            _lastErrorMessage = OpenLink("https://github.com/Xeltor/xBMR");
         }
 
         ImGui.SameLine();

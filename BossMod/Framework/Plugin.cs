@@ -16,7 +16,7 @@ namespace BossMod;
 
 public sealed class Plugin : IAsyncDalamudPlugin
 {
-    public static string Name => "BossMod Reborn";
+    public static string Name => "Xel's Boss Mods Reborn (xBMR)";
 
     private readonly IDalamudPluginInterface _dalamud;
     private readonly ICommandManager CommandManager;
@@ -302,7 +302,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
     private void OpenConfigUI(string showTab = "")
     {
         _configUI.ShowTab(showTab);
-        _ = new UISimpleWindow("BossModReborn", _configUI.Draw, true, new(300, 300));
+        _ = new UISimpleWindow("Xel's Boss Mods Reborn (xBMR)", _configUI.Draw, true, new(300, 300));
     }
 
     private void DrawUI()

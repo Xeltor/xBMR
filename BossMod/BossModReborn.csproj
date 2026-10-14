@@ -2,8 +2,8 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>0.0.0.0</Version>
-    <Description>Boss mod.</Description>
+    <Version>7.5.7.0</Version>
+    <Description>Xel's Boss Mods Reborn (xBMR).</Description>
     <Copyright></Copyright>
     <PackageProjectUrl></PackageProjectUrl>
   </PropertyGroup>
@@ -127,9 +127,14 @@
     <EmbeddedResource Include="Pathfinding\ObstacleMaps\*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Target Name="CleanupOutput" AfterTargets="Build" BeforeTargets="DalamudPackage">
     <ItemGroup>
-      <_ExtraOutputFiles Include="$(OutputPath)*" Exclude="$(OutputPath)BossModReborn.*;$(OutputPath)DefaultRotationPresets.json;$(OutputPath)RebornPresets.json;" />
+      <_ExtraOutputFiles Include="$(OutputPath)*" Exclude="$(OutputPath)BossModReborn.*;$(OutputPath)DefaultRotationPresets.json;$(OutputPath)RebornPresets.json;$(OutputPath)LICENSE;$(OutputPath)THIRD_PARTY_NOTICES.md;" />
     </ItemGroup>
     <Delete Files="@(_ExtraOutputFiles)" />
   </Target>
