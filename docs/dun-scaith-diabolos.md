@@ -41,3 +41,31 @@ The sole recorded7186 cast1573623 starts2043.4611045s. Low Blow7540 action157375
 The preferred [Dun Scaith guide](https://ffxiv.consolegameswiki.com/wiki/Dun_Scaith) requires destroying Deathgates before they summon adds and continuing damage through the Lifegate health refills. In the original, pair538/539 appears at1579862/1579865, becomes targetable1579908/1579911 and starts Void Call7188 at1583869/1583870. Creation precedes cast start by5.973664s. Deaths1584536/1584624 cancel their casts at1584539/1584626; no successful summon is recorded. Pair556/557 starts1649976/1649977 and dies1653141/1650383, cancelling1653144/1650386. Lifegate549 creates1633822, becomes targetable1633849, receives HPBoost586 extras1–4 at1645018/1648223/1657013/1662541, becomes untargetable1668290 and destroys1668370.
 
 GateIntermission reads the current actor generation and actual CastInfo, providing preparation/kill instructions and the earliest live summon countdown. Target hints retain priority2 for eligible Deathgates, priority1 for the Lifegate and at least priority3 for the earliest eligible summon, with50ms equality tolerance only for this preference. Stronger and negative priorities are preserved. This is a target preference, not a forced target or proof of live target choice. There is no fabricated summon damage/physical geometry or fixed wave schedule. Native checks cover both pairs, independent cancellations, overlapping refills and actual target fixtures; synthetic cases additionally cover replacement/bootstrap/reset and differing cast times.
+
+## Evidence-based acceptance reassessment after7.5.6.35.4
+
+Reviewed source`bd9bf9228` and the current scoped candidate under [the module maturity policy](module-maturity-policy.md). ConsoleGamesWiki and the normal [Pocket Guide](https://ffxiv.guide/hw/dun-scaith) were refreshed before this reassessment. ConsoleGamesWiki lists Shadethrust in its first Diabolos phase. The Pocket Guide's explicit first-form script instead lists Nightmare, Ultimate Terror, gates, Ruinous Omen and Night Terror, placing Shadethrust only in the Hollow form's script. The complete original boss527 inventory contains19 autoattacks7180, two instant Camisado7181 actions, Nightmare7182, Noctoshield7183, Ruinous Omen7184, one cancelled Ultimate Terror7186, Night Terror7187 and transition7190, with no Shadethrust. Exact current Action rows named Shadethrust are7194 (observed Hollow form) and7459 (Scathach). Auto7180 is short-range cone metadata9+R, not the40y line. No phase-one line ID is invented or copied from Hollow, and the conflicting guide claim is not treated as a proven material omission. A future positive first-form observation would reopen that question.
+
+The two Camisado7181 hits are instant, unavoidable single-target damage with no recorded cast/icon/unique advance cue; they are accounted for as direct tank damage, not an omitted avoidable or cast-warning mechanic. Routine autoattacks are likewise not fabricated into timed mechanics. Current coverage includes the actual gaze cast, icon stack with late-hit recovery, supported nominal Ultimate Terror donut, separate visual/damaging Omen clocks, Noctoshield's native target eligibility, and Deathgate/Lifegate instructions, cast progress and priorities. Cast cancellation, source replacement, stack expiry and gate refills/reset have dedicated offline checks. The inherited nominal5/19.5 Terror dimensions have qualitative close/far guide support and no known counterexample; absence of an exact server clipping/snapshot calibration is documented uncertainty, not itself a demonstrated unsafe module defect. No cold-load timer, unseen phase-one attack, fixed summon schedule or player-tested approval gate is assumed.
+
+Set the first-form module to`Verified` on this bounded coverage assessment, using the previously validated released source plus the current metadata-only candidate change. The final current-tree build and native/regression cohort below confirm this decision; a material failure requires reopening/reverting the label. The acceptance concerns this first form only. It makes no`AISupport` claim and does not certify personal live testing, exact snapshots or all automation outcomes. Hollow's separate portal-arena boundary and Scathach's later knockback concern do not transfer to this module.
+
+## Final follow-up validation — 2026-10-14
+
+The current-tree Release rebuild succeeded with SDK10.0.401, zero errors and
+six existing obsolete-API warnings. Frozen assembly SHA-256 is
+`5f88ad34689d6174baf8886e8915fc71bb31ecaf4ad6cfcf1db7aeb8285333c2`;
+all51 selected Dun Scaith/core source documents match its PDB and debug identity.
+All9 regression suites passed2,973 synthetic assertions against that exact DLL.
+Nine native runs supplied402 available checkpoints, zero module errors and
+matching game data;716 coordinator contract checks passed. The current
+[validation receipt](encounter-acceptance-validation.json) records per-suite
+counts, source/build identities and export limitations. Historical receipts above
+remain associated with their original artifacts. No live gameplay, exact server
+snapshot, complete automatic solver or AISupport claim is made.
+
+Diabolos187 synthetic assertions and34 first-form native checkpoints,
+unchanged from the accepted release sample objects.
+
+First-form Diabolos is accepted as `Verified` under the complete known-response
+review above. This decision does not extend to Hollow.

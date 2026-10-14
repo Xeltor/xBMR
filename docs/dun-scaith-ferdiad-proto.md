@@ -1,6 +1,7 @@
 # Dun Scaith: Ferdiad Hollow and Proto Ultima corrections
 
-Work in progress, 2026-10-14. Both modules remain WIP. This is evidence-backed
+Review history, 2026-10-14. Ferdiad is accepted as Verified in the final
+follow-up below; Proto Ultima remains WIP. This is evidence-backed
 repair work, not independent validation or a claim that all mechanics are complete.
 
 ## Written guide review
@@ -550,3 +551,57 @@ Re-read the preferred guide's normal Proto Ultima section before changing this s
 `AetherochemicalLasers` replaces the three isolated cast components. Firstcast supplies the actual first ray and both45-degree side forecasts. Since the guide does not establish side order, both initially use the earliest side deadline (corrected firstcastfinish+4.0s). The actual nextcast supplies its own rotation/deadline and postpones the remaining unstarted side to corrected nextcastfinish+4.0s. Thus uncertainty does not invent a fixed left/right order, while identified later hazards keep their future activation rather than forcing immediate movement. Origins follow the actual source position; inherited71y/fullwidth8 geometry is retained and remains metadata-derived, not an independently measured damage boundary.
 
 Actual actions retire only their ray. Successful cast-end callbacks retain the remaining predictions; cancellation, next unrelated primarycast, untargetability, destruction, fresh module and bounded stale expiry withdraw unconfirmed guidance. A midsequence load displays only the actual observed side cast, without inventing an unseen first direction. Synthetic tests exercise both side orders (only+then- was recorded), geometry/deadlines, actual-cast replacement, per-ray retirement, duplicate cue, source movement, cancellation, phase exit/destruction and stale cleanup. All original samples remain training evidence; there is no independent holdout, exact server snapshot or live warning/navigation acceptance yet.
+
+
+## Ferdiad acceptance reassessment after7.5.6.35.4
+
+Reviewed release source `bd9bf9228e404bbbdf966d5b9bb28b04afc04a89` and the current
+metadata-only Ferdiad candidate under the module maturity policy. The preferred
+normal [Dun Scaith guide](https://ffxiv.consolegameswiki.com/wiki/Dun_Scaith) was
+refreshed. Scythe drops/persistence, circle/donut and known mixed Wormhole exits,
+opposite-element puddles, transported charges, gaze, Icefall/Reward, adds, Jig,
+tankbuster/Reap/stack and growing Blackfire are covered or explicitly accounted
+for. Mixed exits retain concurrent source-specific circle/donut forecasts;
+missing recorded mixed footage is not the same as absent branch handling.
+
+Debilitator supplies actual-weakness instructions, keep/change labels and
+wrong/unknown counts. Automatic ownership/toggling is optional and is not
+advertised as solved. The inherited6y donut inner region is a disclosed
+conservative nominal model with guide close-to-exit response and available
+stationary nonhit8.9621/hit13.565–13.615 evidence; no contrary safe-response
+observation was established. Exact clipping remains unmeasured.
+
+Blackfire13.5y is a documented conservative nominal final constraint, not a
+newly calibrated boundary. The growing-mechanic guide, expansion status618,
+recorded hit12.615/nonhit13.548 and22 nonhits outside the candidate footprint
+support available coverage; the modeled remaining safe union is438.18square
+units. Recognized expansion0–6 receives the final forecast early; unrecognized
+larger stacks withdraw the hard claim. No known underprediction or infeasible
+room was found. These observations do not authenticate every exact boundary.
+
+Set Ferdiad to `Verified` for known response coverage, subject to the final
+current-tree build/regression/native cohort being recorded below. A material
+failure requires reverting/reopening. Personal play, exact server snapshots,
+a complete automatic solver or pristine held-out footage are not independent
+gates. This is neither `AISupport` nor live gameplay certification. Proto Ultima
+is a separate module and retains WIP for its concrete incomplete responses.
+
+## Final follow-up validation — 2026-10-14
+
+The current-tree Release rebuild succeeded with SDK10.0.401, zero errors and
+six existing obsolete-API warnings. Frozen assembly SHA-256 is
+`5f88ad34689d6174baf8886e8915fc71bb31ecaf4ad6cfcf1db7aeb8285333c2`;
+all51 selected Dun Scaith/core source documents match its PDB and debug identity.
+All9 regression suites passed2,973 synthetic assertions against that exact DLL.
+Nine native runs supplied402 available checkpoints, zero module errors and
+matching game data;716 coordinator contract checks passed. The current
+[validation receipt](encounter-acceptance-validation.json) records per-suite
+counts, source/build identities and export limitations. Historical receipts above
+remain associated with their original artifacts. No live gameplay, exact server
+snapshot, complete automatic solver or AISupport claim is made.
+
+Ferdiad/Proto174 synthetic assertions; Ferdiad45 current native checkpoints
+retain its previously accepted prediction surfaces.
+
+Ferdiad is accepted as `Verified` under the review above. Proto Ultima retains
+WIP for its concrete pool/chasing response gaps.

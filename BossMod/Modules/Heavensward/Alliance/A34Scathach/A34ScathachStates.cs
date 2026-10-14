@@ -12,6 +12,7 @@ class A34ScathachStates : StateMachineBuilder
             .ActivateOnEnter<ThirtyArrows2>()
             .ActivateOnEnter<ThirtyArrows1>()
             .ActivateOnEnter<TheDragonsVoice>()
+            .ActivateOnEnter<TheRamsVoice>()
             .ActivateOnEnter<Shadespin>()
             .ActivateOnEnter<ThirtySickles>()
             .ActivateOnEnter<Shadethrust>()
@@ -25,6 +26,7 @@ class A34ScathachStates : StateMachineBuilder
             .ActivateOnEnter<Nox>()
             .ActivateOnEnter<MarrowDrain1>()
             .ActivateOnEnter<MarrowDrain2>()
+            .ActivateOnEnter<MarrowDrain3>()
             .ActivateOnEnter<Pitfall>()
             .ActivateOnEnter<FullSwing>()
             .ActivateOnEnter<BigHug>();

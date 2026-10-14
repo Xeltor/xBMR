@@ -172,6 +172,8 @@ static class Checks
         Check(module.Arena.InBounds(new(100, 81)) && module.Arena.InBounds(new(100, 119)), "authored arrival circles remain inside independently measured floor bounds");
         landing.OnActorCreated(first);
         Check(Hints(landing, player).PredictedDamage.Count == 1, "duplicate creation callback cannot duplicate a Guardian landing");
+        landing.OnActorTargetable(first);
+        Check(Hints(landing, player).PredictedDamage.Count == 1, "an untargetable notification does not imply the Guardian has landed");
         Time(module, 1);
         var second = NativeActor(module, 31, (uint)OID.GuardianOfParadise, new(110, 100));
         world.Execute(new ActorState.OpCastInfo(second.InstanceID, new()
@@ -206,6 +208,28 @@ static class Checks
         module.StateMachine.Reset(); module.StateMachine.Start(world.CurrentTime);
         landing = Component<BossComponent>(module, "ParadisalDive");
         Check(Hints(landing, player).PredictedDamage.Count == 0, "reset with only arrived targetable Guardians retains no landing history");
+        var old = NativeActor(module, 34, (uint)OID.GuardianOfParadise, new(90, 100));
+        world.Execute(new ActorState.OpDestroy(old.InstanceID));
+        var replacement = NativeActor(module, 34, (uint)OID.GuardianOfParadise, new(110, 100));
+        landing.OnActorDestroyed(old);
+        landing.OnCastFinished(old, Cast(AID.ParadisalDive, old.Position));
+        landing.OnEventCast(old, Hit(AID.ParadisalDive));
+        Check(Hints(landing, player).PredictedDamage.Count == 1, "late destruction or resolution from an old actor generation cannot clear its replacement");
+        world.Execute(new ActorState.OpDestroy(replacement.InstanceID));
+        Check(Hints(landing, player).PredictedDamage.Count == 0, "the current Guardian generation still retires normally");
+        var orphan = NativeActor(module, 35, (uint)OID.GuardianOfParadise, new(90, 100));
+        Time(module, 20); landing.Update();
+        var text = new BossComponent.GlobalHints(); landing.AddGlobalHints(player, text);
+        Check(Hints(landing, player).PredictedDamage.Count == 0 && Hints(landing, player).ForbiddenZones.Count == 0
+            && text.Single().Contains("resolution not observed"), "a missing landing resolution cannot leave expired damage or arrival pressure indefinitely");
+        landing.OnActorCreated(orphan);
+        Check(Hints(landing, player).PredictedDamage.Count == 0, "duplicate creation cannot restart a lost landing countdown");
+        world.Execute(new ActorState.OpCastInfo(orphan.InstanceID, Cast(AID.ParadisalDive, orphan.Position, 2.7f)));
+        Check(Hints(landing, player).PredictedDamage.Single().Activation == Now.AddSeconds(23),
+            "a later actual landing cast recovers its current deadline after a lost creation estimate");
+        world.Execute(new ActorState.OpCastEvent(orphan.InstanceID, Hit(AID.ParadisalDive)));
+        text = new BossComponent.GlobalHints(); landing.AddGlobalHints(player, text);
+        Check(text.Count == 0 && Hints(landing, player).PredictedDamage.Count == 0, "actual arrival clears both recovered prediction and uncertainty");
     }
 
     private static void GuardianRearPolicy()
@@ -256,16 +280,31 @@ static class Checks
         world.Execute(new ActorState.OpCastEvent(eden.InstanceID, Hit(AID.PrimevalStasis)));
         Check(Hints(component, player).PredictedDamage.Single().Activation == Now.AddSeconds(48.4),
             "the actual Eden Primeval Stasis action refines the cinematic deadline");
+        Time(module, 10);
+        world.Execute(new ActorState.OpCastEvent(eden.InstanceID, Hit(AID.PrimevalStasis)));
+        Check(Hints(component, player).PredictedDamage.Single().Activation == Now.AddSeconds(48.4),
+            "duplicate Stasis cannot postpone the same cinematic raidwide");
         Time(module, 30);
         world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 1024, 2048));
         Check(Hints(component, player).PredictedDamage.Single().Activation == Now.AddSeconds(48.5),
             "the later exact cinematic cue updates the remaining damage time");
+        Time(module, 35);
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 1024, 2048));
+        world.Execute(new ActorState.OpCastEvent(eden.InstanceID, Hit(AID.PrimevalStasis)));
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 256, 512));
+        Check(Hints(component, player).PredictedDamage.Single().Activation == Now.AddSeconds(48.5),
+            "duplicate later cues and reordered earlier cues preserve the refined deadline");
         Check(Hints(component, player).ForbiddenZones.Count == 0 && Hints(component, player).GoalZones.Count == 0,
             "cinematic damage prediction does not invent spatial danger or movement goals");
         var helper = NativeActor(module, 53, (uint)OID.Helper, module.Center);
         world.Execute(new ActorState.OpCastEvent(helper.InstanceID, Hit(AID.EternalBreath)));
         var text = new BossComponent.GlobalHints(); component.AddGlobalHints(player, text);
         Check(Hints(component, player).PredictedDamage.Count == 0 && text.Count == 0, "actual helper raidwide resolves the cinematic prediction and text");
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 1024, 2048));
+        world.Execute(new ActorState.OpCastEvent(eden.InstanceID, Hit(AID.PrimevalStasis)));
+        Check(Hints(component, player).PredictedDamage.Count == 0, "late duplicate cues cannot rearm a completed cinematic");
+        module.StateMachine.Reset(); module.StateMachine.Start(world.CurrentTime);
+        component = Component<BossComponent>(module, "EternalBreath");
         world.Execute(new ActorState.OpCastEvent(eden.InstanceID, Hit(AID.PrimevalStasis)));
         world.Execute(new ActorState.OpDestroy(eden.InstanceID)); component.Update();
         Check(Hints(component, player).PredictedDamage.Count == 0, "lost Eden source clears its action-backed cinematic forecast");
@@ -277,5 +316,23 @@ static class Checks
         component = Component<BossComponent>(module, "EternalBreath");
         Check(Hints(component, player).PredictedDamage.Count == 0,
             "reset does not invent elapsed timing from a historical scene animation that native bootstrap cannot recover");
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 256, 512));
+        world.Execute(new ActorState.OpDestroy(scene.InstanceID));
+        Check(Hints(component, player).PredictedDamage.Count == 0, "scene destruction withdraws an event-object-only forecast immediately");
+        scene = NativeActor(module, 51, 2007457, module.Center, type: ActorType.EventObj);
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 256, 512));
+        Time(module, 86);
+        component.Update();
+        text = new BossComponent.GlobalHints(); component.AddGlobalHints(player, text);
+        Check(Hints(component, player).PredictedDamage.Count == 0
+            && text.Single().Contains("resolution not observed"), "missing cinematic resolution withdraws expired healing pressure and explicitly retains uncertainty");
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 256, 512));
+        Check(Hints(component, player).PredictedDamage.Count == 0, "repeated initial animation cannot rearm expired guidance");
+        world.Execute(new ActorState.OpEventObjectAnimation(scene.InstanceID, 1024, 2048));
+        Check(Hints(component, player).PredictedDamage.Single().Activation == Now.AddSeconds(104.5),
+            "a genuinely later reliable cue can recover the prediction with its own remaining deadline");
+        world.Execute(new ActorState.OpCastEvent(helper.InstanceID, Hit(AID.EternalBreath)));
+        text = new BossComponent.GlobalHints(); component.AddGlobalHints(player, text);
+        Check(text.Count == 0, "actual resolution also clears the lost-cue uncertainty warning");
     }
 }

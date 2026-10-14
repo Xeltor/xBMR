@@ -51,6 +51,9 @@ static partial class Checks
         Limbs();
         UnhandWarning();
         Towers();
+        TowerLifecycle();
+        WingsWarning();
+        HoundVariants();
         MeleeWarnings();
         EnemyPriorities();
         Console.WriteLine($"{assertions} Scathach assertions passed (synthetic callbacks; physical geometry, server snapshots and live gameplay remain unverified).");
@@ -538,6 +541,17 @@ static partial class Checks
         Check(landing.Casters.Count == 1 && landing.Casters[0].Activation == module.CastFinishAt(landingSpell), "landing helper corrects prediction to native cast timer");
         landing.OnActorDestroyed(helper);
         Check(landing.Casters.Count == 0, "landing helper destruction retires warning");
+        var dragon = Component<CastHint>(module, "TheDragonsVoice");
+        var hound = Actor(81, (uint)OID.ShadowcourtHound, module.Center);
+        var dragonCast = Cast(3344, hound.Position, 4.2f);
+        dragon.OnCastStarted(hound, dragonCast);
+        var dragonHints = Hints(module, dragon, module.PrimaryActor);
+        Check(dragon.Active && dragon.Hint.Contains("move close") && dragon.Hint.Contains("interrupt"),
+            "Dragon's Voice offers the known close-to-hound response from its actual cast");
+        Check(dragonHints.ForbiddenZones.Count == 0 && dragonHints.PredictedDamage.Count == 0,
+            "unknown Dragon's Voice inner radius cannot justify a false full-room hazard or unavoidable damage");
+        dragon.OnCastFinished(hound, dragonCast);
+        Check(!dragon.Active, "interrupted Dragon's Voice clears the cast instruction");
     }
 
     private static void EnemyPriorities()

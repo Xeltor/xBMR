@@ -169,8 +169,11 @@ measured Heavy movement speed. They do not prove timely physical escape while
 slowed. Mid-fight reload cannot recover omitted historical animation callbacks;
 created-object fallback is provisional until the next observed transition.
 
-Live duty testing is still required for melee departure during casts, staying
-through tower impact, escaping expanded pools while Heavy, and the small pool's
-exact edge. Missing/reordered helper and cancellation variants beyond those
-observed or synthetically tested remain unverified. The development build is
-ready for that testing; this is not whole-encounter or live gameplay acceptance.
+Personal live duty testing is optional under the current module maturity
+policy. These checks do not establish live melee departure, controller tower
+commitment, physical escape while Heavy or the exact small-pool edge. The known
+ring/cleave defect was subsequently fixed and validated in the linked overlap
+correction. Physical uncertainty is retained as a limitation; it is not by itself
+a demand for a personal playthrough or every hypothetical cancellation variant.
+The current Contributed label is inherited provenance, not a new Verified
+acceptance of the entire encounter.

@@ -26,10 +26,10 @@ static class Regression
     private static Actor NewActor(ulong id, uint oid, WPos pos) => new(id, oid, 0, 0, "", 0, ActorType.Enemy, Class.None, 90,
         new Vector4(pos.X, 18, pos.Z, 0), hpmp: new(100, 100, 0, 100, 100));
 
-    private static BossModule Module()
+    private static BossModule Module(WPos? bossPosition = null)
     {
         var world = new WorldState(1, "synthetic") { Frame = new(Now, 0, 0, 0, 0, 1) };
-        var boss = NewActor(100, (uint)OID.Boss, new(-538, 94));
+        var boss = NewActor(100, (uint)OID.Boss, bossPosition ?? new(-538, 94));
         boss.InCombat = boss.IsTargetable = true;
         world.Actors.Actors.Add(boss.InstanceID, boss);
         var module = BossModuleRegistry.CreateModuleForActor(world, boss)!;
@@ -54,6 +54,7 @@ static class Regression
         Service.Config.Initialize();
         ActionData(game);
         ArenaAndReset();
+        DisplacedBootstrap();
         Armaments();
         ArmamentsTiming();
         Dashes();
@@ -103,6 +104,34 @@ static class Regression
         Check(module.Components.Count == 0, "death phase clears mechanic state");
         using var fresh = Module();
         Check(fresh.Components.OfType<GenericAOEs>().All(c => c.ActiveAOEs(0, fresh.PrimaryActor).IsEmpty), "fresh pull has no stale predictions");
+    }
+
+    private static void DisplacedBootstrap()
+    {
+        // Independent installed layout placement is the expected centre; the source actor is deliberately
+        // on each side of the arena, matching the condition when enabling the module during Rout.
+        var expected = new WPos(-538, 94);
+        foreach (var displacement in new[] { new WDir(17, 0), new WDir(-17, 0), new WDir(0, 17), new WDir(0, -17) })
+        {
+            using var module = Module(expected + displacement);
+            Check(module.Center == expected && module.Center != module.PrimaryActor.Position,
+                "mid-dash module creation uses the authored arena anchor instead of the displaced boss");
+            var player = NewActor(200, 0, expected);
+            var hints = new AIHints();
+            module.CalculateAIHints(0, player, default, hints);
+            Check(hints.PathfindMapCenter == expected && hints.PathfindMapBounds == module.Bounds,
+                "displaced bootstrap immediately exposes the correct arena centre and bounds to AI");
+            Check(module.Arena.InBounds(expected - 19.9f * displacement.Normalized())
+                && !module.Arena.InBounds(expected + 20.1f * displacement.Normalized()),
+                "opposite playable edge and outer perimeter remain correct despite boss displacement");
+            module.StateMachine.Reset();
+            module.PrimaryActor.PosRot.X -= 2 * displacement.X;
+            module.PrimaryActor.PosRot.Z -= 2 * displacement.Z;
+            module.StateMachine.Start(Now);
+            hints = new(); module.CalculateAIHints(0, player, default, hints);
+            Check(module.Center == expected && hints.PathfindMapCenter == expected,
+                "reset during a different dash preserves the same authored arena");
+        }
     }
 
     private static void Armaments()

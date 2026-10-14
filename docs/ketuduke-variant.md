@@ -21,6 +21,31 @@ separately pinned normal-Variant reference below. Recorded player positions and
 passing nominal-edge probes do **not** independently measure the physical edge.
 Verify the floor/perimeter alignment in game before calling it accepted safety.
 
+### Independent arena corroboration, 2026-10-14
+
+The installed recording-matching game `2026.10.06.0000.0000` now supplies
+independent layout/mesh support for the existing dimensions. Typed
+TerritoryType1176 selects `ex4/09_ocn_o5/dun/o5d1/level/o5d1`. BG instance10074749
+in `bg.lgb` places `o5d1_a1_bos01` at `(-789.9998,14,-395)`, with zero rotation
+and unit scale. Its explicit collision link is
+`bg/ex4/09_ocn_o5/dun/o5d1/collision/o5d1_a1_bos01.pcb`, SHA256
+`818106965f2b3ccde1ea919d8ee5b89f9f93fa289f113ab39f97493e1b031eaf`.
+
+The complete decode matches241 nodes and1526 triangles. The horizontal
+material0x27005 annulus at localY0 has40 triangles, projected area approximately
+607.9992y², a closed inner boundary at localX/Z±20 and outer boundsX±23/Z±24.
+The boundary loops have16 and24 vertices respectively, all degree2 after
+0.001y rounding. Its transformed centre agrees with the module to0.0002y, and
+its inner square corroborates the existing half-size20 independently of player
+positions. Collision material meaning, server DoT eligibility and phase enablement
+remain separate from this static geometry result. No geometry change is needed.
+See `aloalo-arena-geometry.json` for sanitized provenance and primary format links;
+raw assets/readers remain private under `/tmp/xbmr-aloalo-arena-20261014/`.
+
+The previous suggestion to require a personal in-game perimeter check is
+superseded by `docs/module-maturity-policy.md`: available replay/offline evidence
+can be sufficient, with material uncertainties evaluated individually.
+
 ## Source and evidence
 
 - API and integration: current local xBMR working tree, SDK 10.0.401, Dalamud
@@ -168,3 +193,30 @@ Run synthetic checks with the pinned SDK after building the plugin:
   '/home/xeltor/Games/steam/debian-installation/steamapps/common/FINAL FANTASY XIV Online/game'
 python tests/KetudukeVariant/verify-replays.py /tmp/xbmr-ketuduke
 ```
+
+## Maturity reassessment after 7.5.6.35.4
+
+Reviewed source base `bd9bf9228` under `docs/module-maturity-policy.md`. The
+previous Contributed label described contribution provenance; it did not mean
+all Variant routes were complete. The module is returned to WIP because the
+[preferred normal-Variant guide](https://ffxiv.consolegameswiki.com/wiki/Aloalo_Island)
+identifies concrete unimplemented responses on routes2–4:
+
+- Route2: unavoidable Tidal Wave, persistent Hydrosurge and player bubbles for
+  the Summoned Anila crossing while crystals resolve.
+- Route3: select the bubbled Zaratan's frontal half during Updraft/Hundred Lashings.
+- Route4: choose ground or a player bubble according to the Ogrebon's bubble
+  state during Updraft/Shock.
+
+The current source explicitly advertises those route gaps and lacks their
+components. They are actual known omissions affecting safe responses, not
+hypothetical undiscovered variants. Route1's prior acceptance evidence and
+maintainer feedback remain valid for that covered behavior. No unsupported
+route was implemented from guide prose alone in this batch.
+
+The independent static arena corroboration above improves available evidence but
+does not close route coverage. Personal live play, exact server snapshots and
+pristine holdouts are not automatic promotion gates. No Verified promotion is
+made while these known material omissions remain. The parent owns the next
+current-tree build/test validation; historical hashes and counts above refer to
+their explicitly identified earlier candidates.

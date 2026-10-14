@@ -68,6 +68,7 @@ static partial class Checks
         ShipWallLifecycle();
         RadialKnockback();
         SpritePriorities();
+        ProximityImpactLifecycle();
         Console.WriteLine($"{assertions} Deathgaze assertions passed (synthetic callbacks; no physical or live gameplay proof).");
     }
 
@@ -234,7 +235,19 @@ static partial class Checks
         var direction = blizzardCast.Rotation.ToDirection();
         Check(zones.Count == 1 && zones[0].shapeDistance.Contains(helper.Position + 40.49f * direction), "Blizzard fan includes the conventional40+0.5y range");
         Check(!zones[0].shapeDistance.Contains(helper.Position + 40.51f * direction), "Blizzard fan no longer forbids unsupported range40.5-60");
+        Check(zones[0].shapeDistance.Contains(helper.Position + 20 * (blizzardCast.Rotation + 9.9f.Degrees()).ToDirection())
+            && !zones[0].shapeDistance.Contains(helper.Position + 20 * (blizzardCast.Rotation + 10.1f.Degrees()).ToDirection()),
+            "retained narrow fan angle preserves its asset-corroborated gaps rather than silently widening them");
         blizzard.OnCastFinished(helper, blizzardCast);
+        var sprite = Create(module, Actor(69, (uint)OID.VoidSprite, new(312.459f, 410.849f)));
+        var dark = Component<SimpleAOEs>(module, "DarkII");
+        var darkCast = Cast(7318, sprite.Position, 2.2f, 120.Degrees());
+        dark.OnCastStarted(sprite, darkCast);
+        var darkZone = Hints(dark, player).ForbiddenZones.Single();
+        Check(darkZone.shapeDistance.Contains(sprite.Position + 20 * (darkCast.Rotation + 29.9f.Degrees()).ToDirection())
+            && !darkZone.shapeDistance.Contains(sprite.Position + 20 * (darkCast.Rotation + 30.1f.Degrees()).ToDirection()),
+            "DarkII keeps the nominal60degree fan supported by its exact linked omen and observed29.37degree hit");
+        dark.OnCastFinished(sprite, darkCast);
         Check(Hints(blizzard, player).ForbiddenZones.Count == 0, "Blizzard cast cancellation clears its fan");
         var wind = Actor(58, (uint)OID.FierceWind, new(296.07f, 404.28f));
         module.WorldState.Actors.Actors.Add(wind.InstanceID, wind);

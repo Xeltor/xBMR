@@ -92,7 +92,7 @@ sealed class E01EdenPrimeStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xel", PrimaryActorOID = (uint)OID.Boss,
+[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "Xel", PrimaryActorOID = (uint)OID.Boss,
     Expansion = BossModuleInfo.Expansion.Shadowbringers, Category = BossModuleInfo.Category.Raid,
     GroupType = BossModuleInfo.GroupType.CFC, GroupID = 653, NameID = 8345)]
 public sealed class E01EdenPrime(WorldState ws, Actor primary) : BossModule(ws, primary, new(100f, 100f), new ArenaBoundsSquare(19.5f))

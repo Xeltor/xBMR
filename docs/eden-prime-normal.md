@@ -2,7 +2,8 @@
 
 Implemented on 2026-10-14 in `Shadowbringers/Raid/E01EdenPrime`. Territory 849,
 CFC 653, primary OID `0x2499`, BNpcName 8345. Savage is deliberately a different
-encounter. Maturity remains **WIP** because of the material gaps below.
+encounter. The current acceptance review accepts **Verified** with the combined checks
+below; it does not claim live AI acceptance.
 
 ## Written-guide review
 
@@ -85,7 +86,7 @@ Raw proprietary assets and identifying originals remain private.
 | Spear / Heavensunder | First cast predicts both tank hits. Second activation is first cast finish +1.46s; actual Heavensunder removes it. Interrupted first casts clear the second prediction. |
 | Raidwide casts | Eden's Gravity, Dimensional Shift, Fragor Maximus and each Guardian's Mana Burst supply damage predictions. |
 | Guardians | Prioritize targetable adds. Untargetable creation supplies a conservative landing forecast; actual Paradisal Dive casts refine it. North/south one-yalm arrival regions implement the guide's positioning strategy, not calibrated damage-falloff boundaries. A bounded nine-yalm front-half policy keeps non-targets behind active Guardians; this is not a measured Mana Slice cone. |
-| Eternal Breath | Arena scene animations provide initial/later cinematic damage estimates; actual Eden Primeval Stasis refines timing. Helper Eternal Breath or encounter completion clears it. These newer cue offsets still need original-replay and live acceptance. |
+| Eternal Breath | Arena scene animations provide initial/later cinematic damage estimates; actual Eden Primeval Stasis refines timing. Helper Eternal Breath or encounter completion clears it. The follow-up below checks the original cue chain and bounds lost or repeated cues; personal live testing is optional. |
 
 Dimensions are Action/Omen-sheet-supported models corroborated by the guide's
 mechanic families, not calibrated physical hitbox acceptance. Sheet evidence
@@ -160,18 +161,84 @@ Earlier 19-component candidate DLL SHA256:
 Private evidence, requests, failed/successful reports, asset facts and preserved
 original are under `/tmp/xbmr-eden-20261014/`.
 
-Remaining material gaps: calibrated Paradisal Dive damage falloff, actual travel
-feasibility into the authored arrival regions, Mana Slice's physical cone angle,
-and original-replay/live validation of the newer landing/rear-policy/cinematic
-predictions. The current arrival regions and rear envelope are conservative
-positioning policies, not independently measured damage eligibility.
-Eternal Breath currently uses initial scene+48.5s, Stasis+43.4s and later
-scene+18.5s estimates. Historical event-object animations cannot be recovered on
-mid-cinematic bootstrap; source-backed loss is cleaned, but an event-object-only
-cue with missing later resolution has no bounded stale expiry. Primeval Stasis
-transition timing and Sunder Pressure puddle effect timing also remain unverified.
-Live BMR/XCAI behavior, server snapshots, full physical boundaries, late-load
-icon recovery and unobserved wipes/alternate overlaps are unverified. WIP is
-retained for these specific omissions; build/replay success does not promote it.
-This work is included in the 7.5.6.35.4 source release. No installed-plugin copy
-or manual reload was made.
+## Follow-up acceptance review
+
+Reviewed from `bd9bf9228e404bbbdf966d5b9bb28b04afc04a89` and the current source
+under the module maturity policy. The preferred normal guide was refreshed at
+https://ffxiv.consolegameswiki.com/wiki/Eden%27s_Gate:_Resurrection . It accounts
+for the north/south add-landing response, tanks facing Guardians away from the
+party, add raidwides/enrage and the cinematic damage. Savage behavior is not
+imported into this module.
+
+The exact closed original SHA256 `de6468b9f136501506f2e4555bfdb9946433a07f68fdf895b335bb70a7602dba`
+was decoded again with 124,811 operations, complete EOF and no changes to its
+bytes. Guardian creation72824 to landing77275 takes9.8171006s, versus9.7s
+forecast. Both actual helper casts refine their own landing deadline and retire
+independently. The north/south arrival circles implement the guide's positioning
+response, not a claimed damage-falloff threshold. Guardian rear avoidance is a
+conservative near-add front-half policy supported by the frontal-cleave guide
+and typed6y range plus3y caster hitbox; it is not a measured cone angle.
+
+Scene90711, Stasis93179 and later scene96421 precede actual Eternal Breath98762
+by48.6517362s,43.5385992s and18.6146771s. Their48.5/43.4/18.5s forecasts retain
+conservative margins against those client observations. Each reliable cue may
+refine the estimate once; duplicate/reordered cues and late duplicates after
+resolution cannot postpone/rearm the same raidwide. Matching source/scene loss
+clears it. Missing resolution withdraws stale healing pressure after a bounded
+grace and retains explicit uncertainty; it does not invent a new impact time.
+Landings now have equivalent bounded lost-cue behavior and generation-specific
+retirement, including actual targetability rather than every notification.
+
+Sunder Pressure is accounted for by the persistent5y BlackHoles obstacle,
+using current event-object presence/state and destruction, rather than a guessed
+periodic tick timer. Original16125–16128 creates four objects and native state
+reduces them through17731/19309/26047. Pure Light's teleport source action18051
+is self-targeted scene positioning, not an unhandled damaging AOE. Typed871 is
+ordinary single-target `attack`; both boss and Guardian autoattacks are explicitly
+accounted for without fabricated forecast timers. The complete hostile
+cast/action inventory of this original contains no other unmapped action family.
+This inventory is a coverage audit, not independent certification of every shape.
+
+All known normal guide mechanic families are covered or explicitly accounted
+for. Exact damage falloff, physical cleave clipping, continuous live travel and
+server snapshots remain limitations, not known unsupported responses. Historical
+icon/animation callbacks cannot be reconstructed on cold activation; current
+casts/status/actor state are used conservatively where available. This does not
+require a personal playthrough or a pristine held-out recording for promotion.
+
+Current candidate validation passed: full build,91 regression assertions
+and44 available original-replay anchors. An exploratory45th
+completion sample landed after module unload and was unavailable; it is excluded
+from acceptance rather than called successful cleanup. Reset/completion/source
+loss and missing resolution are also covered by native-operation synthetic
+checks. The current candidate is accepted as `Verified`,
+with no `AISupport` claim. A credible material issue reopens WIP.
+
+The initial implementation was included in7.5.6.35.4. This acceptance and
+lifecycle follow-up is subsequent source work; it does not overwrite that
+release. No installed-plugin copy or manual reload was made.
+
+## Final follow-up validation — 2026-10-14
+
+The current-tree Release rebuild succeeded with SDK10.0.401, zero errors and
+six existing obsolete-API warnings. Frozen assembly SHA-256 is
+`5f88ad34689d6174baf8886e8915fc71bb31ecaf4ad6cfcf1db7aeb8285333c2`;
+all51 selected Dun Scaith/core source documents match its PDB and debug identity.
+All9 regression suites passed2,973 synthetic assertions against that exact DLL.
+Nine native runs supplied402 available checkpoints, zero module errors and
+matching game data;716 coordinator contract checks passed. The current
+[validation receipt](encounter-acceptance-validation.json) records per-suite
+counts, source/build identities and export limitations. Historical receipts above
+remain associated with their original artifacts. No live gameplay, exact server
+snapshot, complete automatic solver or AISupport claim is made.
+
+Eden91 synthetic assertions and44 available native checkpoints passed.
+Landing forecasts retire per source; cinematic cues refine once and clear on
+the actual hit; puddle obstacles retire4→3→2→0. The two future landing
+navigation fixtures have positive leeway; the immediate-cleave diagnostic
+retains negative leeway and supplies no continuous-route proof.
+
+Normal Eden Prime is accepted as `Verified` under the known-response review
+above. The excluded45th completion checkpoint was after module unload;
+completion/reset behavior is covered synthetically rather than called a
+successful original sample.

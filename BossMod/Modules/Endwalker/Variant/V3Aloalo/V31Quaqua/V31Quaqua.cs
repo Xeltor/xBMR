@@ -66,9 +66,10 @@ sealed class V31QuaquaStates : StateMachineBuilder
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xeltor; reference: croizat", GroupType = BossModuleInfo.GroupType.CFC,
     GroupID = 961u, NameID = 12527u, SortOrder = 1, Category = BossModuleInfo.Category.VariantCriterion, Expansion = BossModuleInfo.Expansion.Endwalker)]
-public sealed class V31Quaqua(WorldState ws, Actor primary) : BossModule(ws, primary, primary.Position, new ArenaBoundsCircle(20f))
+public sealed class V31Quaqua(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaCenter, new ArenaBoundsCircle(20f))
 {
-    // Capture the arena center at spawn, never follow the boss's dashes. R20 is
-    // the upstream reference bound, not a physically calibrated perimeter.
-    // Native arena bounds constrain pathfinding from the first active frame.
+    // Exact o5d1/bg.lgb CollisionBox10146156 places the nominal R20 perimeter mesh here.
+    // A module loaded during Rout must not recenter the arena on the dashing boss.
+    // See docs/quaqua-variant.md for independent layout/mesh provenance and DoT limits.
+    public static readonly WPos ArenaCenter = new(-538f, 94f);
 }

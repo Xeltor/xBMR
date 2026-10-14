@@ -1,6 +1,9 @@
 # Dun Scaith repair goal — 2026-10-14
 
-Status: active, partial implementation; not full encounter or live gameplay acceptance.
+Status: partial raid implementation. Deathgaze, Ferdiad, Scathach and first-form
+Diabolos have an acceptance reassessment in
+[the follow-up](encounter-acceptance-followup.md); Proto Ultima and Diabolos Hollow
+retain known material gaps. Offline acceptance and live gameplay remain separate.
 
 The preferred written reference is [Console Games Wiki's Dun Scaith guide](https://ffxiv.consolegameswiki.com/wiki/Dun_Scaith), covering the normal level-60 alliance raid, Proto Ultima and both Diabolos forms. [Cavendish's notes](https://cavendishquests.wordpress.com/instances/alliance-raids/heavensward/) supply a secondary comparison. Guide responses are cross-checked against the recording; neither guide defines exact server snapshots or physical boundaries. Cavendish describes Earthshaker as a column, while the current Action field is a cone; the existing cone model is retained with its angle explicitly uncalibrated.
 
@@ -10,17 +13,22 @@ Full archive recording `901ecf79648702210c1227cf26422f5ddc1399f5a8c28b65bf3ff6c8
 
 Native offline replay uses the closed original: 1,890,796 raw operations. The bridge's retained subset has 1,869,890 operations; its sequence numbers are not interchangeable. Native extraction recovered the legacy map/object cues omitted by some archive projections. Exact installed game data matches recording version `2026.10.06.0000.0000`; selected numeric fields and provenance are retained in [dun-scaith-game-fields.json](dun-scaith-game-fields.json). These fields establish data values, not calibrated physical boundaries.
 
-The full current working tree is built, including pre-existing Promathia, Doomtrain and Quaqua changes. Those paths remain outside this repair's ownership. The normal current-tree Release rebuild succeeded. Its frozen candidate passed all regressions and native checks with49 matching owned source documents; the loaded runtime parser identity matched and diagnostic playback was closed. No version bump, source publication or installed-plugin copying is part of this goal.
+The original repair was published with all authorized working-tree changes in
+7.5.6.35.4, source `bd9bf9228e404bbbdf966d5b9bb28b04afc04a89`. Historical
+validation identities below describe that repair. The subsequent
+[acceptance follow-up](encounter-acceptance-followup.md) records a separate current
+source/build and its checks; it does not alter the immutable release tag or assets.
+No installed-plugin copying or manual reload is part of either source change.
 
 ## Implemented and outstanding
 
 | Encounter | Implemented changes | Remaining gaps |
 | --- | --- | --- |
-| Deathgaze | Corrected supporting-deck bounds, active purple-seal obstacles and radial knockback arrivals including Bolt overlap, missing Bolt/Aero III/tornado hazards, AI spreads, early pulls, actual Aero IV helper timing, asset-backed active ice obstacles/stopping faces and AI alignment, conventional Blizzard range, Doom cleanse, per-tile early one-shot floor forecasts and lifecycle cleanup, eligible Void Sprite priorities | Calibrated angles, snapshots and live seal/edge/ice/floor route acceptance |
-| Ferdiad | Exit portal predictions retained to actual explosions, transported Lucky Pierrot line forecasts retained to actual charges, per-target scythe baits, persistent scythes, actual raidwide timing, estimated final Blackfire footprint forecast from the earliest helper cast, add casts/priorities, early puddle instructions, exact observed red/blue point labels and wrong/unknown counts | Donut inner radius, mixed branches, safe automated puddle toggling radius/eligibility/cooldown/ownership |
+| Deathgaze | Corrected supporting-deck bounds, active purple-seal obstacles and radial knockback arrivals including Bolt overlap, missing Bolt/Aero III/tornado hazards, AI spreads, early pulls, actual Aero IV helper timing, asset-backed active ice obstacles/stopping faces and AI alignment, conventional Blizzard range, Doom cleanse, per-tile early one-shot floor forecasts and lifecycle cleanup, eligible Void Sprite priorities | Accepted known human responses after proximity-helper handoff repair; exact falloff/snapshots and continuous live routes remain unmeasured. See current acceptance note. |
+| Ferdiad | Exit portal predictions retained to actual explosions, transported Lucky Pierrot line forecasts retained to actual charges, per-target scythe baits, persistent scythes, actual raidwide timing, estimated final Blackfire footprint forecast from the earliest helper cast, add casts/priorities, early puddle instructions, exact observed red/blue point labels and wrong/unknown counts | Accepted known responses, including mixed exit branches and manual opposite-colour puddles; nominal donut/Blackfire dimensions disclosed. Automated puddle ownership is optional and unsupported. |
 | Proto Ultima | Removed impossible Flare Star hard exclusion and unsafe outward preference; retained damage warning; early three-ray forecasts, outer-pool cast instruction, direct cast omissions, add priorities, Supernova, source-identified Eikonizer orb gathering with duplicate/stale cleanup, source-bound Proto Bit donut cast warnings | Physical proximity/pool boundaries, bit donut, chasing Pillar, hard Eikonizer eligibility/arrival constraints |
-| Scathach | Early both-branch wing predictions, bounded first-pattern Thirty Sickles knockback, missing line/stack, floor movement stop, limb-facing guidance, tower cues and empty-tower preference, melee warning cues, six-hit Nox cadence, late-hit stack recovery, early estimated Blinding Shadow raidwide, explicit Pitfall proximity response, committed Unhand cast warning, add priorities | Later Thirty Sickles patterns, Pitfall falloff, Dragon's Voice inner boundary, calibrated geometry/routes, reconstruction of a transient Shadow Links window after a mid-window module load |
-| Diabolos | Instant Night Terror stack from icon, recovery after a late empty stack hit, actual helper Omen damage deadline, target priorities | Phase-1 Shadethrust absent from the recording, Ultimate Terror inner boundary uncalibrated, detailed gate/intermission acceptance |
+| Scathach | Early both-branch wing predictions, bounded first-pattern Thirty Sickles knockback, missing line/stack, floor movement stop, limb-facing guidance, tower cues and empty-tower preference, melee warning cues, six-hit Nox cadence, late-hit stack recovery, early estimated Blinding Shadow raidwide, explicit Pitfall proximity response, committed Unhand cast warning, add priorities | Persistent Wings preparation covers later recorded Sickles; all three Marrow Drains and opposing Hound voice instructions covered. Exact later pulse timing, falloff and transient-history reconstruction remain disclosed limits. |
+| Diabolos | Instant Night Terror stack from icon, recovery after a late empty stack hit, actual helper Omen damage deadline, target priorities | Accepted first-form coverage. Phase-one Shadethrust guide claim is contradicted by the actor/action inventory and secondary guide; nominal Terror dimensions disclosed. No AISupport claim. |
 | Diabolos Hollow | Instant Hollow Night stack and player-origin gaze, icon Earthshakers with recipient-specific cleanup, early tower objects and tank eligibility across alliances, Pavor Inanis, early Blindside healing/text warning retained through target death without stale healing, moving gravity-orb information and Double Edge cast warning and current damage-buff instructions, six-hit Nox cadence, actual helper Hollow Omen deadline, early gate-entry and live summon-cast guidance, tower identity/generation and dead-soaker handling, manual-movement fallback enforced at automatic movement execution for separate portal participants | Blindside cone geometry and spatial assignment, Hollow Terror hard donut boundary (no recorded cast), automated gravity interception assignments, portal side-arena boundaries/routing, additional variants |
 
 Detailed evidence: [Deathgaze](dun-scaith-deathgaze.md), [Ferdiad/Proto](dun-scaith-ferdiad-proto.md), [Scathach](dun-scaith-scathach.md), [portal collision investigation](dun-scaith-portal-geometry.md), [Proto pool investigation](dun-scaith-proto-pool.md), [Hollow spatial evidence](dun-scaith-hollow-spatial.md).
@@ -52,7 +60,8 @@ Four standalone native callback suites cover activation, AI constraints, target/
 
 A historical scoped implementation-coverage audit of Diabolos Hollow's primary actor preserves its original candidate identity and exposes unresolved observations rather than claiming exhaustive handling; helpers, player markers, geometry variants and other encounters require their own selections. Ordinary autoattacks are explicitly excluded. Declaration counts are observations, not mechanics or an encounter-completion percentage.
 
-The goal remains open because known material mechanic and geometry gaps remain. Personal maintainer live testing is optional under the repository maturity policy. Build success, a loaded plugin, replay success and a lack of recorded damage are separate from live acceptance. Existing WIP maturity is retained.
+The goal remains open because known material mechanic and geometry gaps remain. Personal maintainer live testing is optional under the repository maturity policy. Build success, a loaded plugin, replay success and a lack of recorded damage are separate from live acceptance. Current per-fight maturity decisions are recorded in the acceptance follow-up;
+this does not claim whole-raid completion.
 
 
 ## Further continuation: floor strikes and overlapping hazards
@@ -86,3 +95,12 @@ The [hostile action inventory](dun-scaith-action-inventory.md) retains160 observ
 ## Phase1 gates and gravity displacement
 
 Deathgate appearance now warns5.973664s before its recorded Void Call starts. Both recorded pairs use real remaining cast time for urgency, prioritizing the earliest eligible summon cast over other gates and the Lifegate while preserving stronger/negative priorities. The Lifegate instruction survives its observed health refills and stops on untargetability/removal. No fixed phase timer, damage footprint or forced target/movement is introduced. Critical Gravity now warns of the exact recorded Knockback1 outward10y displacement and asks manual interceptors to check their landing; contact timing and ownership remain unassigned.
+
+## Acceptance follow-up after7.5.6.35.4
+
+The proximity handoff, Scathach Hound/Wings responses and tower bootstrap fixes
+are documented in the individual notes. Current evidence, build identity,
+regression results and402 native checkpoints are consolidated in
+[encounter-acceptance-validation.json](encounter-acceptance-validation.json).
+These checks do not supply the missing Proto pool/chasing or Hollow portal
+combat-boundary contracts; those modules retain WIP.

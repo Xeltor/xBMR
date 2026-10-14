@@ -1,5 +1,11 @@
 # Diabolos Hollow: spatial evidence continuation
 
+## Reassessment after7.5.6.35.4
+
+Reviewed released source`bd9bf9228` under the module maturity policy. Exact snapshots, personal live approval and a complete automated solver are not automatic requirements for `Verified`; the existing marker/cast instructions explicitly account for manual responses where spatial ownership is unsupported. The **separate portal arena** remains a material boundary gap: its staged lethal/supporting regions are not established, and `PortalSafety` intentionally pauses automatic movement there rather than asserting a playable arena. The fallback preserves a human's manual response, but cannot certify the missing arena contract. Hollow therefore remains WIP for that concrete geometry/phase concern, not merely lack of `AISupport` or maintainer play.
+
+A further supported recovery repair makes already present meteor towers immediately actionable when the component loads mid-window. Their actor state has no original creation timestamp, so the previous bootstrap restart of9.7s could permit arriving after the actual impact. The component now snapshots preexisting source references, uses immediate AI guidance and an explicit unavailable-original-timing instruction, while new native creation retains the observed9.7s future deadline. Actual impacts/destruction clear unknown-age guidance; its stale bound covers at most the full observed lifetime plus2s and is not presented as a damage time. Tank-only center eligibility and alliance masks remain active during bootstrap. Replacement by a non-tower removes the old semantics immediately. New synthetic native callback cases cover these distinctions; the isolated fresh-source Diabolos suite passed187 assertions. Full generated-plugin/replay validation is pending the coordinator's candidate cohort.
+
 Research uses the normal level60 alliance-raid
 [Console Games Wiki guide](https://ffxiv.consolegameswiki.com/wiki/Dun_Scaith),
 Phase3 Diabolos Hollow. It describes Blindside as a tank stack marker and
@@ -167,3 +173,24 @@ for the maintainer to personally play the encounter. Maturity follows the
 offline evidence can close them. Private provenance and the bounded motion
 pages are retained under `gravity-displacement-continuation` in the task evidence
 directory. No shared plugin build was run by this investigation.
+
+## Final follow-up validation — 2026-10-14
+
+The current-tree Release rebuild succeeded with SDK10.0.401, zero errors and
+six existing obsolete-API warnings. Frozen assembly SHA-256 is
+`5f88ad34689d6174baf8886e8915fc71bb31ecaf4ad6cfcf1db7aeb8285333c2`;
+all51 selected Dun Scaith/core source documents match its PDB and debug identity.
+All9 regression suites passed2,973 synthetic assertions against that exact DLL.
+Nine native runs supplied402 available checkpoints, zero module errors and
+matching game data;716 coordinator contract checks passed. The current
+[validation receipt](encounter-acceptance-validation.json) records per-suite
+counts, source/build identities and export limitations. Historical receipts above
+remain associated with their original artifacts. No live gameplay, exact server
+snapshot, complete automatic solver or AISupport claim is made.
+
+The shared Diabolos187 synthetic assertions cover the tower bootstrap
+change;60 Hollow native checkpoints retain normal tower timing and portal hold.
+
+Diabolos Hollow remains WIP for the documented portal combat-boundary/stage
+and spatial response gaps. Existing towers no longer receive a false fresh
+countdown when their creation age is unavailable.

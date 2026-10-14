@@ -1,6 +1,6 @@
 # Dun Scaith: Deathgaze Hollow repairs
 
-Status: bounded repairs, still WIP. Build, synthetic checks, native replay, physical geometry and live gameplay are separate acceptance steps. The raid-wide owner records the final build/test/replay results. No public release or installed binary copying is part of this source change.
+Status: see the current maturity assessment at the end. Earlier sections preserve the investigation history; their pending lists are superseded by the later deck, seal, ice and one-shot-floor evidence. Build/replay and live gameplay are distinct claims. The raid-wide owner records the final build/test/replay results.
 
 ## Written guides read before implementation
 
@@ -31,7 +31,9 @@ The archive game-sheet evidence is 2026.09.15.0000.0000, older than the recordin
 
 Retained DarkII, striped-cone half-angle and arena dimensions remain reference-derived. Dedicated ice callback probes additionally cover duplicate activation/cast starts, physical4y boundaries, conservative corner margin, both directions, unknown state, generation replacement, stale destruction, immunity, tornado landing, helper cancellation and helper destruction. This repair does not claim they became physically calibrated through compilation or callback tests.
 
-## Geometry and acceptance still pending
+## Historical geometry and acceptance gaps at the initial audit
+
+This historical list predates the independent deck/seal recovery and one-shot floor evidence below. It is not the current maturity gate.
 
 - Existing arena remains centre(300,410), half-width30/half-height15. Player positions do not verify edge locations. Lethal north/south ship edges and solid purple-wall segments need scene/collision evidence. Generic radial displacement is displayed without a false guarantee that every edge stops movement; its exact safe destinations and AI arrival/path constraints are pending.
 - Ice alignment now uses independently extracted client collision dimensions and reliable on/off branches (see below). Server collision response, last-safe departure and live BMR/XCAI movement remain unverified. The0.3s deadline and player-radius corner inset are conservative response margins, not measured server timing or altered physical dimensions. Unknown animation state clears stopping geometry. Destruction/recreation clears the matching actor generation; a late destruction callback from an old generation cannot remove its newly activated replacement. Unknown lifecycle state does not establish a stopping block. Current AI arrival predicate rejects known tornado destinations; a collision-free continuous route and unknown dark-floor overlap are not proved by an aligned ray.
@@ -113,3 +115,120 @@ Private original findings receipt `/tmp/dun-scaith-evidence-20261014/floor-recor
 ## Void Sprite target priority
 
 The preferred [Dun Scaith guide](https://ffxiv.consolegameswiki.com/wiki/Dun_Scaith) explicitly calls for killing the two Void Sprites. Native original creates pairs69/70 at152460/152464,83/84 at226063/226066 and140/141 at464873/464877. Previously this module drew them and their cones but supplied no add priority. Eligible living/targetable sprites now receive at least priority2, preserving higher priorities and all negative forbidden/invincible/dying states. This preference does not force a target or tank position and leaves arena and movement constraints unchanged. Native source-selected target fixtures and synthetic unavailable/priority controls are reported in the raid validation artifact; they do not establish live target selection.
+
+## Current maturity assessment after7.5.6.35.4
+
+Review base `bd9bf9228`, using the [module maturity policy](module-maturity-policy.md).
+The preferred normal-alliance guide was refreshed on2026-10-14. Its known early
+and late mechanics are accounted for: repeated pulls, three-alliance spreads and
+persistent tornadoes, five narrow cones, central wind, both Bolt directions,
+two-block and one-block directional winds, Doom, adds and one-shot tile strikes.
+The asset-backed deck/seals, ice stopping geometry, per-instance lifecycle and
+known overlaps have already passed the released offline validation. The release
+rerun used all49 unchanged source documents and64 Deathgaze native samples within
+729 raid contract assertions. Those historical validation identities remain
+unchanged; the proximity repair below needs the owner's fresh build/checks.
+
+### Cone and overlap review
+
+Exact installed Action7306 links Omen134 to
+`vfx/omen/eff/m0307_blizzaga0h.avfx`, SHA256
+`61dc8ca4196171c7b5537e9614be5ea4a5e12da19a5e090f960f7e9806d663ab`.
+Its two procedural decal-ring particles both store RF0.007596135139465332. That
+matches the two main particles of exact installed standard
+`gl_fan020_0f.avfx`, SHA256
+`6cbae4742b3d1cedd3118ff283e83d94823470e277451e8f97e135ab0833f8c5`.
+This corroborates retaining the nominal20degree fan rather than widening it from
+a filename or a player's path. Action7318 directly links Omen3
+`gl_fan060_1bf.avfx`, SHA256
+`79adff230e6fa67a37a8d448436ea153486d9fdb303e4285d779c8961a90c703`;
+its main particles store RF0.0669873058795929, supporting the retained nominal
+60degree fan. These are same-action visual/reference corroborations; the
+procedural shader mapping and exact server boundary are not claimed decoded.
+
+The original supplies an actual DarkII recipient at29.3704degrees/17.3681y,
+raw239888/player20 with a same-tick position. For Blizzard, all25 helper effects
+have no listed recipients. Living nonrecipients have preceding positions as
+close as10.6492degrees/24.9755y at160284/player20 (position age0.799s) and
+10.8745degrees/23.4313y at479728/player1 (age4.004s). Those observations neither
+authenticate server snapshots nor prove standing still; they do not contradict
+the retained nominal angles. Fresh synthetic probes protect both sides of the
+10degree and30degree boundaries without relabeling them physical measurements.
+
+Known radial-to-floor sequences are separated: warnings start3.107–3.130s after
+the radial hit and floor strikes resolve7.534–7.575s after it. The floor component
+therefore provides over4s of subsequent warning rather than requiring an
+invented same-arrival floor exclusion. The actual Bolt overlap within about0.8s
+of radial arrival is already checked by the landing predicate. Ice winds,
+tornado arrivals, both directions, corner margins and seal/open-edge behavior
+retain their dedicated regressions. These available observations show no
+additional material cone or knockback/floor defect. Exact snapshot calibration,
+hypothetical undiscovered patterns and personal live play are not automatic
+promotion blockers under the policy.
+
+### Supported proximity-warning repair
+
+The previous `VoidBlizzardIV` warned only during boss7286/7287's3s preparation.
+The warning disappeared just before actual7307 helpers started their5s casts,
+leaving the entire impact-response window without module guidance. Original
+100679/100680→106931/106933 and397718/397719→404057/404059 show two simultaneous
+sources;190500→193956 and272541→276029 show the later single-source patterns.
+Helpers start about0.05s after the boss visual finishes. Their locations directly
+identify the future ice markers, and their native cast timing identifies the
+future impact. The next directional wind begins about1.51–1.56s after impact,
+then resolves about2.98s later. The guide's opposite-side preparation followed
+by lining up with ice remains actionable without maximizing distance blindly.
+
+`ProximityImpacts.cs` now preserves the earliest boss preparation instruction,
+then tracks each actual helper generation, location and deadline. The global
+instruction remains through the impact window and shows the current countdown.
+Small crosses mark the helper locations; the40y Action effect range is exported
+as informational rather than rendered as a safe/danger boundary. Each helper
+supplies future healing planning across living raid participants. Its actual
+effect, cancellation, destruction, generation replacement or bounded lost-event
+cleanup removes only that source. Duplicates preserve the first deadline;
+mid-cast bootstrap recovers remaining time. There is no hard guessed safe
+radius, outward movement goal or forced route that competes with ice preparation.
+
+New native-callback regressions cover the visual-to-helper handoff, two-source
+and one-source retention, actual future timing, all-alliance planning, duplicate
+observation, per-helper effect/cancellation, generation replacement/stale
+callbacks, destruction, bootstrap, stale fallback and reset. Root owns the
+fresh complete plugin build and execution of those tests and native anchors.
+Private extracted assets, parser results, observation ages and overlap facts
+are retained under `deathgaze-maturity-audit` in the existing evidence workspace.
+
+### Acceptance decision
+
+The supported source repair closes the last concrete warning/lifecycle gap
+found by this review. On the available guide, exact scene/assets, two-attempt
+original and prior offline evidence, the known human safe responses are
+accounted for. An automatic proximity solver and unmeasured damage-falloff
+threshold are not required to claim `Verified`: the module explicitly gives
+the reliable response and never advertises a fabricated safe circle. The
+remaining physical precision limits are documented rather than treated as
+proof of an unsafe region or as mandatory personal testing.
+
+Accepted as `Verified` after the final combined validation below. Personal
+play is not required and `AISupport` is not claimed. Reopen if a credible report identifies a material geometry,
+timing, assignment, transition or known-pattern defect.
+
+## Final follow-up validation — 2026-10-14
+
+The current-tree Release rebuild succeeded with SDK10.0.401, zero errors and
+six existing obsolete-API warnings. Frozen assembly SHA-256 is
+`5f88ad34689d6174baf8886e8915fc71bb31ecaf4ad6cfcf1db7aeb8285333c2`;
+all51 selected Dun Scaith/core source documents match its PDB and debug identity.
+All9 regression suites passed2,973 synthetic assertions against that exact DLL.
+Nine native runs supplied402 available checkpoints, zero module errors and
+matching game data;716 coordinator contract checks passed. The current
+[validation receipt](encounter-acceptance-validation.json) records per-suite
+counts, source/build identities and export limitations. Historical receipts above
+remain associated with their original artifacts. No live gameplay, exact server
+snapshot, complete automatic solver or AISupport claim is made.
+
+Deathgaze187 synthetic assertions;64 preserved native checkpoints plus14
+new proximity checkpoints.
+
+Deathgaze is accepted as `Verified`: the known response review above and
+current validation close the concrete proximity warning/lifecycle omission.

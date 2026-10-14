@@ -5,6 +5,7 @@ namespace BossMod.Shadowbringers.Raid.E01EdenPrime;
 sealed class ParadisalDive(BossModule module) : BossComponent(module)
 {
     private readonly Dictionary<ulong, (Actor Caster, DateTime Activation)> _landings = [];
+    private readonly HashSet<Actor> _uncertain = [];
     private readonly HashSet<Actor> _presentAtActivation = [.. module.WorldState.Actors];
     private static readonly WPos North = new(100f, 82f);
     private static readonly WPos South = new(100f, 118f);
@@ -15,39 +16,69 @@ sealed class ParadisalDive(BossModule module) : BossComponent(module)
     {
         if (actor.OID == (uint)OID.GuardianOfParadise && !actor.IsTargetable && !actor.IsDeadOrDestroyed)
         {
+            if (_uncertain.Contains(actor))
+                return; // A duplicate creation cannot restart an expired estimate.
+            _uncertain.RemoveWhere(a => a.InstanceID == actor.InstanceID);
             // A bootstrap callback has no creation age. Move immediately until a
             // current cast supplies its deadline; never grant it a fresh 9.7s.
             var activation = _presentAtActivation.Remove(actor) ? WorldState.CurrentTime : WorldState.FutureTime(9.7d);
-            _landings.TryAdd(actor.InstanceID, (actor, activation));
+            if (!_landings.TryGetValue(actor.InstanceID, out var existing) || !ReferenceEquals(existing.Caster, actor))
+                _landings[actor.InstanceID] = (actor, activation);
         }
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (caster.OID == (uint)OID.GuardianOfParadise && spell.Action.ID == (uint)AID.ParadisalDive)
+        {
+            _uncertain.Remove(caster);
             _landings[caster.InstanceID] = (caster, Module.CastFinishAt(spell));
+        }
     }
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.ParadisalDive)
-            _landings.Remove(caster.InstanceID);
+            Retire(caster);
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         if (spell.Action.ID == (uint)AID.ParadisalDive)
-            _landings.Remove(caster.InstanceID);
+            Retire(caster);
     }
 
-    public override void OnActorTargetable(Actor actor) => _landings.Remove(actor.InstanceID);
-    public override void OnActorDestroyed(Actor actor) => _landings.Remove(actor.InstanceID);
+    private void Retire(Actor actor)
+    {
+        _uncertain.Remove(actor);
+        if (_landings.TryGetValue(actor.InstanceID, out var landing) && ReferenceEquals(landing.Caster, actor))
+            _landings.Remove(actor.InstanceID);
+    }
+
+    public override void OnActorTargetable(Actor actor)
+    {
+        if (actor.IsTargetable)
+            Retire(actor);
+    }
+    public override void OnActorDestroyed(Actor actor) => Retire(actor);
 
     public override void Update()
     {
+        _uncertain.RemoveWhere(a => a.IsDeadOrDestroyed || a.IsTargetable || WorldState.Actors.Find(a.InstanceID) != a);
         foreach (var (id, landing) in _landings.ToArray())
             if (landing.Caster.IsDeadOrDestroyed || landing.Caster.IsTargetable || WorldState.Actors.Find(id) != landing.Caster)
                 _landings.Remove(id);
+            else if (WorldState.CurrentTime > landing.Activation.AddSeconds(2d))
+            {
+                _landings.Remove(id);
+                _uncertain.Add(landing.Caster);
+            }
+    }
+
+    public override void AddGlobalHints(Actor actor, GlobalHints hints)
+    {
+        if (_uncertain.Count != 0)
+            hints.Add("Guardian landing resolution not observed; watch the proximity markers!");
     }
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
@@ -91,7 +122,31 @@ sealed class GuardianRearSafety(BossModule module) : Components.Cleave(module, (
 sealed class EternalBreath(BossModule module) : BossComponent(module)
 {
     public DateTime Activation;
+    private Actor? _scene;
     private Actor? _eden;
+    private int _cue;
+    private bool _resolved;
+    private bool _cueLost;
+
+    private void Clear(bool resolved = false)
+    {
+        Activation = default;
+        _scene = _eden = null;
+        _cue = 0;
+        _cueLost = false;
+        _resolved = resolved;
+    }
+
+    private void Predict(int cue, double delay)
+    {
+        // Each later reliable cue may refine the estimate once. Repeated or
+        // reordered callbacks must not keep postponing the same raidwide.
+        if (_resolved || cue <= _cue)
+            return;
+        _cue = cue;
+        Activation = WorldState.FutureTime(delay);
+        _cueLost = false;
+    }
 
     public override void OnActorEAnim(Actor actor, uint state)
     {
@@ -101,14 +156,17 @@ sealed class EternalBreath(BossModule module) : BossComponent(module)
         switch (state)
         {
             case 0x01000200: // adds defeated: begin cinematic
-                if (Activation == default)
-                    Activation = WorldState.FutureTime(48.5d);
+                if (!_resolved && _cue == 0)
+                    _scene = actor;
+                Predict(1, 48.5d);
                 break;
             case 0x04000800: // later cinematic cue
-                Activation = WorldState.FutureTime(18.5d);
+                if (!_resolved && _cue < 3)
+                    _scene = actor;
+                Predict(3, 18.5d);
                 break;
             case 0x00028000: // encounter completion
-                Activation = default;
+                Clear(true);
                 break;
         }
     }
@@ -117,22 +175,33 @@ sealed class EternalBreath(BossModule module) : BossComponent(module)
     {
         if (caster.OID == (uint)OID.Eden && spell.Action.ID == (uint)AID.PrimevalStasis)
         {
-            _eden = caster;
-            Activation = WorldState.FutureTime(43.4d);
+            if (!_resolved && _cue < 2)
+                _eden = caster;
+            Predict(2, 43.4d);
         }
         else if (caster.OID == (uint)OID.Helper && spell.Action.ID == (uint)AID.EternalBreath)
         {
-            Activation = default;
-            _eden = null;
+            Clear(true);
         }
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        if (ReferenceEquals(actor, _scene) || ReferenceEquals(actor, _eden))
+            Clear();
     }
 
     public override void Update()
     {
-        if (_eden is { } eden && (eden.IsDestroyed || WorldState.Actors.Find(eden.InstanceID) != eden))
+        if (_scene is { } scene && (scene.IsDestroyed || WorldState.Actors.Find(scene.InstanceID) != scene)
+            || _eden is { } eden && (eden.IsDestroyed || WorldState.Actors.Find(eden.InstanceID) != eden))
+            Clear();
+        else if (Activation != default && WorldState.CurrentTime > Activation.AddSeconds(2d))
         {
+            // Lost resolution is not proof of cancellation or a new damage time.
+            // Withdraw stale healing pressure and keep an explicit uncertainty.
             Activation = default;
-            _eden = null;
+            _cueLost = true;
         }
     }
 
@@ -140,6 +209,8 @@ sealed class EternalBreath(BossModule module) : BossComponent(module)
     {
         if (Activation != default)
             hints.Add("Eternal Breath: raidwide damage after the cinematic!");
+        else if (_cueLost)
+            hints.Add("Eternal Breath resolution not observed; watch the cinematic!");
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

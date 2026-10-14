@@ -240,8 +240,9 @@ that the running instance has this exact build identity.
 
 ## Remaining acceptance
 
-The new route instructions still need an in-duty test of actual upward activation,
-inward drops, box-corner clearance and rear-pad visibility. Native path success
+Personal live testing is optional under the current maturity policy. Actual
+upward activation, inward drops, box-corner clearance and rear-pad visibility
+remain unverified as live execution outcomes. Native path success
 cannot prove the character crosses a trigger or completes a fall. Server snapshots,
 last-safe departure, latency/cast-lock margins, alternate overlapping hazards and
 real wipe/re-entry behavior remain unverified. The other car/intermission bounds

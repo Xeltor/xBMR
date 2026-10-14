@@ -46,15 +46,6 @@ class ThirtyCries(BossModule module) : Components.StackWithIcon(module, (uint)Ic
 class ThirtySouls(BossModule module) : Components.RaidwideCast(module, (uint)AID.ThirtySouls);
 class ThirtyArrows2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ThirtyArrows2, new AOEShapeRect(35.5f, 4));
 class ThirtyArrows1(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ThirtyArrows1, 8);
-class TheDragonsVoice(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TheDragonsVoice, 30)
-{
-    public override void AddGlobalHints(Actor actor, GlobalHints hints)
-    {
-        if (Casters.Count > 0)
-            hints.Add("Interrupt the Dragon's Voice! (safe inner radius unverified)");
-    }
-}
-
 class Shadethrust(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Shadethrust, new AOEShapeRect(45, 2.5f))
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -76,13 +67,9 @@ class Shadesmite3(BossModule module) : Components.SimpleAOEs(module, (uint)AID.S
 class Pitfall(BossModule module) : Components.RaidwideCast(module, (uint)AID.Pitfall, "Proximity damage: move away from impact; Connla incoming!");
 class FullSwing(BossModule module) : Components.RaidwideCast(module, (uint)AID.FullSwing);
 
-abstract class MarrowDrain(BossModule module, uint aid) : Components.SimpleAOEs(module, aid, new AOEShapeCone(10.44f, 60.Degrees()));
-class MarrowDrain1(BossModule module) : MarrowDrain(module, (uint)AID.MarrowDrain1);
-class MarrowDrain2(BossModule module) : MarrowDrain(module, (uint)AID.MarrowDrain2);
-
 class BigHug(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BigHug, new AOEShapeRect(5.25f, 1.5f));
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 220, NameID = 5515)]
+[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 220, NameID = 5515)]
 public class A34Scathach(WorldState ws, Actor primary) : BossModule(ws, primary, new(0, -50), new ArenaBoundsCircle(30))
 {
     protected override void CalculateModuleAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

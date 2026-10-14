@@ -17,13 +17,50 @@ right-path orbs/statue gazes remain unsupported. Only the observed Rout order
 The code follows helper-preview order rather than hardcoding either route.
 
 Arena bounds are established immediately and feed native AI pathfinding, not
-just drawing. The center is captured once from the primary actor when the module
-is constructed; in the reviewed recording this is `(-538, 94)`. It does not follow
-the boss's dashes. The circle radius of 20 is an upstream **reference estimate**,
-not an independently calibrated safe boundary. Player trajectories were not used
-to define a safe perimeter. Holes, the exact DoT boundary, alternate-path arena
-geometry, and creation of the module while the boss is away from center remain
-unverified. No phase-dependent boundary change is implemented.
+just drawing. The center is the fixed authored placement `(-538, 94)`, including
+when the module is created while the boss is dashing. The previous constructor
+captured the boss's current position and therefore displaced the entire arena on
+a mid-dash load. The nominal circle radius20 is independently corroborated by
+the installed perimeter collision mesh described below; player trajectories were
+not used to define a safe perimeter. Exact server DoT eligibility and any
+route-specific changes not represented by this authored placement remain
+qualified. No phase-dependent boundary change is implemented.
+
+### Independent arena evidence and bootstrap correction
+
+The current installed game is `2026.10.06.0000.0000`. Typed TerritoryType1176
+selects `ex4/09_ocn_o5/dun/o5d1/level/o5d1`. Its
+`bg/ex4/09_ocn_o5/dun/o5d1/level/bg.lgb`, SHA256
+`e4c912540afea0cfff1f33e5dd34f723a589440e1b33126d7ef512d6644432e2`,
+places CollisionBox10146156 at `(-538,18,94)` with zero rotation and unit scale.
+Its exact mesh link resolves to
+`bg/ex4/09_ocn_o5/dun/o5d1/collision/o5d1_xx_col01.pcb`, SHA256
+`413d18e03ed6b36be86097839f1bf0e6e0864bf4d755d7bf83b97640ec7fc6d6`.
+
+The installed Lumina collision-box reader uses an older layout and returns the
+spurious path `9`. The bounded raw reader instead follows the current primary
+[FileLayerGroupInstanceCollisionBox contract](https://github.com/aers/FFXIVClientStructs/blob/994319b521c85e445e8907474b3a905cc05187c3/FFXIVClientStructs/FFXIV/Client/LayoutEngine/FileFormat.cs):
+OffsetPath is at instance+0x50, relative to the instance. All three placed copies
+resolve to the same full path. No guessed filename was used as the link.
+
+All31 nodes and384 triangles match the collision-file header. The mesh is an
+annulus whose closed inner boundary has64 vertices at nominal radius20; decoded
+unrounded vertex radii are19.999853–20.000206. The outer boundary is approximately
+25.4878. Both loops have degree2 at every vertex after disclosed0.001y coordinate
+rounding. The ring's authored centre and nominal dimensions are independent of
+boss and player positions. Polygon tessellation, collision material overrides,
+exact DoT eligibility and enablement are distinct from this geometry result.
+The guide qualitatively identifies the damaging perimeter. The radius is retained
+at20; no unexplained hazard inflation or arena enlargement was added.
+
+The constructor now uses that fixed centre. Four displaced-bootstrap fixtures
+check all sides, immediate AI arena metadata, the opposite playable edge,
+excluded outer perimeter and reset after a different displacement. They would
+fail under the old constructor. The parent owns compilation and execution of the
+updated suite; no new passing test count or final binary hash is claimed here.
+Sanitized reproducible asset facts are in `aloalo-arena-geometry.json`; proprietary
+raw assets and bounded reader outputs remain private under
+`/tmp/xbmr-aloalo-arena-20261014/`.
 
 Map effect index 60 changes to `0x00020001` at sequence 57969 after the first
 Made Magic, and returns to `0x00080004` at 76489 when the boss dies. These are
@@ -224,3 +261,19 @@ does not export loaded-assembly provenance, so the runtime MVID has not been
 matched to this build. The last recorded live fight predates these changes.
 Next required evidence is physical arena calibration, representative live
 left-path testing and independent recordings of the currently uncovered variants.
+
+## Maturity reassessment after 7.5.6.35.4
+
+Reviewed source base `bd9bf9228` under `docs/module-maturity-policy.md`.
+Quaqua remains WIP because the written guide identifies actual middle-path
+rotating crosses/poison pools and right-path pursuing orbs/statue gazes which the
+module does not handle. These are known material coverage gaps, rather than
+hypothetical undiscovered patterns. The arena bootstrap correction closes a
+separate concrete defect and adds independent perimeter support.
+
+Personal live play, exact server snapshots, a fixed number of recordings and
+pristine holdouts are not automatic promotion requirements. Existing recorded
+left-path validation and the new bootstrap checks are relevant evidence; their
+limits remain disclosed. The absence of a recorded middle-first Rout alone is
+not a new defect: the component follows actual ordered previews rather than a
+fixed path. No Verified promotion is made while the explicit route gaps remain.

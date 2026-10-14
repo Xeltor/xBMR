@@ -5,13 +5,25 @@ class ParticleBeam(BossModule module) : Components.GenericTowers(module)
     private const uint OuterTower = 0x1EA24E;
     private const uint TankTower = 0x1EA24F;
     private readonly Dictionary<ulong, Actor> _sources = [];
+    private readonly HashSet<Actor> _bootstrapSources = module.WorldState.Actors.Where(a => a.OID is OuterTower or TankTower).ToHashSet();
+
+    public override void AddGlobalHints(Actor actor, GlobalHints hints)
+    {
+        if (Towers.Exists(t => _sources.GetValueOrDefault(t.ActorID) is { } source && _bootstrapSources.Contains(source)))
+            hints.Add("Existing meteor towers: soak now; original timing unavailable.");
+    }
 
     public override void OnActorCreated(Actor actor)
     {
-        if (actor.OID is not (OuterTower or TankTower) || _sources.GetValueOrDefault(actor.InstanceID) == actor)
+        if (_sources.GetValueOrDefault(actor.InstanceID) == actor)
             return;
         // Native OpCreate can replace an Actor reference without destroying the old one first.
         Towers.RemoveAll(t => t.ActorID == actor.InstanceID);
+        if (_sources.GetValueOrDefault(actor.InstanceID) is { } previous)
+            _bootstrapSources.Remove(previous);
+        _sources.Remove(actor.InstanceID);
+        if (actor.OID is not (OuterTower or TankTower))
+            return;
         _sources[actor.InstanceID] = actor;
         BitMask forbidden = default;
         if (actor.OID == TankTower)
@@ -19,7 +31,10 @@ class ParticleBeam(BossModule module) : Components.GenericTowers(module)
                 if (player.Role != Role.Tank)
                     forbidden.Set(slot);
         // Two observed waves give 9.79/9.91 seconds from creation to impact.
-        Towers.Add(new(actor.Position, 5, 1, int.MaxValue, forbidden, WorldState.FutureTime(9.7), actor.InstanceID));
+        // Bootstrap has no original creation time; immediate guidance avoids a
+        // fresh ten-second allowance for a tower that may already be about to hit.
+        var activation = _bootstrapSources.Contains(actor) ? WorldState.CurrentTime : WorldState.FutureTime(9.7d);
+        Towers.Add(new(actor.Position, 5, 1, int.MaxValue, forbidden, activation, actor.InstanceID));
     }
 
     public override void OnActorDestroyed(Actor actor)
@@ -28,6 +43,7 @@ class ParticleBeam(BossModule module) : Components.GenericTowers(module)
         {
             Towers.RemoveAll(t => t.ActorID == actor.InstanceID);
             _sources.Remove(actor.InstanceID);
+            _bootstrapSources.Remove(actor);
         }
     }
 
@@ -79,8 +95,10 @@ class ParticleBeam(BossModule module) : Components.GenericTowers(module)
             {
                 Towers.RemoveAll(t => t.ActorID == id);
                 _sources.Remove(id);
+                _bootstrapSources.Remove(actor);
             }
-        Towers.RemoveAll(t => t.Activation.AddSeconds(2) < WorldState.CurrentTime);
+        Towers.RemoveAll(t => WorldState.CurrentTime > t.Activation.AddSeconds(
+            _sources.GetValueOrDefault(t.ActorID) is { } source && _bootstrapSources.Contains(source) ? 11.7d : 2d));
         BitMask nonTanks = default;
         foreach (var (slot, player) in Raid.WithSlot(true, false, true))
             if (player.Role != Role.Tank)

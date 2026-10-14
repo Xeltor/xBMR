@@ -126,7 +126,7 @@ sealed class V32KetudukeStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "Xeltor; reference: croizat", GroupType = BossModuleInfo.GroupType.CFC,
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xeltor; reference: croizat", GroupType = BossModuleInfo.GroupType.CFC,
     GroupID = 961u, NameID = 12605u, SortOrder = 2, Category = BossModuleInfo.Category.VariantCriterion, Expansion = BossModuleInfo.Expansion.Endwalker)]
 public sealed class V32Ketuduke(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaCenter, new ArenaBoundsSquare(20f))
 {

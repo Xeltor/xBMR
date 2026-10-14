@@ -1,7 +1,8 @@
 namespace BossMod.Heavensward.Alliance.A34Scathach;
 
 // In both recorded pulls, the first (+45/+225) Shadespin pair resolves exactly four
-// seconds before Thirty Sickles. Later uses after the other branch have no established cue.
+// seconds before Thirty Sickles. Wings also precede the recorded later pulse,
+// but their variable duration supports preparation only, not a pulse countdown.
 class ThirtySickles(BossModule module) : Components.GenericKnockback(module, (uint)AID.ThirtySickles)
 {
     private static readonly AOEShapeCircle AffectedArea = new(15);
@@ -11,6 +12,16 @@ class ThirtySickles(BossModule module) : Components.GenericKnockback(module, (ui
     private bool _haveResolvedShadespin;
     private DateTime _helperDeadline;
     private DateTime _activation;
+
+    public override void AddGlobalHints(Actor actor, GlobalHints hints)
+    {
+        var boss = Module.PrimaryActor;
+        // Read current status, rather than caching its gain, so component bootstrap,
+        // loss and actor replacement cannot retain or restart an invented timer.
+        if (!boss.IsDeadOrDestroyed && boss.IsTargetable && WorldState.Actors.Find(boss.InstanceID) == boss
+            && boss.FindStatus((uint)SID.ShadowLimb) != null)
+            hints.Add("Knockback possible: keep a safe landing away from the edge");
+    }
 
     public override ReadOnlySpan<Knockback> ActiveKnockbacks(int slot, Actor actor)
     {

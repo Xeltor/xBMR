@@ -81,4 +81,5 @@ This verifies the source regression and its offline predictions. It does not
 prove a continuous physical route, the server snapshot deadline, or successful
 live controller execution after this build. Heavy pool edges and movement speed
 retain the uncertainties documented in the previous repair. A fresh live
-Promathia run remains necessary for gameplay acceptance.
+Promathia run would add gameplay evidence; personal live testing is optional
+for module promotion under the current maturity policy.

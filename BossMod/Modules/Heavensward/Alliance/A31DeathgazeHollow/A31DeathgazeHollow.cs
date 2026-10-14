@@ -170,10 +170,9 @@ class VoidAeroIV(BossModule module) : Components.SimpleKnockbacks(module, (uint)
     }
 }
 
-class VoidBlizzardIV(BossModule module) : Components.CastHints(module, [(uint)AID.VoidBlizzardIV1, (uint)AID.VoidBlizzardIV2], "Proximity damage, then line up with an ice block for knockback");
 class VoidDeathIV(BossModule module) : Components.CastHints(module, [(uint)AID.VoidDeathIV1, (uint)AID.VoidDeathIV2], "Leave the flashing dark floor squares!");
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 220, NameID = 5507)]
+[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 220, NameID = 5507)]
 public class A31DeathgazeHollow(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaGeometry.Deck.Center, ArenaGeometry.Deck)
 {
     protected override void CalculateModuleAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

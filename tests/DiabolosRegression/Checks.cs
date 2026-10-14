@@ -60,6 +60,7 @@ static partial class Checks
         PortalFallback();
         PortalConsumerPolicy();
         TowerGenerationPolicy();
+        HollowTowerBootstrap();
         HollowNox();
         Console.WriteLine($"{assertions} Diabolos assertions passed (synthetic callbacks; no physical or live acceptance).");
     }

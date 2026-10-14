@@ -27,6 +27,8 @@ public enum AID : uint
     Manos = 7379, // Boss->self, no cast, single-target
     MarrowDrain1 = 3342, // ShadowcourtHound->self, 3.0s cast, range 6+R 120-degree cone
     MarrowDrain2 = 3340, // ShadowcourtHound->self, 3.0s cast, range 6+R 120-degree cone
+    MarrowDrain3 = 3341, // ShadowcourtHound->self, 3.0s cast, range 6+R 120-degree cone
+    TheRamsVoice = 3343, // ShadowcourtHound->self, 3.0s cast; move-away/interrupt instruction only
 
     NoxAOEFirst = 7458, // Connla->location, 5.0s cast, range 10 circle
     NoxAOERest = 7457, // Connla->location, no cast, range 10 circle
