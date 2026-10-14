@@ -21,9 +21,23 @@ Use [xBMR issues](https://github.com/Xeltor/xBMR/issues) for fork-specific suppo
 xBMR retains the `BossModReborn` internal name, assembly, settings directory,
 commands and IPC for compatibility with existing settings and XCAI. It replaces
 BMR; run only one BossMod variant at a time. Back up your existing settings before
-switching distributions. The fork uses its own release versions; its first release
-is `v7.5.7` (`7.5.7.0`), based on upstream commit
-`be8ff771cc545f8f8b5b548b5dd7271d80460f89`.
+switching distributions. Releases follow the upstream version with one extra local revision:
+`7.5.6.35.1`, `7.5.6.35.2`, then `7.5.6.36.0` on a new upstream base.
+The local revision resets to zero for each upstream update and increments for
+fork releases on that base, including this fork's initial branding release.
+The current upstream base, exact commit and local revision are recorded in
+`fork-version.json`.
+
+Dalamud and .NET accept four numeric components. The installed version encodes
+`upstream revision * 100 + local revision` in the fourth component, so release
+`7.5.6.35.1` installs as `7.5.6.3501`, and `7.5.6.36.0` as `7.5.6.3600`.
+Local revisions are limited to 0–99; the release validator refuses overflow.
+The project version and informational version must agree with that metadata;
+`scripts/release-version.py` checks this.
+
+The bootstrap `v7.5.7` (`7.5.7.0`) release is superseded by this scheme. Anyone who
+installed that bootstrap version must reinstall xBMR once, because its numeric
+version sorts above the corrected version. Existing settings keep the same path.
 
 ## Development and releases
 
@@ -35,9 +49,14 @@ DALAMUD_HOME=/path/to/dalamud dotnet build BossMod/BossModReborn.csproj -c Relea
 
 `origin` is this fork; `upstream` is Combat Reborn. Preserve fork changes when
 merging upstream; do not force-sync over them. GitHub validates builds on pushes
-and pull requests. Publish an immutable source tag, then manually run **Publish
-xBMR Stable** in the Forgejo feed with that tag, its full commit SHA and assembly
-version. The workflow builds the pinned source, includes licence notices, publishes
+and pull requests. When updating upstream, update `upstream_version` and
+`upstream_commit` in `fork-version.json` and reset `fork_revision` to zero; keep
+fork changes when merging. Increment only `fork_revision` for subsequent local
+releases. Update the project's `Version` and `InformationalVersion` to match,
+then run `python scripts/release-version.py` and
+`python -m unittest discover -s tests`. Publish the reported immutable source tag,
+then manually run **Publish xBMR Stable** in the Forgejo feed with that tag and
+its full commit SHA. The workflow derives the install version from the source. The workflow builds the pinned source, includes licence notices, publishes
 namespaced public assets and updates only this plugin's stable feed entry.
 
 Upstream's contribution policy is retained in `CONTRIBUTING.md`; AI-assisted fork

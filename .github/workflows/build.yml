@@ -1,5 +1,6 @@
 name: Build
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -19,6 +20,12 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.401'
+
+      - name: Validate release versions
+        run: python scripts/release-version.py
+
+      - name: Verify version ordering
+        run: python -m unittest discover -s tests
 
       - name: Download Dalamud Latest
         run: |

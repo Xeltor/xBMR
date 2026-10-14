@@ -2,7 +2,8 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>7.5.7.0</Version>
+    <Version>7.5.6.3501</Version>
+    <InformationalVersion>7.5.6.35.1</InformationalVersion>
     <Description>Xel's Boss Mods Reborn (xBMR).</Description>
     <Copyright></Copyright>
     <PackageProjectUrl></PackageProjectUrl>
