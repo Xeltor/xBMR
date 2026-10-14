@@ -11,10 +11,18 @@ class A36DiabolosHollowStates : StateMachineBuilder
         .ActivateOnEnter<HollowOmen1>()
         .ActivateOnEnter<HollowOmen2>()
         .ActivateOnEnter<Blindside>()
+        .ActivateOnEnter<EarthShaker2>()
         .ActivateOnEnter<Nox>()
         .ActivateOnEnter<HollowNight>()
         .ActivateOnEnter<HollowNightGaze>()
-        .ActivateOnEnter<ParticleBeam2>()
-        .ActivateOnEnter<ParticleBeam4>();
+        .ActivateOnEnter<ParticleBeam>()
+        .ActivateOnEnter<PavorInanis>()
+        .ActivateOnEnter<HollowTerror>()
+        .ActivateOnEnter<CriticalGravity>()
+        .ActivateOnEnter<DoubleEdge>()
+        .ActivateOnEnter<DamageBuffs>()
+        .ActivateOnEnter<GateGuidance>()
+        // Last: replace main-floor instructions for the separate portal participants.
+        .ActivateOnEnter<PortalSafety>();
     }
 }

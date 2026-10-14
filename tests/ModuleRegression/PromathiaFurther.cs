@@ -24,10 +24,34 @@ static partial class Regression
             var later = component.ActiveAOEs(0, actor).ToArray().Single();
             Check(later.Activation == initial.Activation && later.Origin == initial.Origin,
                 "forecast does not drift or move on repeated reads and duplicate starts");
+            boss.PosRot = new Vector4(-813.016f, -900, -832.15076f, 0);
+            var moved = component.ActiveAOEs(0, actor).ToArray().Single();
+            Check(moved.Origin == boss.Position && moved.Activation == initial.Activation,
+                "ring follows boss relocation without moving its fixed deadline");
+            Check(moved.Check(boss.Position + new WDir(4, 0)) == (visual == 50321),
+                "AI and drawing use the relocated ring centre for both shapes");
             var hints = new AIHints();
             component.AddAIHints(0, actor, default, hints);
             Check(hints.ForbiddenZones.Count == 1 && hints.ForbiddenZones[0].activation == initial.Activation,
                 "the AI receives the same fixed ring deadline as the drawing");
+            Check(hints.ForbiddenZones[0].shapeDistance.Contains(boss.Position + new WDir(4, 0)) == (visual == 50321),
+                "AI predicate follows the ring centre as well as the drawing");
+            if (visual == 50322)
+            {
+                var cleave = Component<GenericAOEs>(module, PromathiaPrefix + "PestilentPenance");
+                var helper = Actor(101, 0x233C, boss.Position);
+                var penance = Cast(50331, boss.Position);
+                penance.Rotation = (-30f).Degrees();
+                cleave.OnCastStarted(helper, penance);
+                var overlap = new AIHints();
+                component.AddAIHints(0, actor, default, overlap);
+                cleave.AddAIHints(0, actor, default, overlap);
+                var rear = boss.Position - penance.Rotation.ToDirection() * 4;
+                Check(overlap.ForbiddenZones.Count == 2 && overlap.ForbiddenZones.All(z => !z.shapeDistance.Contains(rear)),
+                    "relocated Bastion and Penance preserve their rear safe pocket with both hazards enabled");
+                Check(overlap.ForbiddenZones.Any(z => z.shapeDistance.Contains(initial.Origin)),
+                    "the old ring centre is correctly rejected by the overlapping cleave");
+            }
             cast.EventHappened = true;
             component.OnCastFinished(boss, cast);
             Check(component.ActiveAOEs(0, actor).Length == 1, "visual finish does not retire the later ring hit");

@@ -183,7 +183,7 @@ sealed class IPCProvider : IDisposable
         Register("Hints.ForceCancelCastMechanicAI", () => ai.Controller.ForceCancelCastMechanicAI);
         Register("Hints.ForceCancelCastOtherAI", () => ai.Controller.ForceCancelCastOtherAI);
 
-        Register("Movement.IsMoving", () => hints.ForcedMovement != null || hints.HoldCasts);
+        Register("Movement.IsMoving", () => hints.EffectiveForcedMovement != null || hints.HoldCasts);
         Register("Movement.IsMoveRequested", movement.IsMoveRequested);
         Register("Hints.ForbiddenZonesCount", () => hints.ForbiddenZones.Count);
         Register("Hints.ForbiddenZonesNextActivation", () => hints.ForbiddenZones.Count == 0 ? float.MaxValue : (float)(hints.ForbiddenZones[0].activation - DateTime.Now).TotalSeconds);

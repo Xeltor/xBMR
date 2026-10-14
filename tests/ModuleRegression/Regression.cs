@@ -58,7 +58,7 @@ static partial class Regression
         Service.LuminaGameData = game;
         Service.Config.Initialize();
         List<string> failures = [];
-        foreach (var test in new Action[] { Elm, Queen, Acclaim, Book, Windpipe, Roulette, ShinryuDirections, ShinryuResolution, ShinryuAssignments, ShinryuBootstrap, PromathiaGenesis, PromathiaKnockback, PromathiaRingDeadlines, PromathiaTowerPuddles, AlZahbiKnockback, AlZahbiExaflares, AlZahbiWave1 })
+        foreach (var test in new Action[] { Elm, Queen, Acclaim, Book, Windpipe, Roulette, ShinryuDirections, ShinryuResolution, ShinryuAssignments, ShinryuBootstrap, PromathiaGenesis, PromathiaKnockback, PromathiaRingDeadlines, PromathiaTowerPuddles, PromathiaIslandSupport, AlZahbiKnockback, AlZahbiExaflares, AlZahbiWave1 })
         {
             try { test(); }
             catch (Exception error) { failures.Add(test.Method.Name + ": " + error); }
@@ -158,15 +158,21 @@ static partial class Regression
     }
     private static void Windpipe()
     {
-        const string prefix = "Dawntrail.Trial.T07Doomtrain.";
-        var module = Module(prefix + "T07Doomtrain", new(100, 100));
-        var geometry = Component<BossComponent>(module, prefix + "CarGeometry");
-        var component = Component<SimpleKnockbacks>(module, prefix + "WindpipeDrawIn");
+        // CarGeometry reconstructs the current car from the primary actor and
+        // enemy inventory; use the real initialized module rather than a partial
+        // uninitialized-object fixture that has neither contract.
+        var world = new WorldState(1, "synthetic") { Frame = new(Now, 0, 0, 0, 0, 1) };
+        using var module = new BossMod.Dawntrail.Trial.T07Doomtrain.T07Doomtrain(world, Actor(99, (uint)BossMod.Dawntrail.Trial.T07Doomtrain.OID.Doomtrain, new(100, 75)));
+        module.StateMachine.Start(Now);
+        var geometry = module.Components.Single(c => c.GetType().Name == "CarGeometry");
+        var component = (SimpleKnockbacks)module.Components.Single(c => c.GetType().Name == "WindpipeDrawIn");
+        Check(geometry != null, "Doomtrain geometry activates through the generated state machine");
+        Check(component != null, "Doomtrain draw-in activates through the generated state machine");
         var caster = Actor(1, 0x233C, new(100, 85));
         var player = Actor(2, 0, new(100, 100), true);
         foreach (var car in new[] { 1, 2, 5 })
         {
-            geometry.GetType().GetProperty("Car")!.SetValue(geometry, car);
+            geometry.GetType().GetMethod("SetCar")!.Invoke(geometry, [car]);
             var cast = Cast(45667, caster.Position);
             component.OnCastStarted(caster, cast);
             Check(component.ActiveKnockbacks(7, player).Length == 1, "all slots see a single draw-in source");

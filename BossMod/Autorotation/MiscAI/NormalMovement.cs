@@ -114,6 +114,8 @@ public sealed class NormalMovement : RotationModule
 
     public override void Execute(StrategyValues strategy, Actor? primaryTarget, float estimatedAnimLockDelay, bool isMoving)
     {
+        if (Hints.AutomaticMovementPaused)
+            return; // unsupported-region hold preserves keyboard input and cannot use the main-floor map
         if (AI.AIManager.Instance?.Beh != null) // prevent both AI movement modes from being active at the same time
         {
             return;

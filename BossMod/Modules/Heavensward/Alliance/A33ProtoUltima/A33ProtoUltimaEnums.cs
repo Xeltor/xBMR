@@ -38,7 +38,7 @@ public enum AID : uint
     LightPillar3 = 7592, // ProtoUltimaHelper->location, no cast, range 3 circle
     Rotoswipe = 4556, // AllaganDreadnaught->self, 3.0s cast, range 8+R 120-degree cone
 
-    IntegratedAetheromodulator = 7582, // ProtoBit->self, 2.5s cast, range 15+R circle
+    IntegratedAetheromodulator = 7582, // ProtoBit->self, 2.5s cast, donut omen; exact world bounds unverified
 
     Supernova1 = 7581, // Boss->self, 6.0s cast, range 40+R circle
     SupernovaEnrage = 7593, // Boss->self, 60.0s cast, range 40+R circle

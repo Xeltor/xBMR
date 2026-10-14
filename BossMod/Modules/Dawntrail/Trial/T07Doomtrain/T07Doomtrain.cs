@@ -1,128 +1,68 @@
 namespace BossMod.Dawntrail.Trial.T07Doomtrain;
 
-sealed class ElectrayShort(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ElectrayShort, new AOEShapeRect(10f, 2.5f));
-sealed class ElectrayMedium(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ElectrayMedium, new AOEShapeRect(15f, 2.5f));
-sealed class ElectrayLong(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ElectrayLong, new AOEShapeRect(25f, 2.5f));
+abstract class GroundElectray(BossModule module, uint aid, float length) : Components.SimpleAOEs(module, aid, new AOEShapeRect(length, 2.5f))
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        ArenaProjectionLayer = Arena.Bounds is ArenaBoundsCustom { WorldProjectionLayers.Length: > 0 } ? 0 : null;
+        base.OnCastStarted(caster, spell);
+    }
+}
+sealed class ElectrayShort(BossModule module) : GroundElectray(module, (uint)AID.ElectrayShort, 10f);
+sealed class ElectrayMedium(BossModule module) : GroundElectray(module, (uint)AID.ElectrayMedium, 15f);
+sealed class ElectrayLong(BossModule module) : GroundElectray(module, (uint)AID.ElectrayLong, 25f);
 sealed class LightningBurstTankBuster(BossModule module) : Components.BaitAwayIcon(module, 5f, (uint)IconID.LightningBurstIcon, (uint)AID.LightningBurst, 5f, centerAtTarget: true, tankbuster: true, damageType: AIHints.PredictedDamageType.Tankbuster);
 
 // For first pass the knockback distance is estimated.
 sealed class LightningExpress(BossModule module) : Components.SimpleKnockbacks(module, (uint)AID.LightningExpress, 16f, kind: Kind.DirForward);
 
-/**
- * Plasma beams have a cast of 0.7 seconds. The Levin signal actors spawn about 7 seconds earlier.
- * We can extrapolate the plasma beam casts based off levin signal positions. Then we create the aoe
- * instances ahead of time so we have time to move out of the way.
- */
-class LevinSignal(BossModule module) : Components.GenericAOEs(module)
+// Spawn gives a useful conservative warning before the one-second cast.
+// The real cast replaces the estimate; upper portals never forbid ground space.
+sealed class LevinSignal(BossModule module) : Components.GenericAOEs(module)
 {
-    private readonly List<(Actor Caster, bool Ground, DateTime Activation, float MaxLen, float Offset)> _casters = [];
+    private readonly CarGeometry _car = module.FindComponent<CarGeometry>()!;
+    private readonly List<AOEInstance> _aoes = [];
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
 
     public override void OnActorCreated(Actor actor)
     {
-        if (actor.OID == (uint)OID.LevinSignal)
-        {
-            // if actor.PosRot.Y then they are at ground level
-            var ground = actor.PosRot.Y < 2;
-
-            var car = Module.FindComponent<CarGeometry>();
-            // set default value for ground to 30 and upperdeck to 0 cull levin signal that are elevated and not over platforms.
-            var maxLen = ground ? 30 : 0;
-            var offset = 0;
-            var posX = actor.PosRot.X;
-            if (car?.Car == 2)
-            {
-                if (posX is > 95f and < 100)
-                {
-                    maxLen = 20;
-                }
-                else if (posX is > 100f and < 105)
-                {
-                    maxLen = 10;
-                }
-            }
-            // car 3 has two platforms of length 20
-            if (car?.Car == 3)
-            {
-                // left side platforms
-                if (posX < 95f)
-                {
-                    if (ground)
-                    {
-                        maxLen = 10;
-                    }
-                    else
-                    {
-                        maxLen = 20;
-                        offset = 10;
-                    }
-                }
-                // right side platforms
-                else if (posX > 105f)
-                {
-                    if (ground)
-                    {
-                        maxLen = 10;
-                    }
-                    else
-                    {
-                        maxLen = 20;
-                        offset = 10;
-                    }
-                }
-            }
-            if (car?.Car == 5)
-            {
-                // left side platform, length 10
-                if (posX < 95f)
-                {
-                    if (ground)
-                    {
-                        maxLen = 20;
-                    }
-                    else
-                    {
-                        maxLen = 10;
-                        offset = 20;
-                    }
-                }
-                // right side platform
-                else if (posX > 105f)
-                {
-                    if (ground)
-                    {
-                        maxLen = 10;
-                    }
-                    else
-                    {
-                        maxLen = 10;
-                        offset = 10;
-                    }
-                }
-            }
-            _casters.Add((actor, ground, WorldState.FutureTime(7), maxLen, offset));
-        }
+        if (actor.OID != (uint)OID.LevinSignal || _aoes.Any(a => a.ActorID == actor.InstanceID))
+            return;
+        var ground = actor.PosRot.Y < 2f;
+        if (!ground && _car.Car is not (3 or 5))
+            return;
+        var length = 30f;
+        if (ground && _car.Car == 2)
+            length = actor.Position.X is > 100f and < 105f ? 10f : actor.Position.X is > 95f and < 100f ? 20f : 30f;
+        _aoes.Add(new(new AOEShapeRect(length, 2.5f), actor.Position, actor.Rotation, WorldState.FutureTime(7),
+            actorID: actor.InstanceID, arenaProjectionLayer: _car.Car is 3 or 5 ? ground ? 0 : 1 : null, restrictToArenaProjectionLayer: true));
     }
 
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        var count = _casters.Count;
-        if (count == 0)
-            return [];
-        var aoes = new AOEInstance[count];
-        for (var i = 0; i < count; ++i)
+        var length = spell.Action.ID switch
         {
-            var c = _casters[i];
-
-            aoes[i] = new(new AOEShapeRect(c.MaxLen, 2.5f), c.Caster.Position + new WDir(0, c.Offset), default, c.Activation);
-        }
-        return aoes;
+            (uint)AID.PlasmaBeamUpper or (uint)AID.PlasmaBeamLower => 30f,
+            (uint)AID.PlasmaBeamMedium => 20f,
+            (uint)AID.PlasmaBeamShort => 10f,
+            _ => 0f
+        };
+        if (length == 0f)
+            return;
+        _aoes.RemoveAll(a => a.ActorID == caster.InstanceID);
+        var ground = caster.PosRot.Y < 2f;
+        if (ground || _car.Car is 3 or 5)
+            _aoes.Add(new(new AOEShapeRect(length, 2.5f), spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell),
+                actorID: caster.InstanceID, arenaProjectionLayer: _car.Car is 3 or 5 ? ground ? 0 : 1 : null, restrictToArenaProjectionLayer: true));
     }
 
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell) => _aoes.RemoveAll(a => a.ActorID == caster.InstanceID);
+    public override void OnActorDestroyed(Actor actor) => _aoes.RemoveAll(a => a.ActorID == actor.InstanceID);
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         if (spell.Action.ID is (uint)AID.PlasmaBeamLower or (uint)AID.PlasmaBeamMedium or (uint)AID.PlasmaBeamShort or (uint)AID.PlasmaBeamUpper)
         {
-            _casters.RemoveAll(c => c.Caster == caster);
+            _aoes.RemoveAll(a => a.ActorID == caster.InstanceID);
             ++NumCasts;
         }
     }
@@ -148,7 +88,7 @@ sealed class WindpipeDrawIn(BossModule module) : Components.SimpleKnockbacks(mod
                 _ => null
             };
             Casters.Add(new(spell.LocXZ, 20f, Module.CastFinishAt(spell), direction: spell.Rotation,
-                safeWalls: walls, kind: Kind.DirBackward, ignoreImmunes: true, actorID: caster.InstanceID));
+                safeWalls: walls, kind: Kind.DirBackward, actorID: caster.InstanceID));
         }
     }
 
@@ -181,90 +121,46 @@ sealed class Blastpipe(BossModule module) : Components.SimpleAOEs(module, (uint)
 
 sealed class UnlimitedExpress(BossModule module) : Components.RaidwideCast(module, (uint)AID.UnlimitedExpress);
 
-/**
- * Show the respective aoe shapes for Thunderous breath and Headlight.
- */
 sealed class HeadOnEmission(BossModule module) : Components.GenericAOEs(module)
 {
-    private readonly CarGeometry _car = module.FindComponent<CarGeometry>()!;
     private readonly List<AOEInstance> _aoes = [];
-    //private DateTime _activation;
-
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
-    {
-        var count = _aoes.Count;
-        if (count == 0)
-            return [];
-
-        var aoes = CollectionsMarshal.AsSpan(_aoes);
-        var color = Colors.AOE;
-
-        for (var i = 0; i < count; ++i)
-        {
-            ref var aoe = ref aoes[i];
-            if (count > 0)
-            {
-                aoe.Color = color;
-                aoe.Risky = true;
-            }
-        }
-        return aoes;
-    }
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID is var id && id == (uint)AID.ThunderousBreathLowerDeck)
-        {
-            _aoes.Add(new(_car.GroundShape, Module.Arena.Center));
-        }
-        else if (id == (uint)AID.HeadlightUpperDeck)
-        {
-            _aoes.Add(new(_car.AirShape, Module.Arena.Center));
-        }
+        if (spell.Action.ID is not ((uint)AID.ThunderousBreathLowerDeck or (uint)AID.HeadlightUpperDeck))
+            return;
+        _aoes.RemoveAll(a => a.ActorID == caster.InstanceID);
+        var layer = spell.Action.ID == (uint)AID.ThunderousBreathLowerDeck ? 0 : 1;
+        // Full car, clipped to the physical floor; activation is shared by radar and AI.
+        _aoes.Add(new(new AOEShapeRect(15f, 10f, 15f), Arena.Center, activation: Module.CastFinishAt(spell),
+            actorID: caster.InstanceID, arenaProjectionLayer: layer, restrictToArenaProjectionLayer: true));
     }
 
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (spell.Action.ID is (uint)AID.ThunderousBreathLowerDeck or (uint)AID.HeadlightUpperDeck)
-        {
-            _aoes.Clear();
-        }
+        foreach (ref readonly var aoe in ActiveAOEs(slot, actor))
+            hints.Add(aoe.ArenaProjectionLayer == 0 ? "Move onto a raised platform!" : "Move to the lower deck!",
+                ArenaProjectionLayerParticipantApplies(actor, aoe.ArenaProjectionLayer, true));
     }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell) => _aoes.RemoveAll(a => a.ActorID == caster.InstanceID);
+    public override void OnActorDestroyed(Actor actor) => _aoes.RemoveAll(a => a.ActorID == actor.InstanceID);
 }
 
 // Aether surge : multiple cone aoe from center outwards. 6.0s cast, range 30 45.000-degree cone
-sealed class AetherSurge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.AetherSurge, new AOEShapeCone(15f, 22.5f.Degrees()), riskyWithSecondsLeft: 6d);
+sealed class AetherSurge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.AetherSurge, new AOEShapeCone(30f, 22.5f.Degrees()));
 
-/**
- * Ghost train targets a party member inside the arena with Aetherial Ray:
- * a range 50 cone from Ghost train to target party member.
- * Ghost train gets an additional status 'Distance' to determine how much they will rotate around the arena between
- * cast start and end.
- * SID.Distance = 4541
- * SID.Distance.Extra 0x578 : 170 degree,
- * SID.Distance.Extra 0x960 (106 degree rotation)
- */
-class AetherialRay(BossModule module) : Components.GenericBaitAway(module, (uint)AID.AetherialRay, damageType: AIHints.PredictedDamageType.Tankbuster)
+// Follow the moving train; the source is not locked until it stops. The three
+// recorded Horn-to-Ray delays are 7.65-7.67s; use 7.6s conservatively.
+sealed class AetherialRay(BossModule module) : Components.GenericBaitAway(module, (uint)AID.AetherialRay, damageType: AIHints.PredictedDamageType.Tankbuster)
 {
-    private Angle _nextRotation;
     private Actor? _nextTarget;
     private DateTime _nextActivation;
 
     public override void OnStatusGain(Actor actor, ref ActorStatus status)
     {
-        if ((SID)status.ID == SID.Distance)
-        {
-            _nextRotation = status.Extra switch
-            {
-                0x578 => 170.Degrees(),
-                0x960 => 106.Degrees(),
-                _ => default
-            };
-            if (_nextRotation == default)
-                ReportError($"Unrecognized status {status.Extra:X} on Ghost Train, don't know where to predict");
-        }
-
-        if ((SID)status.ID == SID.Stop)
+        if (actor.OID == (uint)OID.GhostTrain && (SID)status.ID == SID.Stop)
         {
             foreach (ref var bait in CollectionsMarshal.AsSpan(CurrentBaits))
                 bait.Source = actor;
@@ -273,17 +169,22 @@ class AetherialRay(BossModule module) : Components.GenericBaitAway(module, (uint
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
     {
-        if ((IconID)iconID == IconID.Horn)
+        if (actor.OID == (uint)OID.GhostTrain && (IconID)iconID == IconID.Horn)
         {
             _nextTarget = WorldState.Actors.Find(targetID);
-            _nextActivation = WorldState.FutureTime(9.7f);
+            _nextActivation = WorldState.FutureTime(7.6f);
         }
         // source is GhostTrain, _nextTarget is the party member that is dragging the cone marker
-        if ((IconID)iconID == IconID.Horn && _nextTarget != null)
+        if (actor.OID == (uint)OID.GhostTrain && (IconID)iconID == IconID.Horn && _nextTarget != null)
         {
+            CurrentBaits.RemoveAll(b => b.Source.InstanceID == actor.InstanceID);
             CurrentBaits.Add(new(actor, _nextTarget, new AOEShapeCone(50, 17.5f.Degrees()), _nextActivation));
         }
     }
+
+    public override void Update() => CurrentBaits.RemoveAll(b => b.Source.IsDeadOrDestroyed || b.Target.IsDeadOrDestroyed);
+
+    public override void OnActorDestroyed(Actor actor) => CurrentBaits.RemoveAll(b => b.Source == actor || b.Target == actor);
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
@@ -295,105 +196,205 @@ class AetherialRay(BossModule module) : Components.GenericBaitAway(module, (uint
     }
 }
 
-//RunawayTrainRaidwide = 45645, // 233C->self, no cast, range 20 circle
-sealed class RunawayTrainRaidwide(BossModule module) : Components.RaidwideCast(module, (uint)AID.RunawayTrainRaidwide);
+sealed class RunawayTrainRaidwide(BossModule module) : Components.RaidwideCastDelay(module, (uint)AID.RunawayTrainVisual, (uint)AID.RunawayTrainRaidwide, 15f);
 
-// arcane revelation. This is the spell with the diamond pattern on the floor and the lightning
-// traverses n points to cast Hail of thunder.  Use the actor OID.ArcaneRevelation to mark the indicator for hail of thunder.
-// The circle is so big that pc gets trapped in a corner pocket on the wrong end
-// Would be good to have some logic that can avoid the center radius of aoe and be +/- range of
-// middle of car to more easily avoid pathing into crush zone.
-// like if bait.center.z is > arena.center.z: path to safezones north, else path safezone south
-// if bait.center.x > arena.center.x: path to safezones.west, else path safezone east
-sealed class ArcaneRevelation(BossModule module) : Components.GenericBaitAway(module, centerAtTarget: true)
+// The indicator is harmless in transit. Forecast its final diamond vertex from
+// the two/three-step cue and observed initial travel direction, not its current
+// position. Car four's first explosion is stationary (also described by the guide).
+sealed class ArcaneRevelation(BossModule module) : Components.GenericAOEs(module)
 {
-    //when arcane revelation mob created, add bait.
+    private readonly CarGeometry _car = module.FindComponent<CarGeometry>()!;
+    private readonly List<Actor> _indicators = [];
+    private readonly HashSet<ulong> _resolved = [];
+    private readonly HashSet<ulong> _stationaryFirst = [];
+    private DateTime _revelation;
+    private Actor? _moving;
+    private WPos _start;
+    private int _startIndex;
+    private int _steps;
+    private DateTime _activation;
+    private WPos? _destination;
+
+    // Observed stopping vertices, rounded independently from the 16y blast radius.
+    // These are a recorded trajectory model, not physical arena-edge measurements.
+    private WPos Vertex(int index) => index switch
+    {
+        0 => new(100f, Arena.Center.Z - 10f),
+        1 => new(95.2f, Arena.Center.Z),
+        2 => new(100f, Arena.Center.Z + 10f),
+        _ => new(104.8f, Arena.Center.Z)
+    };
+
     public override void OnActorCreated(Actor actor)
     {
         if (actor.OID == (uint)OID.ArcaneRevelation)
-            CurrentBaits.Add(new(Module.PrimaryActor, actor, new AOEShapeCircle(16f)));
+        {
+            if (_indicators.Contains(actor))
+                return;
+            _indicators.RemoveAll(a => a.InstanceID == actor.InstanceID);
+            _resolved.Remove(actor.InstanceID);
+            _stationaryFirst.Remove(actor.InstanceID);
+            // A late component bootstrap cannot establish which explosion is first.
+            if (_car.Car == 4 && _revelation != default && WorldState.CurrentTime <= _revelation.AddSeconds(5))
+                _stationaryFirst.Add(actor.InstanceID);
+            _indicators.Add(actor);
+        }
     }
-    //when arcane revelation mob is gone, remove it.
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _indicators.Remove(actor);
+        _resolved.Remove(actor.InstanceID);
+        _stationaryFirst.Remove(actor.InstanceID);
+        if (_moving == actor) ClearPrediction();
+    }
+    private void ClearPrediction()
+    {
+        _moving = null;
+        _destination = null;
+    }
     public override void Update()
     {
-        if (CurrentBaits.Count > 0 && Module.Enemies((uint)OID.ArcaneRevelation).All(static comp => comp.IsDead)) // if adds die baits get cancelled
-            CurrentBaits.Clear();
+        _indicators.RemoveAll(a => a.IsDeadOrDestroyed);
+        if (_moving is not { } moving)
+            return;
+        if (moving.IsDeadOrDestroyed)
+        {
+            ClearPrediction();
+            return;
+        }
+        if (_destination != null)
+            return;
+        var travel = moving.Position - _start;
+        // Ignore spawn quantization/turn-in-place before selecting the direction.
+        if (travel.LengthSq() < 0.04f)
+            return;
+        var forward = Vertex((_startIndex + 1) % 4) - _start;
+        var backward = Vertex((_startIndex + 3) % 4) - _start;
+        var discriminator = travel.Dot(forward.Normalized() - backward.Normalized());
+        if (Math.Abs(discriminator) > 0.05f)
+            _destination = Vertex((_startIndex + (discriminator > 0f ? _steps : 4 - _steps)) % 4);
     }
-}
-
-// HailOfThunder, kept this separate because it highlights the difference between the arcane revelation
-// bait indicator and the HailOfThunder cast.
-sealed class HailOfThunder(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HailOfThunder, new AOEShapeCircle(16f), riskyWithSecondsLeft: 3.2d);
-
-sealed class Electray3(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Electray3, new AOEShapeRect(20f, 2.5f), riskyWithSecondsLeft: 5d);
-
-sealed class ElectrayUpper(BossModule module) : Components.GenericAOEs(module)
-{
-    private readonly List<AOEInstance> _aoes = [];
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
-
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (caster.OID == (uint)OID.Doomtrain && spell.Action.ID == (uint)AID.ArcaneRevelationVisual)
+            _revelation = WorldState.CurrentTime;
+        else if (caster.OID == (uint)OID.Doomtrain && spell.Action.ID is (uint)AID._Ability_HailOfThunder or (uint)AID._Ability_HailOfThunder2)
+        {
+            ClearPrediction();
+            // No guess when source identity or starting vertex is ambiguous.
+            if (_indicators.Count != 1 || _car.Car is not (4 or 5) || _car.Intermission)
+                return;
+            var actor = _indicators[0];
+            _start = actor.Position;
+            _startIndex = Enumerable.Range(0, 4).MinBy(i => (Vertex(i) - _start).LengthSq());
+            if ((_start - Vertex(_startIndex)).LengthSq() > 0.25f)
+                return;
+            _moving = actor;
+            _steps = spell.Action.ID == (uint)AID._Ability_HailOfThunder ? 2 : 3;
+            // Cue-to-impact: 7.98-8.03s / 10.95-10.99s in the authoring source.
+            // 0.2s is a conservative margin, not a verified server snapshot offset.
+            _activation = WorldState.FutureTime(3 * _steps + 2 - 0.2f);
+            if (_car.Car == 4 && _steps == 2 && _stationaryFirst.Contains(actor.InstanceID) && !_resolved.Contains(actor.InstanceID))
+                _destination = Vertex(_startIndex);
+        }
+        else if (spell.Action.ID == (uint)AID.HailOfThunder)
+        {
+            foreach (var actor in _indicators)
+                _resolved.Add(actor.InstanceID);
+            ClearPrediction();
+        }
+    }
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID == (uint)AID.ElectrayUpper)
+        if (spell.Action.ID == (uint)AID.HailOfThunder)
         {
-            // make the rectangle lengthFront shorter because it only needs cover the platform from edge of arena.
-            _aoes.Add(new(new AOEShapeRect(10f, 2.5f), caster.CastInfo!.LocXZ, caster.CastInfo!.Rotation, Module.CastFinishAt(caster.CastInfo)));
+            if (_destination is { } destination && !spell.LocXZ.InCircle(destination, 0.5f))
+                ReportError("Hail of Thunder locked away from its forecast destination");
+            // The actual helper locks the location and replaces the forecast.
+            ClearPrediction();
         }
     }
-
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+        => _destination is { } destination ? new AOEInstance[] { new(new AOEShapeCircle(16f), destination, activation: _activation,
+            actorID: _moving!.InstanceID, restrictToArenaProjectionLayer: null) } : [];
+    public override void AddGlobalHints(Actor actor, GlobalHints hints)
     {
-        if (spell.Action.ID == (uint)AID.ElectrayUpper)
-        {
-            _aoes.Clear();
-        }
+        if (_moving != null && _destination == null)
+            hints.Add("Waiting for lightning's travel direction");
     }
 }
 
-sealed class RunawayTrain(BossModule module) : Components.RaidwideCast(module, (uint)AID.RunawayTrain);
-
-sealed class Shockwave(BossModule module) : Components.RaidwideCast(module, (uint)AID.Shockwave);
-
-// Rectangle that covers all of car 4, portal opens in the back to escape to car 5
-sealed class Derail(BossModule module) : Components.GenericAOEs(module)
+// Once the helper cast appears, use its exact locked location and cast timer.
+// Keep the same explicit 0.2s conservative margin as the early forecast.
+sealed class HailOfThunder(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HailOfThunder, new AOEShapeCircle(16f), restrictToArenaProjectionLayer: null)
 {
-    // Cheat by making portal visible as an inverted danger zone at WPos
-    private readonly WPos escapePortal = new(100f, 262.5f);
-    private readonly List<AOEInstance> _aoes = [];
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
-
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID == (uint)AID.Derail)
-        {
-            _aoes.Add(new(new AOEShapeDonut(2, 32), escapePortal, default, Module.CastFinishAt(spell, 0.6d)));
-        }
-    }
-
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
-    {
-        if (spell.Action.ID == (uint)AID.Derail)
-        {
-            _aoes.Clear();
-        }
+        base.OnCastStarted(caster, spell);
+        if (spell.Action.ID == WatchedAction && Casters.Count != 0)
+            CollectionsMarshal.AsSpan(Casters)[^1].Activation = Module.CastFinishAt(spell, -0.2f);
     }
 }
 
-// Derailment Siege stack
-sealed class DerailmentSiegeCircle(BossModule module) : Components.StackWithCastTargets(module, (uint)AID.DerailmentSiegeCircle, 5, 8);
+sealed class Electray3(BossModule module) : GroundElectray(module, (uint)AID.Electray3, 20f);
 
-// Would be cleaner probably to have all arena changes tied to a ENVC state switch.
-// TODO should probably move this over to geometry with the rest of the arena changes.
-sealed class ArenaChangeCar4(BossModule module) : BossComponent(module)
+sealed class ElectrayUpper(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ElectrayUpper, new AOEShapeRect(25f, 2.5f), arenaProjectionLayer: 1);
+
+sealed class RunawayTrain(BossModule module) : Components.CastHint(module, (uint)AID.RunawayTrain, "Intermission: defeat the aether add!");
+
+sealed class Shockwave(BossModule module) : Components.RaidwideCastDelay(module, (uint)AID.ShockwaveVisual, (uint)AID.Shockwave, 5.6f);
+
+// The whole old car is lethal, including the pad if the transfer has not completed.
+sealed class Derail(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Derail, new AOEShapeRect(30f, 10f));
+
+// Shared tower: its long cast ends after all three damage pulses. The helper is
+// not a player stack target, and arrival is due at the FIRST pulse, not cast end.
+sealed class DerailmentSiegeCircle(BossModule module) : Components.GenericTowers(module)
 {
-    private readonly CarGeometry _car = module.FindComponent<CarGeometry>()!;
-
+    private readonly Dictionary<ulong, int> _hits = [];
+    private readonly Dictionary<ulong, uint> _lastSequence = [];
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID != (uint)AID.DerailmentSiegeCircle || _hits.ContainsKey(caster.InstanceID))
+            return;
+        _hits[caster.InstanceID] = 0;
+        Towers.Add(new(spell.LocXZ, 5f, 8, 8, activation: Module.CastFinishAt(spell, -2.9f), actorID: caster.InstanceID));
+    }
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID is not ((uint)AID.DerailmentSiegeStack or (uint)AID._Ability_DerailmentSiege2 or (uint)AID._Ability_BatteringArms1 or (uint)AID._Ability_BatteringArms2))
+            return;
+        for (var i = 0; i < Towers.Count; ++i)
+        {
+            ref var tower = ref CollectionsMarshal.AsSpan(Towers)[i];
+            if (!caster.Position.InCircle(tower.Position, 1f))
+                continue;
+            if (spell.GlobalSequence != 0 && _lastSequence.GetValueOrDefault(tower.ActorID) == spell.GlobalSequence)
+                return;
+            _lastSequence[tower.ActorID] = spell.GlobalSequence;
+            ++NumCasts;
+            var hits = ++_hits[tower.ActorID];
+            if (spell.Action.ID is (uint)AID._Ability_DerailmentSiege2 or (uint)AID._Ability_BatteringArms2)
+            {
+                _hits.Remove(tower.ActorID);
+                _lastSequence.Remove(tower.ActorID);
+                Towers.RemoveAt(i);
+            }
+            else
+                tower.Activation = WorldState.FutureTime(hits == 1 ? 1f : 1.5f);
+            return;
+        }
+    }
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID == (uint)AID.Derail)
-        {
-            _car.Car = 5;
-        }
+        if (spell.Action.ID == (uint)AID.DerailmentSiegeCircle)
+            OnActorDestroyed(caster);
+    }
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _hits.Remove(actor.InstanceID);
+        _lastSequence.Remove(actor.InstanceID);
+        Towers.RemoveAll(t => t.ActorID == actor.InstanceID);
     }
 }
 
@@ -405,8 +406,8 @@ public class T07Doomtrain(WorldState ws, Actor primary) : BossModule(ws, primary
 
     protected override void UpdateModule()
     {
-        AetherIntermission ??= GetActor((uint)OID.AetherIntermission);
-        ghostTrain ??= GetActor((uint)OID.GhostTrain);
+        AetherIntermission = Enemies((uint)OID.AetherIntermission).FirstOrDefault(a => !a.IsDeadOrDestroyed && a.IsTargetable);
+        ghostTrain = Enemies((uint)OID.GhostTrain).FirstOrDefault(a => !a.IsDeadOrDestroyed);
     }
 
     protected override void DrawEnemies(int pcSlot, Actor pc)

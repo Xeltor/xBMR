@@ -20,7 +20,15 @@ sealed class ArcaneArmaments(BossModule module) : Components.GenericAOEs(module)
         visible.Clear();
         foreach (var prediction in predictions)
             if (!prediction.Orb.IsDestroyed)
-                visible.Add(prediction.AOE);
+            {
+                var aoe = prediction.AOE;
+                // Keep the full tether preview, but don't turn an ~13-second
+                // forecast into immediate avoidance/dash-safety pressure.
+                // Five seconds allows travel plus the native one-second reserve;
+                // the actual impact deadline and hazard dimensions stay intact.
+                aoe.Risky = aoe.Activation <= WorldState.FutureTime(5d);
+                visible.Add(aoe);
+            }
         return CollectionsMarshal.AsSpan(visible);
     }
 

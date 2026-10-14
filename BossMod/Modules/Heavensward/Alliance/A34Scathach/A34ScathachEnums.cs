@@ -9,6 +9,8 @@ public enum OID : uint
     ShadowcourtJester = 0x1953, // R0.600, x?
     ChimeraPoppet = 0x1954, // R2.250, x?
     ShadowcourtHound = 0x1955, // R4.440, x?
+    ShadowLinksHelper = 0x1EA255, // event object at the arena center
+    MeteorTower = 0x1EA24E, // event object, one player required
 }
 
 public enum AID : uint
@@ -83,7 +85,7 @@ public enum SID : uint
 public enum IconID : uint
 {
     Nox = 197, // player
-    Icon62 = 62, // player
+    ThirtyCries = 62, // player, stack marker
 }
 
 public enum TetherID : uint

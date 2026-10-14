@@ -7,6 +7,21 @@ Preserve upstream licence notices. Do not submit AI-assisted changes upstream
 against the policy in `CONTRIBUTING.md` or modify installed plugin binaries as
 part of a source release.
 
+## Encounter research: written guides first
+
+Before creating, fixing or improving a specific encounter module, search online
+for written guides to that encounter and read the relevant mechanic sections.
+Confirm that each guide covers the correct difficulty, variant and phase. Use
+these guides for additional context on mechanic names, sequences, alternate
+patterns, arena changes and player responses before planning implementation.
+
+Record the guide URLs and relevant findings in the encounter's implementation
+notes, including disagreements with recordings or existing code. Cross-check
+guide claims against encounter evidence; a guide alone does not establish exact
+geometry, server snapshots or last-safe movement timing. Keep those uncertainties
+explicit. If no suitable written guide is available, document the search and
+continue with the available evidence without inventing missing details.
+
 ## New encounter modules: arena first
 
 For fights with no module at all, the first implementation priority is a minimal
@@ -53,6 +68,22 @@ Check that warnings arrive before the last safe response and that both AIs can
 consume the timing without late dodges or needless early departures. Document
 unverified timing and keep replay/build success separate from live gameplay
 acceptance.
+
+## Module maturity: evidence-based promotion, issue-driven reopening
+
+Apply [the module maturity policy](docs/module-maturity-policy.md) when deciding
+whether a module should leave or return to WIP. Promote when relevant mechanics
+and known patterns are covered, available evidence supports correctness, and
+relevant offline validation and the build pass with no known material defect.
+Personal live testing is optional; do not require the maintainer to test every
+encounter or change. Keep offline acceptance distinct from live gameplay proof.
+
+Return a module to WIP when a complaint or Git issue identifies a credible
+material omission or correctness/safety defect, including while investigating a
+credible severe report. Cosmetic requests and unrelated XCAI problems do not
+qualify. Record promotion/reopening reasons and evidence or issue links. After
+repair, validate the affected behavior and adjacent interactions before promoting
+again; a full encounter retest is not required for every change.
 
 ## Local development builds
 

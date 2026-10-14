@@ -35,7 +35,7 @@ static class Regression
         var module = BossModuleRegistry.CreateModuleForActor(world, boss)!;
         Check(module is V31Quaqua, "generated registry selects Variant Quaqua");
         module.Update();
-        Check(module.Components.Count == 6, "generated state/component factories activate all six components");
+        Check(module.Components.Count == 8, "generated state/component factories activate all eight components");
         return module;
     }
 
@@ -55,8 +55,11 @@ static class Regression
         ActionData(game);
         ArenaAndReset();
         Armaments();
+        ArmamentsTiming();
         Dashes();
         Exaflares();
+        Hammers();
+        FairSkies();
         Console.WriteLine($"{assertions} Quaqua assertions passed (synthetic callbacks; physical/live validation pending).");
     }
 
@@ -68,12 +71,15 @@ static class Regression
         {
             (35722, 2, 14, 0), (35723, 10, 18, 0), (35729, 12, 45, 16),
             (35730, 12, 45, 16), (35731, 12, 40, 10), (35733, 13, 32, 0),
-            (35740, 2, 6, 0), (35741, 2, 6, 0)
+            (35740, 2, 6, 0), (35741, 2, 6, 0),
+            (35735, 12, 50, 8), (35736, 12, 50, 4)
         })
         {
             var row = sheet.GetRow(id);
             Check(row.CastType == type && row.EffectRange == range && row.XAxisModifier == width, "current Action fields match reference " + id);
         }
+        var knockback = game.Excel.GetSheet<Lumina.Excel.Sheets.Knockback>()!.GetRow(96);
+        Check(knockback.Distance == 20 && knockback.Direction == 6, "current hammer displacement row matches nominal 20-yalm radial push");
     }
 
     private static void ArenaAndReset()
@@ -152,7 +158,66 @@ static class Regression
         Check(shapes.Any(a => a.Check(positions[0])), "donut adjacent to an axe is unsafe");
         var hints = new AIHints();
         component.AddAIHints(0, boss, default, hints);
-        Check(hints.ForbiddenZones.Count == 5, "all five sphere hazards reach native AI constraints");
+        Check(hints.ForbiddenZones.Count == 5, "all five imminent sphere hazards reach native AI constraints");
+    }
+
+    private static void ArmamentsTiming()
+    {
+        var worstTravel = 0f;
+        foreach (var pattern in new[] { "axes", "donuts", "mixed" })
+        {
+            using var module = Module();
+            var component = AOEs(module, "ArcaneArmaments");
+            var boss = module.PrimaryActor;
+            var positions = pattern == "mixed"
+                ? new[] { new WPos(-545, 81.88f), new WPos(-550.12f, 87), new WPos(-524, 94), new WPos(-529, 109.59f), new WPos(-545, 106.12f) }
+                : new[] { new WPos(-552, 94), new WPos(-531, 81.88f), new WPos(-531, 106.12f) };
+            for (var i = 0; i < positions.Length; ++i)
+            {
+                var orb = Add(module, (ulong)(101 + i), (uint)OID.AethericCharge, positions[i]);
+                var id = pattern == "axes" || pattern == "mixed" && i is 1 or 3 ? AID.RavagingAxe : AID.RingingQuoits;
+                var cast = Cast(orb, id);
+                cast.TotalTime = 12.7f;
+                component.OnCastStarted(orb, cast);
+            }
+            var forecast = component.ActiveAOEs(0, boss).ToArray();
+            Check(forecast.Length == positions.Length && forecast.All(a => !a.Risky), pattern + " previews remain visible without early danger");
+            var deadline = forecast[0].Activation;
+            var hints = new AIHints();
+            component.AddAIHints(0, boss, default, hints);
+            Check(hints.ForbiddenZones.Count == 0, pattern + " early forecast cannot trigger an IPC safety escape");
+            module.WorldState.Frame = new(deadline.AddSeconds(-5.01), 0, 0, 0, 0, 1);
+            Check(component.ActiveAOEs(0, boss).ToArray().All(a => !a.Risky), pattern + " stays advisory just before the avoidance window");
+            module.WorldState.Frame = new(deadline.AddSeconds(-5), 0, 0, 0, 0, 1);
+            Check(component.ActiveAOEs(0, boss).ToArray().All(a => a.Risky && a.Activation == deadline), pattern + " avoidance starts five seconds before the unchanged impact");
+            hints = new() { PathfindMapBounds = module.Bounds, PathfindMapCenter = module.Center };
+            component.AddAIHints(0, boss, default, hints);
+            Check(hints.ForbiddenZones.Count == positions.Length && hints.ForbiddenZones.All(z => z.activation == deadline), pattern + " exposes all simultaneous hazards at their true deadline");
+            var player = NewActor(200, 0, module.Center);
+            // Reference navigation fixtures cover the center, melee radius,
+            // and outer arena. This is route-budget evidence, not live safety.
+            foreach (var radius in new[] { 0f, 4f, 7.5f, 12f, 16f, 18f })
+            {
+                for (var i = 0; i < (radius == 0 ? 1 : 16); ++i)
+                {
+                    var pos = module.Center + radius * (i * 22.5f).Degrees().ToDirection();
+                    player.PosRot = new(pos.X, 18, pos.Z, 0);
+                    hints.Normalize();
+                    var context = new BossMod.Pathfinding.NavigationDecision.Context();
+                    var navigation = BossMod.Pathfinding.NavigationDecision.Build(context, module.WorldState.CurrentTime, hints, player);
+                    if (navigation.Destination is { } destination)
+                    {
+                        Check(navigation.LeewaySeconds >= 0, pattern + " reference start retains travel time plus native reserve");
+                        var goal = context.ThetaStar.CellCenter(context.ThetaStar.BestIndex());
+                        Check(hints.ForbiddenZones.All(z => !z.shapeDistance.Contains(goal)), pattern + " final goal clears the entire simultaneous hazard union");
+                        worstTravel = Math.Max(worstTravel, navigation.TimeToGoal);
+                    }
+                    else
+                        Check(hints.ForbiddenZones.All(z => !z.shapeDistance.Contains(pos)), pattern + " an idle reference start is already safe");
+                }
+            }
+        }
+        Console.WriteLine($"Sphere reference navigation: worst travel {worstTravel:F3}s with 5s lead and native 1s reserve.");
     }
 
     private static void Dashes()
@@ -233,5 +298,87 @@ static class Regression
         component.OnCastStarted(first, Cast(first, AID.CloudToGroundFirst));
         component.OnActorDestroyed(first);
         Check(component.ActiveAOEs(0, boss).IsEmpty, "destroyed exaflare source cannot leave a forecast");
+    }
+
+    private static void Hammers()
+    {
+        using var module = Module();
+        var component = module.Components.OfType<GenericKnockback>().Single();
+        var boss = module.PrimaryActor;
+        var points = new[] { new WPos(-525, 101.5f), new WPos(-538, 79), new WPos(-551, 101.5f) };
+        component.OnCastStarted(boss, Cast(boss, AID.ArcaneArmamentsHammers));
+        for (var i = 0; i < 3; ++i)
+        {
+            var beacon = Add(module, (ulong)(101 + i), (uint)OID.HammerBeacon, points[i]);
+            var status = new ActorStatus(2056, (ushort)(626 + i), Now.AddSeconds(15), 0);
+            component.OnStatusGain(beacon, ref status);
+        }
+        var first = Cast(boss, AID.HammerLanding, points[0]);
+        component.OnCastStarted(boss, first);
+        component.OnCastStarted(boss, first);
+        for (uint i = 0; i < 3; ++i)
+        {
+            var source = component.ActiveKnockbacks(0, boss);
+            Check(source.Length == 1 && source[0].Origin == points[i] && source[0].Distance == 20, "hammer order comes from numbered beacon status");
+            var hints = new AIHints();
+            component.AddAIHints(0, boss, default, hints);
+            Check(hints.ForbiddenZones.Count == 1, "next hammer supplies an AI landing constraint");
+            Check(hints.ForbiddenZones[0].shapeDistance.Contains(points[i] + (points[i] - module.Center).Normalized()), "outward hammer landing is forbidden");
+            Check(!hints.ForbiddenZones[0].shapeDistance.Contains(points[i] + (module.Center - points[i]).Normalized()), "inward hammer landing remains available");
+            var hit = Effect(i == 0 ? AID.HammerLanding : AID.HammerLandingRepeat, i + 1);
+            component.OnEventCast(boss, hit);
+            component.OnEventCast(boss, hit);
+            first.EventHappened = true;
+            component.OnCastFinished(boss, first);
+        }
+        Check(component.ActiveKnockbacks(0, boss).IsEmpty, "three distinct hammer hits retire the sequence");
+        component.OnCastStarted(boss, Cast(boss, AID.HammerLanding, points[0]));
+        component.OnCastFinished(boss, boss.CastInfo!);
+        Check(component.ActiveKnockbacks(0, boss).IsEmpty, "interrupted first hammer cancels pending impacts");
+    }
+
+    private static void FairSkies()
+    {
+        using var module = Module();
+        var component = AOEs(module, "ScaldingWaves");
+        var boss = module.PrimaryActor;
+        var large = new[] { Add(module, 101, (uint)OID.AnalaFamiliarLarge, new(-546, 69)), Add(module, 102, (uint)OID.AnalaFamiliarLarge, new(-530, 69)) };
+        foreach (var caster in large)
+        {
+            var cast = Cast(caster, AID.ScaldingWavesFirst);
+            component.OnCastStarted(caster, cast);
+            component.OnCastStarted(caster, cast);
+        }
+        var preview = component.ActiveAOEs(0, boss).ToArray();
+        Check(preview.Length == 10 && preview.Count(a => a.Risky) == 2, "future cascades cannot require moving into initial beams");
+        var firstTime = preview[0].Activation;
+        foreach (var caster in large)
+        {
+            component.OnEventCast(caster, Effect(AID.ScaldingWavesFirst, (uint)caster.InstanceID));
+            caster.CastInfo!.EventHappened = true;
+            component.OnCastFinished(caster, caster.CastInfo);
+        }
+        Check(component.ActiveAOEs(0, boss).ToArray().Count(a => a.Risky) == 4, "cascade avoidance starts after both initial beams resolve");
+        var helper = Add(module, 103, (uint)OID.AnalaFamiliar, module.Center);
+        uint sequence = 200;
+        for (var step = 0; step < 7; ++step)
+        {
+            module.WorldState.Frame = new(firstTime.AddSeconds(2.8 + 2.1 * step), 0, 0, 0, 0, 1);
+            var xs = step < 3 ? new[] { -552f - 4 * step, -524f + 4 * step, -540f + 4 * step, -536f - 4 * step }
+                : new[] { -540f + 4 * step, -536f - 4 * step };
+            foreach (var x in xs)
+            {
+                helper.PosRot = new(x, 18, 94, 0);
+                var effect = Effect(AID.ScaldingWavesRest, sequence++);
+                var before = component.NumCasts;
+                component.OnEventCast(helper, effect);
+                component.OnEventCast(helper, effect);
+                Check(component.NumCasts == before + 1, "one due pulse advances once despite helper reuse and overlapping branch positions");
+            }
+        }
+        Check(component.ActiveAOEs(0, boss).IsEmpty, "all twenty fair-sky pulses retire with no stale lines");
+        component.OnCastStarted(large[0], Cast(large[0], AID.ScaldingWavesFirst));
+        component.OnCastFinished(large[0], large[0].CastInfo!);
+        Check(component.ActiveAOEs(0, boss).IsEmpty, "cancelled initial beam clears both dependent cascades");
     }
 }

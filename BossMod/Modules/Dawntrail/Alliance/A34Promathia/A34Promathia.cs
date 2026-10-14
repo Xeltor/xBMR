@@ -7,14 +7,23 @@ sealed class Explosion(BossModule module) : Components.SimpleAOEs(module, (uint)
 sealed class WheelofImpregnability(BossModule module) : Components.GenericAOEs(module, (uint)AID.WheelOfImpregnabilityFire)
 {
     private ActorCastInfo? _cast;
+    private Actor? _source;
     private AOEInstance[] _aoes = [];
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes;
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        // The ring travels with Promathia when he repositions for Pestilent Penance.
+        // Only the resolution deadline is fixed by the visual cast.
+        if (_source != null && _aoes.Length != 0)
+            _aoes[0].Origin = _source.Position;
+        return _aoes;
+    }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.WheelOfImpregnabilityCast && !ReferenceEquals(_cast, spell))
         {
             _cast = spell;
+            _source = caster;
             // The uncast helper resolves about 10.6s after the boss visual finishes.
             // Freeze the forecast: moving it forward every frame prevents AI departure.
             _aoes = [new(new AOEShapeCircle(13f), caster.Position, activation: Module.CastFinishAt(spell, 10.6d))];
@@ -44,14 +53,23 @@ sealed class WheelofImpregnability(BossModule module) : Components.GenericAOEs(m
 sealed class BastionOfTwilight(BossModule module) : Components.GenericAOEs(module, (uint)AID.BastionOfTwilightFire)
 {
     private ActorCastInfo? _cast;
+    private Actor? _source;
     private AOEInstance[] _aoes = [];
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => _aoes;
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        // The ring travels with Promathia when he repositions for Pestilent Penance.
+        // Only the resolution deadline is fixed by the visual cast.
+        if (_source != null && _aoes.Length != 0)
+            _aoes[0].Origin = _source.Position;
+        return _aoes;
+    }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.BastionOfTwilightCast && !ReferenceEquals(_cast, spell))
         {
             _cast = spell;
+            _source = caster;
             _aoes = [new(new AOEShapeDonut(8f, 50f), caster.Position, activation: Module.CastFinishAt(spell, 10.6d))];
         }
     }

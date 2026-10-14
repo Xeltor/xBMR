@@ -1,4 +1,4 @@
-﻿namespace BossMod.Heavensward.Alliance.A31DeathgazeHollow;
+namespace BossMod.Heavensward.Alliance.A31DeathgazeHollow;
 
 class A31DeathgazeHollowStates : StateMachineBuilder
 {
@@ -6,14 +6,20 @@ class A31DeathgazeHollowStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<DarkII>()
-            //.ActivateOnEnter<BoltOfDarkness3>()
+            .ActivateOnEnter<BoltOfDarkness3>()
             .ActivateOnEnter<VoidDeath>()
+            .ActivateOnEnter<VoidDeathPull>()
             .ActivateOnEnter<VoidAeroII>()
+            .ActivateOnEnter<BitingWind>()
+            .ActivateOnEnter<VoidAeroIIIAOE>()
             .ActivateOnEnter<VoidBlizzardIIIAOE>()
-            .ActivateOnEnter<VoidAeroIVKB1>()
-            .ActivateOnEnter<VoidAeroIVKB2>()
-            .ActivateOnEnter<Unknown3>()
-            .ActivateOnEnter<VoidDeathKB2>()
-            .ActivateOnEnter<VoidDeathKB>();
+            .ActivateOnEnter<ShipWalls>()
+            .ActivateOnEnter<VoidAeroIIIKnockback>()
+            .ActivateOnEnter<IceBlocks>()
+            .ActivateOnEnter<VoidAeroIV>()
+            .ActivateOnEnter<VoidBlizzardIV>()
+            .ActivateOnEnter<VoidDeathIV>()
+            .ActivateOnEnter<FloorStrikes>()
+            .ActivateOnEnter<Doom>();
     }
 }

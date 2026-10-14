@@ -371,7 +371,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
 
     private unsafe void ExecuteHints()
     {
-        _movementOverride.DesiredDirection = _hints.ForcedMovement;
+        _movementOverride.DesiredDirection = _hints.EffectiveForcedMovement;
         _movementOverride.MisdirectionThreshold = _hints.MisdirectionThreshold;
         _movementOverride.DesiredSpinDirection = _hints.SpinDirection;
 

@@ -4,6 +4,82 @@ Reviewed on 2026-10-14 for Windurst: The Third Walk, duty 1117, territory
 1368. These are private fork corrections; no upstream submission or maturity
 increase is implied.
 
+## Follow-up: live knockback failure and integration correction
+
+**Current ownership:** the maintainer requested removal of the XCAI-specific
+workaround from xBMR. The module again publishes its original combined landing
+and exact-origin constraint. The XCAI-specific comment and optional integration
+test were removed from this repository. The encounter's native safety hints,
+exaflare corrections, wave-1 coverage and interrupt component remain. XCAI's
+agent owns the general consumer-side fix. The diagnosis and temporary-workaround
+validation below are historical evidence, not acceptance of the restored code
+with the affected XCAI build. The removed test fixture is preserved privately at
+`/tmp/xbmr-alzahbi-followup/removed-xbmr-integration-fixture.txt` for that agent.
+
+The first correction did **not** pass live acceptance. A later Al Zahbi push
+still sent the player past the west boundary. The following combined regression
+and correction supersede the earlier module-only knockback acceptance evidence.
+
+The retained XCAI fight `30ac7460b40d4be7b8d0f3e19b20b226`, revision
+`3b0ef25d4ba244f19709e098d968ad02`, captures the failure on 2026-10-14.
+Frames 118–134 show a targetless player stationary around
+(715.74713,720.1962), with `A31AlZahbi` active and no navigation destination
+after frame 118. The sampled manual movement vector is zero. Knockback guidance
+is present: frame 126 has two constraints and XCAI reports a one-push sequence.
+The subsequent action 50481 is recorded at retained operation 357445,
+raw timestamp `2026-10-14T16:59:42.4307903` (no offset). This aligns with bridge
+UTC `14:59:42.4307903` under the current client's UTC+2 offset. Its origin is
+approximately (720.9734,719.9968). Frames 135–137 show displacement to
+(702.45013,720.693), (695.6945,720.9453), then (693.7695,721.0168).
+The authored west edge is x=696. The player subsequently walks back in.
+
+Root cause: the original fix wrapped its radial landing predicate and exact
+origin check in `SDUnion`. XCAI's native sequence reader identifies projection
+shapes by type. It retained this unrecognized union as an ordinary hazard while
+validating projected landings with `ActionPredicate.IsDashSafe`. This tests the
+landing as if it were another preparation point, effectively requiring another
+22-yalm push. No safe cells remain. BMR's existing navigation fallback clears
+the least dangerous cells when everything is forbidden, explaining the unsafe
+stationary result even though both constraints exist.
+
+The temporary workaround published the native
+`SDKnockbackInAABBRectAwayFromOrigin` directly, with a separate zero-radius
+origin constraint. The then-current XCAI reader recognized it as displacement
+geometry outside its supported projection allowlist and yields to native BMR
+guidance, instead of adding the conflicting sequence constraint. That workaround
+has since been removed at the maintainer's request. Native hints,
+arena dimensions, deadlines, immunity and manual authority remain intact.
+No XCAI source or settings were changed.
+
+Validation uses the actual XCAI assembly via optional `XCAI_DLL` in the native
+regression harness. The previous build fails from the recorded targetless
+position after XCAI processes its hints. The corrected build selects
+(717.25,721.75), whose 22-yalm landing is inside the rectangle, both without
+other hazards and with the four staggered Transcendent Shot rows. Tests also
+require that native constraints survive and the unsafe starting cell remains
+time-restricted. **1,260 native assertions pass with this integration enabled.**
+The full current working tree builds in Release with zero errors and six existing
+obsolete-gauge warnings.
+
+Candidate source SHA256:
+`ed469e998b05f806b5af2bf68c97a9aac8a910d251d034f6d0761b851d6839de`.
+Candidate DLL SHA256:
+`0c237993a4fba0b957a2e01b70bba9127758504f2daffe0728370ef63e2170a6`.
+Candidate and live DevBridge BMR parser MVID agree:
+`b2f7ff54-f085-4207-b75a-6274f7c6b1bb`.
+XCAI test assembly MVID: `ce72fa68-3a4f-4cc6-9bbf-66d20319d25c`.
+The live failed source's parser MVID was
+`c4518902-09a3-4e53-9c61-82be46407a14`.
+
+Private receipt and logs: `/tmp/xbmr-alzahbi-followup/`. The selected diagnostic
+scan reached the retained archive's end; full mechanic-window output was
+truncated and is not treated as complete. The replay window consumed an
+unfinished compressed prefix, so recorder completeness remains false. Event
+window references were released after inspection. The temporary workaround's
+DLL was confirmed loaded then; that identity does not describe the later build
+restoring the original combined constraint. A corrected XCAI build and a new live
+Al Zahbi knockback remain required for gameplay acceptance.
+
 ## Changes and mechanic contract
 
 - **Leaping Cleave (50481):** the upstream `SimpleKnockbacks` implementation

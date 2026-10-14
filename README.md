@@ -8,8 +8,8 @@ in their existing modules. See [the encounter migration audit](docs/xcai-encount
 for the source changes, retired workarounds and remaining validation.
 The subsequent [Shinryu floor corrections](docs/shinryu-floor-corrections.md)
 document the bounded Twilight repair and its replay evidence.
-See the [7.5.6.35.3 release notes](docs/release-7.5.6.35.3.md) for the encounter
-changes, new partial Aloalo coverage and validation limits.
+See the [7.5.6.35.4 release notes](docs/release-7.5.6.35.4.md) for the complete
+encounter changes and validation limits.
 
 ## Install
 
@@ -43,6 +43,14 @@ The project version and informational version must agree with that metadata;
 The bootstrap `v7.5.7` (`7.5.7.0`) release is superseded by this scheme. Anyone who
 installed that bootstrap version must reinstall xBMR once, because its numeric
 version sorts above the corrected version. Existing settings keep the same path.
+
+## Module maturity
+
+Modules leave WIP when encounter coverage is supported by available evidence and
+relevant offline validation passes. Personal live testing is optional. Credible
+complaints or Git issues about material module defects return them to WIP until
+resolved. See [the module maturity policy](docs/module-maturity-policy.md) for
+promotion, reopening and archive collection rules.
 
 ## Development and releases
 

@@ -1,5 +1,10 @@
 # Promathia: ring deadlines, tower commitment and Heavy puddles
 
+The ring-origin behavior described in this first repair is superseded by the
+[movement-overlap correction](promathia-ring-overlap.md). Freezing the deadline
+was necessary; freezing the ring centre introduced a regression when the boss
+repositioned for Pestilent Penance.
+
 Development follow-up on 2026-10-14 to
 [the False Genesis and Empty Seed repair](promathia-false-genesis.md).
 The earlier changes remain present. Release metadata, module maturity, settings,

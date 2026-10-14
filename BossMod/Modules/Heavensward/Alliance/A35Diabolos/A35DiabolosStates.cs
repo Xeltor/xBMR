@@ -9,6 +9,7 @@ class A35DiabolosStates : StateMachineBuilder
             .ActivateOnEnter<NightTerror>()
             .ActivateOnEnter<RuinousOmen1>()
             .ActivateOnEnter<RuinousOmen2>()
+            .ActivateOnEnter<GateIntermission>()
             .ActivateOnEnter<UltimateTerror>();
     }
 }

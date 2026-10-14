@@ -151,6 +151,15 @@ public sealed class AIHints
     // closest special movement/targeting/action mode, if any
     // activation = when the restriction starts (e.g. bomb detonation), finish = when the restriction ends (e.g. pyretic expires)
     public (SpecialMode mode, DateTime activation, DateTime finish) ImminentSpecialMode;
+    // Unsupported encounter regions can pause automated navigation without
+    // blocking the player's keyboard input. Real NoMovement mechanics keep false.
+    public bool NoMovementAllowsManualInput;
+    // Unlike mechanic handling strategies, an unsupported-region hold also
+    // suppresses movement supplied by other automatic modules at execution.
+    public bool AutomaticMovementPaused => NoMovementAllowsManualInput && ImminentSpecialMode.mode == SpecialMode.NoMovement;
+    public Vector3? EffectiveForcedMovement => AutomaticMovementPaused ? null : ForcedMovement;
+    public bool SpecialModeBlocksManualMovement => ImminentSpecialMode.mode == SpecialMode.Pyretic
+        || ImminentSpecialMode.mode == SpecialMode.NoMovement && !NoMovementAllowsManualInput;
 
     // for misdirection: if forced movement is set, make real direction be within this angle
     public Angle MisdirectionThreshold;
@@ -207,6 +216,7 @@ public sealed class AIHints
         RecommendedPositional = default;
         ForbiddenDirections.Clear();
         ImminentSpecialMode = default;
+        NoMovementAllowsManualInput = false;
         MisdirectionThreshold = 15f.Degrees();
         PredictedDamage.Clear();
         ShouldCleanse.Reset();

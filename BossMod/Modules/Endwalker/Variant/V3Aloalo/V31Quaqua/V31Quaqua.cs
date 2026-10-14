@@ -8,7 +8,10 @@ public enum OID : uint
     Boss = 0x40BA,
     Helper = 0x233C,
     AethericCharge = 0x40BB,
-    DrakeFamiliar = 0x4135
+    DrakeFamiliar = 0x4135,
+    HammerBeacon = 0x40E0,
+    AnalaFamiliar = 0x4134,
+    AnalaFamiliarLarge = 0x40BE
 }
 
 public enum AID : uint
@@ -16,11 +19,16 @@ public enum AID : uint
     ArcaneArmaments = 35720,
     RavagingAxe = 35722,
     RingingQuoits = 35723,
+    ArcaneArmamentsHammers = 35724,
+    HammerLanding = 35725,
+    HammerLandingRepeat = 35726,
     Rout = 35729,
     RoutRepeat = 35730,
     RoutPreview = 35731, // unnamed helper preview; not the damaging Rout action
     MadeMagic = 35732,
     VioletStorm = 35733,
+    ScaldingWavesFirst = 35735,
+    ScaldingWavesRest = 35736,
     CloudToGroundFirst = 35740,
     CloudToGroundRest = 35741
 }
@@ -37,7 +45,7 @@ sealed class VioletStorm(BossModule module) : Components.SimpleAOEs(module, (uin
 sealed class RouteCoverage(BossModule module) : BossComponent(module)
 {
     public override void AddGlobalHints(Actor actor, GlobalHints hints)
-        => hints.Add("Partial support: thunder route 1; hammers and other path mechanics unsupported");
+        => hints.Add("Partial support: left path; middle/right path mechanics unsupported");
 }
 
 sealed class V31QuaquaStates : StateMachineBuilder
@@ -50,7 +58,9 @@ sealed class V31QuaquaStates : StateMachineBuilder
             .ActivateOnEnter<ArcaneArmaments>()
             .ActivateOnEnter<Rout>()
             .ActivateOnEnter<VioletStorm>()
-            .ActivateOnEnter<CloudToGround>();
+            .ActivateOnEnter<CloudToGround>()
+            .ActivateOnEnter<HammerLanding>()
+            .ActivateOnEnter<ScaldingWaves>();
     }
 }
 
