@@ -112,18 +112,36 @@
     "tests/TyrantRegression/TyrantRegression.csproj": "8c67bdb409424cd13150fda30592bf9efe3bdde3accd5703b40055b540691f4a"
   },
   "release_validation": {
-    "release_version": "7.5.6.35.6",
-    "install_version": "7.5.6.3506",
+    "release_version": "7.5.6.35.7",
+    "install_version": "7.5.6.3507",
     "validated_on": "2026-10-15",
-    "assembly_sha256": "c0a48171d444db13a78e0c30c4c628d10a0e6baa64a93dffa7bf6fcc359a5337",
-    "full_build_log_sha256": "424d8dd29b2abb1343cffc7253515c671349f705feedb3da3c7dae414ba1ea0e",
+    "assembly_sha256": "b2f7746847a9b9d3788b9e6c026e5af9af6c99340c8f60a7dbdd67bfe646ccf9",
+    "full_build_log_sha256": "63ef62e3248a84295351549e2ee91601e7809b73fdff86ecd8159cc7a8982ad4",
     "release_version_tests": 5,
     "encounter_suites": 10,
     "total_assertions": 3275,
     "synthetic_assertions": 3268,
     "selected_recorded_assertions": 7,
     "tyrant_assertions": 178,
-    "suite_report_sha256": "91209173127a0f082dd938cbdfae92749713216dfdca3807b97400a1355a233a",
-    "live_gameplay": false
+    "suite_report_sha256": "62f934fd0572921f22d200ec0652de2fd5c74745d5ae9a3403f01e2f06826565",
+    "live_gameplay": false,
+    "includes_radar_authoring_rules": true
+  },
+  "release_validation_history": {
+    "7.5.6.35.6": {
+      "release_version": "7.5.6.35.6",
+      "install_version": "7.5.6.3506",
+      "validated_on": "2026-10-15",
+      "assembly_sha256": "c0a48171d444db13a78e0c30c4c628d10a0e6baa64a93dffa7bf6fcc359a5337",
+      "full_build_log_sha256": "424d8dd29b2abb1343cffc7253515c671349f705feedb3da3c7dae414ba1ea0e",
+      "release_version_tests": 5,
+      "encounter_suites": 10,
+      "total_assertions": 3275,
+      "synthetic_assertions": 3268,
+      "selected_recorded_assertions": 7,
+      "tyrant_assertions": 178,
+      "suite_report_sha256": "91209173127a0f082dd938cbdfae92749713216dfdca3807b97400a1355a233a",
+      "live_gameplay": false
+    }
   }
 }

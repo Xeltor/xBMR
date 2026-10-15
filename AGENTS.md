@@ -69,6 +69,32 @@ consume the timing without late dodges or needless early departures. Document
 unverified timing and keep replay/build success separate from live gameplay
 acceptance.
 
+## Encounter radar: readable sequences and clear safe positions
+
+When creating or correcting mechanics, ensure the radar is legible to players:
+it must be clear where to stand now and how to respond next. For back-to-back or
+repeating mechanics, do not draw so many future steps as full yellow hazards that
+the whole arena becomes covered and the useful safe positions disappear.
+
+Choose the clearest presentation for the mechanic. Use shaded yellow to preview
+the next upcoming hazard when that helps distinguish it from the immediate
+danger, or show only a limited number of steps that make the required safe
+position and route clear. Include further steps only when they help players plan
+the response without obscuring the current safe area. Advance the preview and
+fill as hazards become imminent, and promptly remove resolved hazards. Clear or
+correct previews on pattern changes, cancellations, transitions and resets.
+
+Keep display choices separate from internal hazard predictions and AI timing.
+Reducing visual clutter must not discard reliable future hazards, delay actionable
+warnings, or weaken the timing, geometry and route constraints consumed by XCAI
+and BMR AI. Preserve enough advance information for players to reach safety.
+
+Validate radar readability at representative points through the sequence,
+including overlaps and alternate patterns: players should be able to identify
+the immediate safe position and next response without decoding an arena covered
+in yellow. Record the chosen preview behavior and any unverified visual behavior
+in the encounter's implementation notes.
+
 ## Module maturity: evidence-based promotion, issue-driven reopening
 
 Apply [the module maturity policy](docs/module-maturity-policy.md) when deciding
