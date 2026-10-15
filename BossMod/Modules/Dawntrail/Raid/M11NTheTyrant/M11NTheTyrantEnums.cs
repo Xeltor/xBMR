@@ -86,8 +86,12 @@ public enum AID : uint
     _Weaponskill_FireAndFuryCone1 = 46073, // Helper->self, 6.0s cast, range 60 90.000-degree cone
     ExplosionKnockUp = 46061, // Helper->self, 10.0s cast, range 4 circle
     _Spell_UnmitigatedExplosion = 46062, // Helper->self, no cast, range 60 circle
+    ArcadionAvalancheVariant1 = 46063, // Boss->self, 8.0+9.5s cast, single-target
+    ArcadionAvalancheTossVariant1 = 46064, // Helper->self, 17.5s cast, range 40 width 40 rect
     _Weaponskill_ArcadionAvalanche = 46065, // Boss->self, 8.0+9.5s cast, single-target
     _Weaponskill_ArcadionAvalanche1 = 46066, // Helper->self, 17.5s cast, range 40 width 40 rect
+    ArcadionAvalancheVariant3 = 46067, // Boss->self, 8.0+9.5s cast, single-target
+    ArcadionAvalancheTossVariant3 = 46068, // Helper->self, 17.5s cast, range 40 width 40 rect
     ArcadionAvalanche = 46069, // 4AE8->self, 8.0+9.5s cast, single-target
     ArcadionAvalancheToss = 46070, // 233C->self, 17.5s cast, range 40 width 40 rect
     _Weaponskill_2 = 46078, // Boss->self, no cast, single-target

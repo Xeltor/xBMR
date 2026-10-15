@@ -1,0 +1,425 @@
+{
+  "recording_id": "954347b97b5cb4eb96cc24b7dc417241d89ad2b4ceb197056e333f7c87adf490",
+  "retained_revision": "1b44b148e391522c63f98fd95d886863328e4f3c5bdad92bfde1f1dac082f2c2",
+  "source_digest": "889596041acf580aacaa3c681c4bb42d78e9921719fa7160d029930c3caf2853",
+  "game_version": "2026.09.01.0000.0000",
+  "kind": "Selected numeric callbacks only; missing original state is not reconstructed.",
+  "events": [
+    {
+      "seq": 91336,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 115,
+      "position": {
+        "facing": -0.00004792213439941406,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91340,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 116,
+      "position": {
+        "facing": -1.5708682537078857,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91341,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 117,
+      "position": {
+        "facing": 1.570772409439087,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91342,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 118,
+      "position": {
+        "facing": 3.1415927410125732,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91343,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 119,
+      "position": {
+        "facing": -0.00004792213439941406,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91344,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 113,
+      "position": {
+        "facing": 3.1415927410125732,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91346,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 120,
+      "position": {
+        "facing": -1.5708682537078857,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 91347,
+      "ticks": 2955777152,
+      "kind": "cast_start",
+      "actor": 123,
+      "position": {
+        "facing": 1.570772409439087,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0140151996165514
+    },
+    {
+      "seq": 92350,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 106,
+      "position": {
+        "facing": -2.356278419494629,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92351,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 121,
+      "position": {
+        "facing": 0.7853622436523438,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92352,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 107,
+      "position": {
+        "facing": 2.356182336807251,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92353,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 109,
+      "position": {
+        "facing": -0.7854580879211426,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92354,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 105,
+      "position": {
+        "facing": -0.7854580879211426,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92355,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 110,
+      "position": {
+        "facing": 2.356182336807251,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92356,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 108,
+      "position": {
+        "facing": 0.7853622436523438,
+        "x": 89.37207,
+        "y": -0.015258789,
+        "z": 100.1145
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 92357,
+      "ticks": 2975879036,
+      "kind": "cast_start",
+      "actor": 122,
+      "position": {
+        "facing": -2.356278419494629,
+        "x": 108.90369,
+        "y": -0.015258789,
+        "z": 99.13782
+      },
+      "cast_total": 5.699999809265137,
+      "cast_elapsed": 0.0144749004393816
+    },
+    {
+      "seq": 94365,
+      "ticks": 3015429669,
+      "kind": "action",
+      "actor": 120
+    },
+    {
+      "seq": 94366,
+      "ticks": 3015429669,
+      "kind": "cast_end",
+      "actor": 120
+    },
+    {
+      "seq": 94375,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 115
+    },
+    {
+      "seq": 94376,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 115
+    },
+    {
+      "seq": 94377,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 116
+    },
+    {
+      "seq": 94378,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 116
+    },
+    {
+      "seq": 94379,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 117
+    },
+    {
+      "seq": 94380,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 117
+    },
+    {
+      "seq": 94381,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 118
+    },
+    {
+      "seq": 94382,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 118
+    },
+    {
+      "seq": 94383,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 119
+    },
+    {
+      "seq": 94384,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 119
+    },
+    {
+      "seq": 94385,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 113
+    },
+    {
+      "seq": 94386,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 113
+    },
+    {
+      "seq": 94387,
+      "ticks": 3015608205,
+      "kind": "action",
+      "actor": 123
+    },
+    {
+      "seq": 94388,
+      "ticks": 3015608205,
+      "kind": "cast_end",
+      "actor": 123
+    },
+    {
+      "seq": 95523,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 106
+    },
+    {
+      "seq": 95524,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 106
+    },
+    {
+      "seq": 95525,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 121
+    },
+    {
+      "seq": 95526,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 121
+    },
+    {
+      "seq": 95527,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 107
+    },
+    {
+      "seq": 95528,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 107
+    },
+    {
+      "seq": 95529,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 109
+    },
+    {
+      "seq": 95530,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 109
+    },
+    {
+      "seq": 95531,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 105
+    },
+    {
+      "seq": 95532,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 105
+    },
+    {
+      "seq": 95533,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 110
+    },
+    {
+      "seq": 95534,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 110
+    },
+    {
+      "seq": 95537,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 108
+    },
+    {
+      "seq": 95538,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 108
+    },
+    {
+      "seq": 95539,
+      "ticks": 3035414281,
+      "kind": "action",
+      "actor": 122
+    },
+    {
+      "seq": 95540,
+      "ticks": 3035414281,
+      "kind": "cast_end",
+      "actor": 122
+    }
+  ]
+}

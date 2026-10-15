@@ -1,0 +1,2944 @@
+{
+  "scope": "primary actor 87 only; helper and environment behavior reviewed separately in implementation notes",
+  "ok": true,
+  "recording_id": "954347b97b5cb4eb96cc24b7dc417241d89ad2b4ceb197056e333f7c87adf490",
+  "projection_version": 1,
+  "retained_revision": "1b44b148e391522c63f98fd95d886863328e4f3c5bdad92bfde1f1dac082f2c2",
+  "source": {
+    "game_version": "2026.09.01.0000.0000",
+    "bmr_version": "7.5.6.35",
+    "parser_mvid": "52cc4dc7-8b32-46be-8b49-2f03899b31c4",
+    "source_digest": "889596041acf580aacaa3c681c4bb42d78e9921719fa7160d029930c3caf2853",
+    "decode_complete": true,
+    "retained_events": 155564,
+    "first_tick": 0,
+    "last_tick": 5997961388,
+    "decoded_entries": 213582,
+    "omitted_kinds": {
+      "OpActionRequest": 305,
+      "OpActivePetChange": 17,
+      "OpAggroPlayer": 4,
+      "OpAlly": 13,
+      "OpAnimationLockChange": 3599,
+      "OpBeastmasterBeastsChanged": 1,
+      "OpBlueMageSpellsChange": 1,
+      "OpClassChange": 1,
+      "OpClassJobLevelsChange": 1,
+      "OpComboChange": 299,
+      "OpCooldown": 514,
+      "OpEventOpenTreasure": 2,
+      "OpFrameStart": 40906,
+      "OpHPMP": 4814,
+      "OpHateChange": 614,
+      "OpIDScramble": 1,
+      "OpIncomingEffect": 6115,
+      "OpLegacyMapEffect": 1,
+      "OpLimitBreakChange": 162,
+      "OpModify": 50,
+      "OpPlayerStatsChange": 1,
+      "OpProcTimersChange": 360,
+      "OpRenderflags": 223,
+      "OpSystemLogMessage": 4,
+      "OpVisibility": 10
+    }
+  },
+  "selection": {
+    "from_ticks": 0,
+    "to_ticks": 864000000000,
+    "from_seq": 5703,
+    "to_seq": 212842,
+    "actor": 87,
+    "kinds": [
+      "cast_start",
+      "action"
+    ],
+    "after_seq": -1
+  },
+  "selected_events_on_page": 149,
+  "page_stop_reason": "selected_events_exhausted",
+  "selected_events_exhausted": true,
+  "next_after_seq": null,
+  "counts_scope": "this page only; aggregate all pages with unchanged filters and retained_revision",
+  "encounter_boundaries_inferred": false,
+  "mechanic_equivalence_verified": false,
+  "exhaustive_pattern_coverage_verified": false,
+  "server_snapshot_verified": false,
+  "caution": "Timestamps are recorded client-frame observations, relative .NET ticks (100 ns), not server damage snapshots. Empty results describe retained selected observations only. Uploads are untrusted observations; actor numbers are recording-local. A complete decode does not prove recorder coverage, correct shapes or causality.",
+  "candidate_source_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+  "comparison_version": 1,
+  "candidate_assembly_sha256": "64959fcbc1c21be4fc93dc2c846e376a85f9479b1ae88a8083e119d7f0741781",
+  "review_contract_sha256": "d39a18bca599ccb78c8b8af84beb3afd41c1c120b97d2ccc28b0c6c5b2401715",
+  "groups": [
+    {
+      "token": [
+        "action",
+        46005,
+        1
+      ],
+      "count": 56,
+      "first": {
+        "seq": 5735,
+        "ticks": 699070427,
+        "actor": 87,
+        "target": 125,
+        "event_sha256": "f01380bb026e95256d2cc8da4d7a4bfcd1adbc3d9673f8f43942572dabd47c3d"
+      },
+      "last": {
+        "seq": 210542,
+        "ticks": 5850381734,
+        "actor": 87,
+        "target": 125,
+        "event_sha256": "3ac799140ae9e21bb6d7f60e3717da211add5746c596fbdaf553cd9f79eba92e"
+      },
+      "group_id": "d46862a07ea8cf0a51196f00f5a19c2c91850c1d9ec4a0c0b3f0bbe3035aaf6f",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        125
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "d46862a07ea8cf0a51196f00f5a19c2c91850c1d9ec4a0c0b3f0bbe3035aaf6f",
+        "mechanic_id": "primary-46005",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "autoattack_not_avoidable_geometry"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46006,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 8201,
+        "ticks": 750618195,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "690a2d671b91f43089f37b087c13191570fe9180e5f0605e7f2366101f39698e"
+      },
+      "last": {
+        "seq": 178429,
+        "ticks": 4906179773,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ab2574649ab18dc93e5dd841ed4044678d86731d6df8139e9205899e95e04754"
+      },
+      "group_id": "368d47625cd429bdeccf4591d7f6a6663332fb96c3be5d554e22316d9da8fc21",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "368d47625cd429bdeccf4591d7f6a6663332fb96c3be5d554e22316d9da8fc21",
+        "mechanic_id": "primary-46006",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.CrownOfArcadia",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46006,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 9276,
+        "ticks": 800715752,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "1c2ad7d8913a48c0a86ad12ac9fa338ed43d36a685792d1bece7a8be77bc85d8"
+      },
+      "last": {
+        "seq": 179583,
+        "ticks": 4956025085,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ecc35075721bbc14f7540008a6a38fc7121af42ede8e7e93c6e187d494aa7c90"
+      },
+      "group_id": "441bd179492d10fba1afb0ee7bfc94cab9fe9ad41e6a09d6fa9ad1a4e7f7ac57",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "441bd179492d10fba1afb0ee7bfc94cab9fe9ad41e6a09d6fa9ad1a4e7f7ac57",
+        "mechanic_id": "primary-46006",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.CrownOfArcadia",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46007,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 11076,
+        "ticks": 882634437,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "4d55a0a2bb0ad2c3a40dc42c8fc944a63dfa80d4a8ba622d49543dd48f9cdbf3"
+      },
+      "last": {
+        "seq": 11076,
+        "ticks": 882634437,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "4d55a0a2bb0ad2c3a40dc42c8fc944a63dfa80d4a8ba622d49543dd48f9cdbf3"
+      },
+      "group_id": "cdf7f3d00cf882b74b2c946e8ebce0579f04209f679cd7279188f08d21f87e4f",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "cdf7f3d00cf882b74b2c946e8ebce0579f04209f679cd7279188f08d21f87e4f",
+        "mechanic_id": "primary-46007",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46007,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 11514,
+        "ticks": 902344415,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "cdd8fa9d84afc0468dd8987a6919245db777ef4a578d43a81d6fc3a18bf428de"
+      },
+      "last": {
+        "seq": 11514,
+        "ticks": 902344415,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "cdd8fa9d84afc0468dd8987a6919245db777ef4a578d43a81d6fc3a18bf428de"
+      },
+      "group_id": "b57fa1899271eb3e93fd4641eb58ac989def40c327f6c3790d2e9d5b054cc6a0",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "b57fa1899271eb3e93fd4641eb58ac989def40c327f6c3790d2e9d5b054cc6a0",
+        "mechanic_id": "primary-46007",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46010,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 13414,
+        "ticks": 963701891,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f259b52c3f5ce2e2f6c8b074759446a595567bbd0354e93f4fad68c46c571936"
+      },
+      "last": {
+        "seq": 13414,
+        "ticks": 963701891,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f259b52c3f5ce2e2f6c8b074759446a595567bbd0354e93f4fad68c46c571936"
+      },
+      "group_id": "f585730c22ffe6778f30a76f34bc79eace741e7478b8e11739d7cf0f61988d60",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "f585730c22ffe6778f30a76f34bc79eace741e7478b8e11739d7cf0f61988d60",
+        "mechanic_id": "primary-46010",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46010,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 14237,
+        "ticks": 983315269,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "d47e9517b0f777b9b40698835802050f90ae7c583a9f952e91f7a9b1a0ee5f40"
+      },
+      "last": {
+        "seq": 14237,
+        "ticks": 983315269,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "d47e9517b0f777b9b40698835802050f90ae7c583a9f952e91f7a9b1a0ee5f40"
+      },
+      "group_id": "21edabacd90459a4cbf1c9190876fad3f05ed2e486b594dd8267b522769e4859",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "21edabacd90459a4cbf1c9190876fad3f05ed2e486b594dd8267b522769e4859",
+        "mechanic_id": "primary-46010",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46008,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 16269,
+        "ticks": 1025201296,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7662f06c812d489e05c42707046ff70cf0a14e3ff5c36970f7fe89f796ce495e"
+      },
+      "last": {
+        "seq": 16269,
+        "ticks": 1025201296,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7662f06c812d489e05c42707046ff70cf0a14e3ff5c36970f7fe89f796ce495e"
+      },
+      "group_id": "9d8f921542e0cb2ac28b0d374c035a87c8537e457e824312a70fe6e294eb9164",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "9d8f921542e0cb2ac28b0d374c035a87c8537e457e824312a70fe6e294eb9164",
+        "mechanic_id": "primary-46008",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46008,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 16683,
+        "ticks": 1044727330,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f9b8c55ab024255f09af7406d02bc2aa118fc14f7c3262ee6080e04dbd25723a"
+      },
+      "last": {
+        "seq": 16683,
+        "ticks": 1044727330,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f9b8c55ab024255f09af7406d02bc2aa118fc14f7c3262ee6080e04dbd25723a"
+      },
+      "group_id": "4716dc4c8793a3600efe4e000508345302ba6ce4fdf9d2997049670e6eb2ce51",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "4716dc4c8793a3600efe4e000508345302ba6ce4fdf9d2997049670e6eb2ce51",
+        "mechanic_id": "primary-46008",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46012,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 18422,
+        "ticks": 1106135426,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ed79a09231f295da5412cdf6d289a28215af3f776c296d69c5aa4ce98233c579"
+      },
+      "last": {
+        "seq": 18422,
+        "ticks": 1106135426,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ed79a09231f295da5412cdf6d289a28215af3f776c296d69c5aa4ce98233c579"
+      },
+      "group_id": "a853335b197f5cb45dbf7ec71b02b74aae48df827c0731d0cbf120c33fd5cf38",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "a853335b197f5cb45dbf7ec71b02b74aae48df827c0731d0cbf120c33fd5cf38",
+        "mechanic_id": "primary-46012",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46012,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 18906,
+        "ticks": 1125644313,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "93254a771570aa4d63c74a316a698067ad3a5942d13e6110ec75e420e215c7be"
+      },
+      "last": {
+        "seq": 18906,
+        "ticks": 1125644313,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "93254a771570aa4d63c74a316a698067ad3a5942d13e6110ec75e420e215c7be"
+      },
+      "group_id": "efc229d92d5d4115231240d51f7378d1b9537ebbb316fddcbf2630d880f32d4f",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "efc229d92d5d4115231240d51f7378d1b9537ebbb316fddcbf2630d880f32d4f",
+        "mechanic_id": "primary-46012",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46024,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 20671,
+        "ticks": 1187525161,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "24c80963e57926d777bbbe6161da34b80da03a82676d75be63317ea934b426f1"
+      },
+      "last": {
+        "seq": 208363,
+        "ticks": 5781068147,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "46946a0374a286d4c9b2318809e510a4e8e4df1eb11059314918675d0cc4048b"
+      },
+      "group_id": "f24c062381ee1dfa8734a54024756f0dbef225d1a65ee59985162e6b9683ff89",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "f24c062381ee1dfa8734a54024756f0dbef225d1a65ee59985162e6b9683ff89",
+        "mechanic_id": "primary-46024",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.VoidStardust",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46024,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 21307,
+        "ticks": 1237316771,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "45a2bef944e42ce11147a3bc6d794b606ff743bbcb8367176b29a63b0f3f0972"
+      },
+      "last": {
+        "seq": 209821,
+        "ticks": 5830873239,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3660767a2e6056c6bdc203a06784cb6f788f896658ac71b0508f1c0abd235c9d"
+      },
+      "group_id": "ee7cecb7f608b9bd848acfd1aacdee73164aace3d8a2ff8861987f27b7eddb54",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "ee7cecb7f608b9bd848acfd1aacdee73164aace3d8a2ff8861987f27b7eddb54",
+        "mechanic_id": "primary-46024",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46009,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 26477,
+        "ticks": 1348934739,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7152b3e6c57615b8933fe499e6b4cdf09286982c5bc9231d174f55b1e0763a9f"
+      },
+      "last": {
+        "seq": 26477,
+        "ticks": 1348934739,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7152b3e6c57615b8933fe499e6b4cdf09286982c5bc9231d174f55b1e0763a9f"
+      },
+      "group_id": "4972f5f06b1581bea431ae66dbf35c4835a905aa8f30847f2d3c0037b64e33fd",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "4972f5f06b1581bea431ae66dbf35c4835a905aa8f30847f2d3c0037b64e33fd",
+        "mechanic_id": "primary-46009",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46009,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 27702,
+        "ticks": 1368687931,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a16ae96b896c39c00b3bd44029ac8ef5dbb287a5e6c9e295cfdbab6fe63e0172"
+      },
+      "last": {
+        "seq": 27702,
+        "ticks": 1368687931,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a16ae96b896c39c00b3bd44029ac8ef5dbb287a5e6c9e295cfdbab6fe63e0172"
+      },
+      "group_id": "d1ffffa2cc6bf496756d5a64cb65c1b3953d9f626f5b2b461045af110543c6f9",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "d1ffffa2cc6bf496756d5a64cb65c1b3953d9f626f5b2b461045af110543c6f9",
+        "mechanic_id": "primary-46009",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46014,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 30538,
+        "ticks": 1430126709,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "8c0eeac2f54e500149b337df73f3badc2af0d40f00fc946364ca9340fca2448e"
+      },
+      "last": {
+        "seq": 30538,
+        "ticks": 1430126709,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "8c0eeac2f54e500149b337df73f3badc2af0d40f00fc946364ca9340fca2448e"
+      },
+      "group_id": "e7484dae8c11e1983b64e5817a1d5d42744b845e449081a0305ef8587948c638",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "e7484dae8c11e1983b64e5817a1d5d42744b845e449081a0305ef8587948c638",
+        "mechanic_id": "primary-46014",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46014,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 31396,
+        "ticks": 1449942944,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "5501b259eee694929330a795bde6032ad9de17a568c2196eeaf34173d9bd8040"
+      },
+      "last": {
+        "seq": 31396,
+        "ticks": 1449942944,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "5501b259eee694929330a795bde6032ad9de17a568c2196eeaf34173d9bd8040"
+      },
+      "group_id": "460f2271511ef1e954520b938bef21faf58b595045f8a3e3fefecaa455049f20",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "460f2271511ef1e954520b938bef21faf58b595045f8a3e3fefecaa455049f20",
+        "mechanic_id": "primary-46014",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46004,
+        1
+      ],
+      "count": 7,
+      "first": {
+        "seq": 34206,
+        "ticks": 1512266396,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "1c9ee79b481cf084e56ec5044a2f844d9ae044deb53eb2bd9176c4bc70d0b815"
+      },
+      "last": {
+        "seq": 181064,
+        "ticks": 4988089089,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "b277d16c01cd5bb2a80b55d9552020b31a5a74fa03120564760e694b954e5b9d"
+      },
+      "group_id": "ed760a46a559084607b41616d7c25a48139c2abdd040743e419e5d199dd6b365",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        0
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "ed760a46a559084607b41616d7c25a48139c2abdd040743e419e5d199dd6b365",
+        "mechanic_id": "primary-46004",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46028,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 35355,
+        "ticks": 1536333708,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7fb74dc78ea75c311ce5bce810ff5d75df8c91d39a0eba83dd4635f417047142"
+      },
+      "last": {
+        "seq": 45885,
+        "ticks": 1802673230,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "0c0a0cfa129f7e7b85a3ae302963d5f6f5a736234bbbb39a8c929cc42b5db06f"
+      },
+      "group_id": "29561572703c1b10d088d05c8ffb519c6f920cde5d8521ece773bc008c8a8342",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "29561572703c1b10d088d05c8ffb519c6f920cde5d8521ece773bc008c8a8342",
+        "mechanic_id": "primary-46028",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46028,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 36255,
+        "ticks": 1566366404,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "b57363de399149460a88ed586c52fd44f85005580cd3087315684ec7ff40445d"
+      },
+      "last": {
+        "seq": 47253,
+        "ticks": 1831493155,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "0d3fa2559617c4a992e20abb99451fb93edb7e9becb347260a04285e32656b67"
+      },
+      "group_id": "34933d5e56041fa9988af773540348d151d7aa9e885e3e32686b1033c85ffa7a",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "34933d5e56041fa9988af773540348d151d7aa9e885e3e32686b1033c85ffa7a",
+        "mechanic_id": "primary-46028",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46029,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 36984,
+        "ticks": 1603646578,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "19b6ec4ae4a83ce0273b1fd0dcde5ef20eb15114934fd240a7be8a3e32b7771a"
+      },
+      "last": {
+        "seq": 48204,
+        "ticks": 1865849510,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ec9fa2bf94ef24bf345a8b81896db717ac7c7c05eaa121093a4b7865a101af90"
+      },
+      "group_id": "ad894a01c1c63afb32414f34c0b7006b5c413e7004b55d12537d3b9131fe07a6",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "ad894a01c1c63afb32414f34c0b7006b5c413e7004b55d12537d3b9131fe07a6",
+        "mechanic_id": "primary-46029",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46029,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 38953,
+        "ticks": 1653658457,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a1a7579ce9bae629516925cc40ebe34e92b378e01314d1608c59d57408e7977f"
+      },
+      "last": {
+        "seq": 50435,
+        "ticks": 1915724074,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "82473bd2108e8156e1d7b73ac141ae504ddf4114d6f35202a4076e8a610c962b"
+      },
+      "group_id": "52d2a3f036b42a5abc8d0e3afffbda1eadb7a502afebfb0ef0c51668b104f867",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "52d2a3f036b42a5abc8d0e3afffbda1eadb7a502afebfb0ef0c51668b104f867",
+        "mechanic_id": "primary-46029",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46402,
+        1
+      ],
+      "count": 4,
+      "first": {
+        "seq": 39101,
+        "ticks": 1656287580,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "11dbc9968a3bb86ae0f2db96c5346420e43244e12fd0c0697044434049a4e96a"
+      },
+      "last": {
+        "seq": 91339,
+        "ticks": 2955777152,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "c9e1dabb117dc300799cb646fd98142d73e7597b7792eac97bf3bae7638e850e"
+      },
+      "group_id": "77979ec756c89ac87d98799e144d455b5982a9f254aab5f896b65e94df343158",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        0
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "77979ec756c89ac87d98799e144d455b5982a9f254aab5f896b65e94df343158",
+        "mechanic_id": "primary-46402",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46400,
+        1
+      ],
+      "count": 4,
+      "first": {
+        "seq": 41043,
+        "ticks": 1697767149,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "f88727f2a805724fa1789e1df736cc13eb731b5730ce11731f81f0f4ac3b8f89"
+      },
+      "last": {
+        "seq": 89545,
+        "ticks": 2919071955,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "66f4d50e3ac0873a7dd0357139eda8df81fbb0b11a1e2f989a321f6cecf2115c"
+      },
+      "group_id": "d2e5b1a87206f1ef40d41e30b4ddfd27d0400bcb61c2404e980b8f92da5722fb",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        0
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "d2e5b1a87206f1ef40d41e30b4ddfd27d0400bcb61c2404e980b8f92da5722fb",
+        "mechanic_id": "primary-46400",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46401,
+        1
+      ],
+      "count": 4,
+      "first": {
+        "seq": 42464,
+        "ticks": 1739279669,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "ecbb173516d06539e3d8f864a93f75a1b56df87d8cffca88c1e706dc159712f6"
+      },
+      "last": {
+        "seq": 87651,
+        "ticks": 2882556490,
+        "actor": 87,
+        "target": 0,
+        "event_sha256": "fec02b2a484101999ec045d56424d69013062818d60d90ac1e3ac5d14913ea32"
+      },
+      "group_id": "d2000204662a724266f5e919a158617286767ce87e5991d57c1beb622833d376",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        0
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "d2000204662a724266f5e919a158617286767ce87e5991d57c1beb622833d376",
+        "mechanic_id": "primary-46401",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        47034,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 58185,
+        "ticks": 2116125342,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3c349206e4e3419f78041334e6d5da3fc1039dc9f1e6e0966f12821bc316f43e"
+      },
+      "last": {
+        "seq": 58185,
+        "ticks": 2116125342,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3c349206e4e3419f78041334e6d5da3fc1039dc9f1e6e0966f12821bc316f43e"
+      },
+      "group_id": "a8baeed5ff0956c314efd7566cfe6ee538eb287fbf69b45c9ca92973ebf7cfeb",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "a8baeed5ff0956c314efd7566cfe6ee538eb287fbf69b45c9ca92973ebf7cfeb",
+        "mechanic_id": "primary-47034",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        47034,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 59063,
+        "ticks": 2134992001,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7ec36332f54cc73e6f0b5eb8a8b1fe49a50b66ab357e56917b8a7ba03a0368b6"
+      },
+      "last": {
+        "seq": 59063,
+        "ticks": 2134992001,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "7ec36332f54cc73e6f0b5eb8a8b1fe49a50b66ab357e56917b8a7ba03a0368b6"
+      },
+      "group_id": "536c1cdeb6d6fd75aaac6dbc2abe52a0effec186248c140501cdd651f195aa70",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "536c1cdeb6d6fd75aaac6dbc2abe52a0effec186248c140501cdd651f195aa70",
+        "mechanic_id": "primary-47034",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46033,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 60745,
+        "ticks": 2196671532,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "396623219cee522b6647760cde14336488f3c95fab44feac31e509d1f7e963fa"
+      },
+      "last": {
+        "seq": 60745,
+        "ticks": 2196671532,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "396623219cee522b6647760cde14336488f3c95fab44feac31e509d1f7e963fa"
+      },
+      "group_id": "4227d50b29b2e86ddf1646b07af710de7b3ddcaf3b11b251d5b7692f166a1900",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "4227d50b29b2e86ddf1646b07af710de7b3ddcaf3b11b251d5b7692f166a1900",
+        "mechanic_id": "primary-46033",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46033,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 62355,
+        "ticks": 2241168815,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "bef47ec310415369c0c5df15fe8f677e1818fdb73fc2afdd6d8784a50316939d"
+      },
+      "last": {
+        "seq": 62355,
+        "ticks": 2241168815,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "bef47ec310415369c0c5df15fe8f677e1818fdb73fc2afdd6d8784a50316939d"
+      },
+      "group_id": "d831d7539e672c3fa4b05674a015d6bbb1d90fcefc6646df9c84c94a0acd8e0b",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "d831d7539e672c3fa4b05674a015d6bbb1d90fcefc6646df9c84c94a0acd8e0b",
+        "mechanic_id": "primary-46033",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46037,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 67331,
+        "ticks": 2357926574,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ab82f360bf7596eb3d9ed79cd6040da7769a54e6483bd1e9a43f56f99d4704f8"
+      },
+      "last": {
+        "seq": 67331,
+        "ticks": 2357926574,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ab82f360bf7596eb3d9ed79cd6040da7769a54e6483bd1e9a43f56f99d4704f8"
+      },
+      "group_id": "ba9e50e84936447ef32b37c4af513601ffe0d8557f872dd9f168281647fa3bfd",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "ba9e50e84936447ef32b37c4af513601ffe0d8557f872dd9f168281647fa3bfd",
+        "mechanic_id": "primary-46037",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46037,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 68344,
+        "ticks": 2377715681,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "48366c59c91252c027988cd856d8dbe4eab14be4695e6c40f9b77d182cb82c11"
+      },
+      "last": {
+        "seq": 68344,
+        "ticks": 2377715681,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "48366c59c91252c027988cd856d8dbe4eab14be4695e6c40f9b77d182cb82c11"
+      },
+      "group_id": "0f02ed40eaee7b2767d6a15bcfa82cb8ea5fb8ff142afd8496560a23cc1e244d",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "0f02ed40eaee7b2767d6a15bcfa82cb8ea5fb8ff142afd8496560a23cc1e244d",
+        "mechanic_id": "primary-46037",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46016,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 70695,
+        "ticks": 2439024266,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "555fbe05d0d9f39df64c934e789ae322def4069b188c85fd1f8c856bdc589c31"
+      },
+      "last": {
+        "seq": 70695,
+        "ticks": 2439024266,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "555fbe05d0d9f39df64c934e789ae322def4069b188c85fd1f8c856bdc589c31"
+      },
+      "group_id": "9b534e8aaf5ba5bebfe95cce301641b5f9f1b7af6f9a10a498639d79b0ce2cd2",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "9b534e8aaf5ba5bebfe95cce301641b5f9f1b7af6f9a10a498639d79b0ce2cd2",
+        "mechanic_id": "primary-46016",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46016,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 72931,
+        "ticks": 2489147378,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "6329fe56f7f903f6a6577b59ad532a462dbb25ebf2fb3a34a6d5896d9d4defda"
+      },
+      "last": {
+        "seq": 72931,
+        "ticks": 2489147378,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "6329fe56f7f903f6a6577b59ad532a462dbb25ebf2fb3a34a6d5896d9d4defda"
+      },
+      "group_id": "a1c772f3f946dbfb9fecea3d6bc6dc5122dad6d1869bf1bb987c3735054fa11b",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "a1c772f3f946dbfb9fecea3d6bc6dc5122dad6d1869bf1bb987c3735054fa11b",
+        "mechanic_id": "primary-46016",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46017,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 73033,
+        "ticks": 2491247440,
+        "actor": 87,
+        "target": 82,
+        "event_sha256": "b2836c225dde9698677cc905696db16f3c060d81af21a477eefaa3ff52809725"
+      },
+      "last": {
+        "seq": 73033,
+        "ticks": 2491247440,
+        "actor": 87,
+        "target": 82,
+        "event_sha256": "b2836c225dde9698677cc905696db16f3c060d81af21a477eefaa3ff52809725"
+      },
+      "group_id": "a825312855aa2c0da8e1062e6684dc119d3a862fa8ebb799af5125fad71e8991",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        82
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "a825312855aa2c0da8e1062e6684dc119d3a862fa8ebb799af5125fad71e8991",
+        "mechanic_id": "primary-46017",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.RawSteelTankBuster",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46039,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 76926,
+        "ticks": 2586021366,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "e307222c65ecf7fdd8202cba638e74cf266073965eb5150fc438ff2e1edc327d"
+      },
+      "last": {
+        "seq": 76926,
+        "ticks": 2586021366,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "e307222c65ecf7fdd8202cba638e74cf266073965eb5150fc438ff2e1edc327d"
+      },
+      "group_id": "08b77af84c903c12b962bbd2cdf82096a2f30517e8767b746f2f8aca7f08b3aa",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "08b77af84c903c12b962bbd2cdf82096a2f30517e8767b746f2f8aca7f08b3aa",
+        "mechanic_id": "primary-46039",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.Charybdistopia",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46039,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 78366,
+        "ticks": 2635912510,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "33f7d967a82812c3f317ff4ff6e2546306117baf31bd8686e998f0fc87f39fbb"
+      },
+      "last": {
+        "seq": 78366,
+        "ticks": 2635912510,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "33f7d967a82812c3f317ff4ff6e2546306117baf31bd8686e998f0fc87f39fbb"
+      },
+      "group_id": "43ecf7bcaaffdec6abfe9fced8772e7a4554892f5e590eba2a22e1100cdff54e",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "43ecf7bcaaffdec6abfe9fced8772e7a4554892f5e590eba2a22e1100cdff54e",
+        "mechanic_id": "primary-46039",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.Charybdistopia",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        47083,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 79013,
+        "ticks": 2662691669,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "c2837562754a6691da98b417e36690051b0cc1dace5e272db106db08c6c06564"
+      },
+      "last": {
+        "seq": 79013,
+        "ticks": 2662691669,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "c2837562754a6691da98b417e36690051b0cc1dace5e272db106db08c6c06564"
+      },
+      "group_id": "34cbd0a5c0e51792ec514674ca66b93f305564cfe75f0945b76fcf94e788d93b",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "34cbd0a5c0e51792ec514674ca66b93f305564cfe75f0945b76fcf94e788d93b",
+        "mechanic_id": "primary-47083",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        47083,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 79662,
+        "ticks": 2692509751,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "28ea6bd59920362573a25cdcb8226b54ff05dac12d1d9c229d2d0093fa203a43"
+      },
+      "last": {
+        "seq": 79662,
+        "ticks": 2692509751,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "28ea6bd59920362573a25cdcb8226b54ff05dac12d1d9c229d2d0093fa203a43"
+      },
+      "group_id": "470a60e84d9c34443b2950dde22cd99da1e5cb5c358fc0d24adb9884030c70d8",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "470a60e84d9c34443b2950dde22cd99da1e5cb5c358fc0d24adb9884030c70d8",
+        "mechanic_id": "primary-47083",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        47084,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 80215,
+        "ticks": 2720172029,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "58e1cb685d093f2633b2eccc1236b9f177e6fdb3d5556aab79cefa1a04abe583"
+      },
+      "last": {
+        "seq": 80215,
+        "ticks": 2720172029,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "58e1cb685d093f2633b2eccc1236b9f177e6fdb3d5556aab79cefa1a04abe583"
+      },
+      "group_id": "8c6ed11c0207db2d00e8f624dbc4c88b65af65fcbcb84ce5510f31f487aed150",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "8c6ed11c0207db2d00e8f624dbc4c88b65af65fcbcb84ce5510f31f487aed150",
+        "mechanic_id": "primary-47084",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.WeaponAOEs",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        47084,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 81698,
+        "ticks": 2770096866,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f4bd7da493b41fb7b45bf153e1cf3e528b4115def426000d78fa393c66df0325"
+      },
+      "last": {
+        "seq": 81698,
+        "ticks": 2770096866,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f4bd7da493b41fb7b45bf153e1cf3e528b4115def426000d78fa393c66df0325"
+      },
+      "group_id": "6f8492052f667b421a1a71cb8651816ca05067a0c0f8ad9c27c587ed8de8c326",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "6f8492052f667b421a1a71cb8651816ca05067a0c0f8ad9c27c587ed8de8c326",
+        "mechanic_id": "primary-47084",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46042,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 95911,
+        "ticks": 3043373436,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a73f79f9103251816b0e7def8e34e50f2d3a34ba60bb30474ee2f1282d2753de"
+      },
+      "last": {
+        "seq": 95911,
+        "ticks": 3043373436,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a73f79f9103251816b0e7def8e34e50f2d3a34ba60bb30474ee2f1282d2753de"
+      },
+      "group_id": "b0bb97caab59fbb377579ab65c8fa7bbb55064213ea68f2d84f1992972746d3e",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "b0bb97caab59fbb377579ab65c8fa7bbb55064213ea68f2d84f1992972746d3e",
+        "mechanic_id": "primary-46042",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46042,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 97372,
+        "ticks": 3073440067,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "86f71f74d53a817795e1389158a529b72e778547d044367485b0093ec4bc190a"
+      },
+      "last": {
+        "seq": 97372,
+        "ticks": 3073440067,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "86f71f74d53a817795e1389158a529b72e778547d044367485b0093ec4bc190a"
+      },
+      "group_id": "c1ec2cfc44bb8ee8fa11212eab79b0d25b2a40912caa4eefde7949ab4c6f1032",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "c1ec2cfc44bb8ee8fa11212eab79b0d25b2a40912caa4eefde7949ab4c6f1032",
+        "mechanic_id": "primary-46042",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46043,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 98880,
+        "ticks": 3115298492,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "c882d78b1b634be4c1b9b1a5eee753f86f047ea3f66ceaf6a228841cc97f58b6"
+      },
+      "last": {
+        "seq": 98880,
+        "ticks": 3115298492,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "c882d78b1b634be4c1b9b1a5eee753f86f047ea3f66ceaf6a228841cc97f58b6"
+      },
+      "group_id": "10fb0f04c3a91e58a25abc4db68ec8c505a1120886fb7ef7e57d1c0f4bf5c585",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "10fb0f04c3a91e58a25abc4db68ec8c505a1120886fb7ef7e57d1c0f4bf5c585",
+        "mechanic_id": "primary-46043",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46043,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 100025,
+        "ticks": 3175056998,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "cfcd06851b19f471d2ae190737953bd604e813f704cce31ee8f300f91254f28e"
+      },
+      "last": {
+        "seq": 100025,
+        "ticks": 3175056998,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "cfcd06851b19f471d2ae190737953bd604e813f704cce31ee8f300f91254f28e"
+      },
+      "group_id": "39a5874dd3b33ac4de6be7b96f655203a340fd2368c98a866b72a6fe47632594",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "39a5874dd3b33ac4de6be7b96f655203a340fd2368c98a866b72a6fe47632594",
+        "mechanic_id": "primary-46043",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46045,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 102188,
+        "ticks": 3271253831,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "0bc25356c70c760d426be1355d954fb18c373b7401e78d43b7187d8f864dd1d3"
+      },
+      "last": {
+        "seq": 102188,
+        "ticks": 3271253831,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "0bc25356c70c760d426be1355d954fb18c373b7401e78d43b7187d8f864dd1d3"
+      },
+      "group_id": "6f2038896546044f593cf72a483c0fef582913f49e7d9ccd6a39e63fa22aca8e",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "6f2038896546044f593cf72a483c0fef582913f49e7d9ccd6a39e63fa22aca8e",
+        "mechanic_id": "primary-46045",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46045,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 103324,
+        "ticks": 3321143298,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ecb5fbc8c3573c9ddd0a7f5f4282b442ca21476c0e668568c50ca58d7bb21473"
+      },
+      "last": {
+        "seq": 103324,
+        "ticks": 3321143298,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ecb5fbc8c3573c9ddd0a7f5f4282b442ca21476c0e668568c50ca58d7bb21473"
+      },
+      "group_id": "491d73921113e451744354bca5cee5bcdae05fbab3db57b7bc3697127f58d419",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "491d73921113e451744354bca5cee5bcdae05fbab3db57b7bc3697127f58d419",
+        "mechanic_id": "primary-46045",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46052,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 122852,
+        "ticks": 3765004996,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a7f9fbccc4bd01260c49101ef838d73f4cfb5dcb0b026c2b3d0b096b1f6c3137"
+      },
+      "last": {
+        "seq": 122852,
+        "ticks": 3765004996,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "a7f9fbccc4bd01260c49101ef838d73f4cfb5dcb0b026c2b3d0b096b1f6c3137"
+      },
+      "group_id": "a2ddc10b39013cdb505bdb982458d732212b61636cf249cc3d7f244589546962",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "a2ddc10b39013cdb505bdb982458d732212b61636cf249cc3d7f244589546962",
+        "mechanic_id": "primary-46052",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46053,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 123719,
+        "ticks": 3783269881,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "b8d648539c644a3511c2ab4343f61a5fbf69d25d84de6c211d5c092c11f79815"
+      },
+      "last": {
+        "seq": 123719,
+        "ticks": 3783269881,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "b8d648539c644a3511c2ab4343f61a5fbf69d25d84de6c211d5c092c11f79815"
+      },
+      "group_id": "14b5e3ccea955d4a657f205cdb4870c3e048c9b3964ee1d314a7c20ac7181463",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "14b5e3ccea955d4a657f205cdb4870c3e048c9b3964ee1d314a7c20ac7181463",
+        "mechanic_id": "primary-46053",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.Tyrannhilation",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46053,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 127103,
+        "ticks": 3862921265,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "d16187554214e6316781745a51ef342cf3f7b097df89ba4d719cc2e71b2c4545"
+      },
+      "last": {
+        "seq": 127103,
+        "ticks": 3862921265,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "d16187554214e6316781745a51ef342cf3f7b097df89ba4d719cc2e71b2c4545"
+      },
+      "group_id": "8f7a78b6040768795a4cd76b4eb3e654d3434b3df8eb13cbda21606097208200",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "8f7a78b6040768795a4cd76b4eb3e654d3434b3df8eb13cbda21606097208200",
+        "mechanic_id": "primary-46053",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46082,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 128798,
+        "ticks": 3924505218,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3817818256d1f894ad144a9e53096c7e784a240484ce7e1f89d34efa54b3f05d"
+      },
+      "last": {
+        "seq": 190302,
+        "ticks": 5380281635,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "71a1927e2bfd1b056beb52316ee778f50c6a4de4aa8f8c0cf94da7ccc69f61c1"
+      },
+      "group_id": "abc436621b3d0464e7aa8b63615659ceb1a8244c03be99c1a4548d90adcb46c2",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "abc436621b3d0464e7aa8b63615659ceb1a8244c03be99c1a4548d90adcb46c2",
+        "mechanic_id": "primary-46082",
+        "state": "unresolved",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "self_target_animation_semantics_not_independently_verified"
+      },
+      "handling_state": "unresolved",
+      "mapping_review_needed": true,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46056,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 130817,
+        "ticks": 3971091690,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f35a4eaa767707a9201c89b259e8a9acfa9a31b08d7b7b3b7baf135d31371316"
+      },
+      "last": {
+        "seq": 130817,
+        "ticks": 3971091690,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f35a4eaa767707a9201c89b259e8a9acfa9a31b08d7b7b3b7baf135d31371316"
+      },
+      "group_id": "ec945f3b10ae1333d25d7a69c20d9a015259bd9ec276ef6da561c76d50042e6a",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "ec945f3b10ae1333d25d7a69c20d9a015259bd9ec276ef6da561c76d50042e6a",
+        "mechanic_id": "primary-46056",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46056,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 132814,
+        "ticks": 4010726209,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "72a703497f8254790a033bd54a55ef7f03a04f5e3c0f685db6812dc1dff2b640"
+      },
+      "last": {
+        "seq": 132814,
+        "ticks": 4010726209,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "72a703497f8254790a033bd54a55ef7f03a04f5e3c0f685db6812dc1dff2b640"
+      },
+      "group_id": "0a4de970e6cb463cdd9c7a2e1b5fec353e40a71559d5e684adc53bb078c8c432",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "0a4de970e6cb463cdd9c7a2e1b5fec353e40a71559d5e684adc53bb078c8c432",
+        "mechanic_id": "primary-46056",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46057,
+        1
+      ],
+      "count": 3,
+      "first": {
+        "seq": 135611,
+        "ticks": 4062492541,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "6b7236b4fb140a23c964cabe175023bc9902b31ec10d7439dd5ec79f0bffd9db"
+      },
+      "last": {
+        "seq": 192087,
+        "ticks": 5452028050,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "661a78fc2bcfb36e97ae475c5761ffc8679b20c7ecf2319306a1a9713f288f55"
+      },
+      "group_id": "a4bf9ec764b3d2c8f17000768dc433b9e65a23e8b00582979ea3ded35ddf9ecc",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "a4bf9ec764b3d2c8f17000768dc433b9e65a23e8b00582979ea3ded35ddf9ecc",
+        "mechanic_id": "primary-46057",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46057,
+        1
+      ],
+      "count": 3,
+      "first": {
+        "seq": 137200,
+        "ticks": 4102449897,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "1e6fced44f12ed5cb06eb48a080c82248c69ad1dd6a8d04a92548052673d8e87"
+      },
+      "last": {
+        "seq": 193228,
+        "ticks": 5491885675,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3b871d9c96aea201ba74ee0245125d7aa674ef52669d5522075c6e88a6b866eb"
+      },
+      "group_id": "afb55a4bb21bdecac1b73241fbb05a40cfc43ad50dcf3c322c2ae54d98b07fcc",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "afb55a4bb21bdecac1b73241fbb05a40cfc43ad50dcf3c322c2ae54d98b07fcc",
+        "mechanic_id": "primary-46057",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46071,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 142925,
+        "ticks": 4229976400,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f4f393c7232d27d92548bbeea4d22e95d418b5b127e4639d473500eb65c4ac6b"
+      },
+      "last": {
+        "seq": 205323,
+        "ticks": 5699490332,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "5ef123c0beb618f349317f64f66ae6d6215709431d908b7e4e51d3bfbd546f54"
+      },
+      "group_id": "3762dd5d257e02ecf48fb91edbcf454a2908dddc364afd9cfe68e34708a72b36",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "3762dd5d257e02ecf48fb91edbcf454a2908dddc364afd9cfe68e34708a72b36",
+        "mechanic_id": "primary-46071",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46071,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 145602,
+        "ticks": 4279850491,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "f074e550c3d6655864a0d18332b849a4cea2cb26a3a13b6b2b042afc20cbdd85"
+      },
+      "last": {
+        "seq": 207454,
+        "ticks": 5749260303,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "ac266414967deabf1f616ba167ee91442b5b1f950db8263560ec289c0eca238c"
+      },
+      "group_id": "e06f253f88e54b403f518de1855b8c7d1e7bc754bcb701c330e58b2de9e85fab",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "e06f253f88e54b403f518de1855b8c7d1e7bc754bcb701c330e58b2de9e85fab",
+        "mechanic_id": "primary-46071",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46065,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 168634,
+        "ticks": 4664365932,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3b8fb6ec267ad942801cfc7322c5bab9bcd9ffd1c78c1ee5c51ef91a7c7f25dc"
+      },
+      "last": {
+        "seq": 168634,
+        "ticks": 4664365932,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "3b8fb6ec267ad942801cfc7322c5bab9bcd9ffd1c78c1ee5c51ef91a7c7f25dc"
+      },
+      "group_id": "42443c25a86ee6e5155f99a7b2da674963c45d2450aeae936aa4f40f6a825f55",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "42443c25a86ee6e5155f99a7b2da674963c45d2450aeae936aa4f40f6a825f55",
+        "mechanic_id": "primary-46065",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.ArenaChanges",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46065,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 172335,
+        "ticks": 4744233595,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "9d28f436c315ee7d11d6a683220706086c5e2da3f28b29770dffa5749cfd1fed"
+      },
+      "last": {
+        "seq": 172335,
+        "ticks": 4744233595,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "9d28f436c315ee7d11d6a683220706086c5e2da3f28b29770dffa5749cfd1fed"
+      },
+      "group_id": "70af9fc26f6dea113599668a2c82d6f0adee0574e7bb56ab6a2056d37968f963",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "70af9fc26f6dea113599668a2c82d6f0adee0574e7bb56ab6a2056d37968f963",
+        "mechanic_id": "primary-46065",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46078,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 181994,
+        "ticks": 5010723127,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "07774c857b626d95e58b8101a2da3957205231dfdd241b47ddbc3ccea386e9ff"
+      },
+      "last": {
+        "seq": 181994,
+        "ticks": 5010723127,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "07774c857b626d95e58b8101a2da3957205231dfdd241b47ddbc3ccea386e9ff"
+      },
+      "group_id": "97ef338dc74d849c4123168c6b448da7c340b7a084b037d8e3d5e1be8f0a042c",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "97ef338dc74d849c4123168c6b448da7c340b7a084b037d8e3d5e1be8f0a042c",
+        "mechanic_id": "primary-46078",
+        "state": "unresolved",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "self_target_animation_semantics_not_independently_verified"
+      },
+      "handling_state": "unresolved",
+      "mapping_review_needed": true,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "cast_start",
+        46079,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 182641,
+        "ticks": 5026870506,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "c3cb5c0c654dc90334a1b443d912f125057f6c2beaaf944ab755d25ee50a03d3"
+      },
+      "last": {
+        "seq": 187031,
+        "ticks": 5218623698,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "70c0b44af257d96eb380237d724ffac71ad00524485ff568d6949a06c09ac196"
+      },
+      "group_id": "17d4c80780faa777e82bedbe1a78fadf1053a2c0fa799785edf9e5848ba3d39f",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "17d4c80780faa777e82bedbe1a78fadf1053a2c0fa799785edf9e5848ba3d39f",
+        "mechanic_id": "primary-46079",
+        "state": "declared_handled",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": "M11NTheTyrant.HeartbreakKick",
+        "reason_label": null
+      },
+      "handling_state": "declared_handled",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46079,
+        1
+      ],
+      "count": 2,
+      "first": {
+        "seq": 184537,
+        "ticks": 5076655352,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "00bc94d5d901ad5388a4fc3df50e7f2bc190ef141ddd44f0decbfb48854f71e8"
+      },
+      "last": {
+        "seq": 188173,
+        "ticks": 5268662782,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "d3434ab0d0379cb0949554e86c4780e1d5ca5efa31401ae59a2e923b64de81c8"
+      },
+      "group_id": "f41011da875ff9135b2c61ff6a3e84fca0163c96d3893c97b1a8f19aa2e6c750",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "f41011da875ff9135b2c61ff6a3e84fca0163c96d3893c97b1a8f19aa2e6c750",
+        "mechanic_id": "primary-46079",
+        "state": "declared_ignored",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "visual_or_motion_handled_by_separate_helper_or_environment_cue"
+      },
+      "handling_state": "declared_ignored",
+      "mapping_review_needed": false,
+      "implementation_verified": false
+    },
+    {
+      "token": [
+        "action",
+        46081,
+        1
+      ],
+      "count": 1,
+      "first": {
+        "seq": 186494,
+        "ticks": 5188399024,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "6be4e8b204fa12c9ce026db7503195688d4bc4d4f85bc14438b459790711232b"
+      },
+      "last": {
+        "seq": 186494,
+        "ticks": 5188399024,
+        "actor": 87,
+        "target": 87,
+        "event_sha256": "6be4e8b204fa12c9ce026db7503195688d4bc4d4f85bc14438b459790711232b"
+      },
+      "group_id": "85e1516310073549912e3cceeb4fe6c656c2fa858e46e013366d93788d4a9942",
+      "source_actor_samples": [
+        87
+      ],
+      "listed_main_target_samples": [
+        87
+      ],
+      "distinct_source_actors_on_page": 1,
+      "distinct_main_targets_on_page": 1,
+      "actor_samples_truncated": false,
+      "target_samples_truncated": false,
+      "handling_declaration": {
+        "group_id": "85e1516310073549912e3cceeb4fe6c656c2fa858e46e013366d93788d4a9942",
+        "mechanic_id": "primary-46081",
+        "state": "unresolved",
+        "basis": "source_review_claim",
+        "artifact_sha256": "0978ed56c65269c39b0d9cbd4e792728e39390f3e9d5a9d8639f4329f1cb54d0",
+        "code_reference": null,
+        "reason_label": "self_target_animation_semantics_not_independently_verified"
+      },
+      "handling_state": "unresolved",
+      "mapping_review_needed": true,
+      "implementation_verified": false
+    }
+  ],
+  "observed_events_by_handling_state": {
+    "declared_ignored": 123,
+    "declared_handled": 22,
+    "unresolved": 4
+  },
+  "observed_events_by_claimed_basis": {
+    "source_review_claim": 149
+  },
+  "declarations_total": 62,
+  "declared_group_ids_observed_on_page": [
+    "08b77af84c903c12b962bbd2cdf82096a2f30517e8767b746f2f8aca7f08b3aa",
+    "0a4de970e6cb463cdd9c7a2e1b5fec353e40a71559d5e684adc53bb078c8c432",
+    "0f02ed40eaee7b2767d6a15bcfa82cb8ea5fb8ff142afd8496560a23cc1e244d",
+    "10fb0f04c3a91e58a25abc4db68ec8c505a1120886fb7ef7e57d1c0f4bf5c585",
+    "14b5e3ccea955d4a657f205cdb4870c3e048c9b3964ee1d314a7c20ac7181463",
+    "17d4c80780faa777e82bedbe1a78fadf1053a2c0fa799785edf9e5848ba3d39f",
+    "21edabacd90459a4cbf1c9190876fad3f05ed2e486b594dd8267b522769e4859",
+    "29561572703c1b10d088d05c8ffb519c6f920cde5d8521ece773bc008c8a8342",
+    "34933d5e56041fa9988af773540348d151d7aa9e885e3e32686b1033c85ffa7a",
+    "34cbd0a5c0e51792ec514674ca66b93f305564cfe75f0945b76fcf94e788d93b",
+    "368d47625cd429bdeccf4591d7f6a6663332fb96c3be5d554e22316d9da8fc21",
+    "3762dd5d257e02ecf48fb91edbcf454a2908dddc364afd9cfe68e34708a72b36",
+    "39a5874dd3b33ac4de6be7b96f655203a340fd2368c98a866b72a6fe47632594",
+    "4227d50b29b2e86ddf1646b07af710de7b3ddcaf3b11b251d5b7692f166a1900",
+    "42443c25a86ee6e5155f99a7b2da674963c45d2450aeae936aa4f40f6a825f55",
+    "43ecf7bcaaffdec6abfe9fced8772e7a4554892f5e590eba2a22e1100cdff54e",
+    "441bd179492d10fba1afb0ee7bfc94cab9fe9ad41e6a09d6fa9ad1a4e7f7ac57",
+    "460f2271511ef1e954520b938bef21faf58b595045f8a3e3fefecaa455049f20",
+    "470a60e84d9c34443b2950dde22cd99da1e5cb5c358fc0d24adb9884030c70d8",
+    "4716dc4c8793a3600efe4e000508345302ba6ce4fdf9d2997049670e6eb2ce51",
+    "491d73921113e451744354bca5cee5bcdae05fbab3db57b7bc3697127f58d419",
+    "4972f5f06b1581bea431ae66dbf35c4835a905aa8f30847f2d3c0037b64e33fd",
+    "52d2a3f036b42a5abc8d0e3afffbda1eadb7a502afebfb0ef0c51668b104f867",
+    "536c1cdeb6d6fd75aaac6dbc2abe52a0effec186248c140501cdd651f195aa70",
+    "6f2038896546044f593cf72a483c0fef582913f49e7d9ccd6a39e63fa22aca8e",
+    "6f8492052f667b421a1a71cb8651816ca05067a0c0f8ad9c27c587ed8de8c326",
+    "70af9fc26f6dea113599668a2c82d6f0adee0574e7bb56ab6a2056d37968f963",
+    "77979ec756c89ac87d98799e144d455b5982a9f254aab5f896b65e94df343158",
+    "85e1516310073549912e3cceeb4fe6c656c2fa858e46e013366d93788d4a9942",
+    "8c6ed11c0207db2d00e8f624dbc4c88b65af65fcbcb84ce5510f31f487aed150",
+    "8f7a78b6040768795a4cd76b4eb3e654d3434b3df8eb13cbda21606097208200",
+    "97ef338dc74d849c4123168c6b448da7c340b7a084b037d8e3d5e1be8f0a042c",
+    "9b534e8aaf5ba5bebfe95cce301641b5f9f1b7af6f9a10a498639d79b0ce2cd2",
+    "9d8f921542e0cb2ac28b0d374c035a87c8537e457e824312a70fe6e294eb9164",
+    "a1c772f3f946dbfb9fecea3d6bc6dc5122dad6d1869bf1bb987c3735054fa11b",
+    "a2ddc10b39013cdb505bdb982458d732212b61636cf249cc3d7f244589546962",
+    "a4bf9ec764b3d2c8f17000768dc433b9e65a23e8b00582979ea3ded35ddf9ecc",
+    "a825312855aa2c0da8e1062e6684dc119d3a862fa8ebb799af5125fad71e8991",
+    "a853335b197f5cb45dbf7ec71b02b74aae48df827c0731d0cbf120c33fd5cf38",
+    "a8baeed5ff0956c314efd7566cfe6ee538eb287fbf69b45c9ca92973ebf7cfeb",
+    "abc436621b3d0464e7aa8b63615659ceb1a8244c03be99c1a4548d90adcb46c2",
+    "ad894a01c1c63afb32414f34c0b7006b5c413e7004b55d12537d3b9131fe07a6",
+    "afb55a4bb21bdecac1b73241fbb05a40cfc43ad50dcf3c322c2ae54d98b07fcc",
+    "b0bb97caab59fbb377579ab65c8fa7bbb55064213ea68f2d84f1992972746d3e",
+    "b57fa1899271eb3e93fd4641eb58ac989def40c327f6c3790d2e9d5b054cc6a0",
+    "ba9e50e84936447ef32b37c4af513601ffe0d8557f872dd9f168281647fa3bfd",
+    "c1ec2cfc44bb8ee8fa11212eab79b0d25b2a40912caa4eefde7949ab4c6f1032",
+    "cdf7f3d00cf882b74b2c946e8ebce0579f04209f679cd7279188f08d21f87e4f",
+    "d1ffffa2cc6bf496756d5a64cb65c1b3953d9f626f5b2b461045af110543c6f9",
+    "d2000204662a724266f5e919a158617286767ce87e5991d57c1beb622833d376",
+    "d2e5b1a87206f1ef40d41e30b4ddfd27d0400bcb61c2404e980b8f92da5722fb",
+    "d46862a07ea8cf0a51196f00f5a19c2c91850c1d9ec4a0c0b3f0bbe3035aaf6f",
+    "d831d7539e672c3fa4b05674a015d6bbb1d90fcefc6646df9c84c94a0acd8e0b",
+    "e06f253f88e54b403f518de1855b8c7d1e7bc754bcb701c330e58b2de9e85fab",
+    "e7484dae8c11e1983b64e5817a1d5d42744b845e449081a0305ef8587948c638",
+    "ec945f3b10ae1333d25d7a69c20d9a015259bd9ec276ef6da561c76d50042e6a",
+    "ed760a46a559084607b41616d7c25a48139c2abdd040743e419e5d199dd6b365",
+    "ee7cecb7f608b9bd848acfd1aacdee73164aace3d8a2ff8861987f27b7eddb54",
+    "efc229d92d5d4115231240d51f7378d1b9537ebbb316fddcbf2630d880f32d4f",
+    "f24c062381ee1dfa8734a54024756f0dbef225d1a65ee59985162e6b9683ff89",
+    "f41011da875ff9135b2c61ff6a3e84fca0163c96d3893c97b1a8f19aa2e6c750",
+    "f585730c22ffe6778f30a76f34bc79eace741e7478b8e11739d7cf0f61988d60"
+  ],
+  "declarations_not_observed_on_this_page": 0,
+  "page_mapping_status": "unresolved_or_hypothetical_declarations",
+  "source_has_unprojected_operations": true,
+  "candidate_behavior_verified": false,
+  "module_verified": false,
+  "declaration_artifacts_authenticated": false,
+  "full_encounter_coverage_verified": false,
+  "detail": "Page-local observed-token mapping only. Declarations and code/replay artifact hashes are caller claims; no code is read or executed. Unmapped/ignored/unresolved groups and unknown IDs remain explicit. Equal group IDs do not establish equivalent patterns, actors, targets, assignments or timings. Finish pages with unchanged selection/candidate/declarations, expected_retained_revision and review_contract_sha256 before aggregating event counts. A declaration absent on this page is not proven absent from the selection. No global coverage percentage, behavior correctness, exhaustive patterns or module certification is inferred. Read bmr://implementation-coverage."
+}

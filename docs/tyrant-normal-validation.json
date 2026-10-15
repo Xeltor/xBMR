@@ -1,0 +1,129 @@
+{
+  "source_base": "0eb881b79019ec4fb5a5cc8d36c1a664f3a9ccf4",
+  "encounter_source": {
+    "files": {
+      "BossMod/Components/SequencedAOEs.cs": "7d2918d85099051e38f33d809b276c1deb540e433ba2ad81eaef6d3be3e34130",
+      "BossMod/Modules/Dawntrail/Raid/M11NTheTyrant/ArenaChanges.cs": "74ea376f87c4a9e58939262cc6ec1186f68f54878de1e1326d52e05a8eec4cbd",
+      "BossMod/Modules/Dawntrail/Raid/M11NTheTyrant/M11NTheTyrant.cs": "28a570cb169fb8b5b7d14c9f92485ccde022be6776793a0becf964affdef2a65",
+      "BossMod/Modules/Dawntrail/Raid/M11NTheTyrant/M11NTheTyrantEnums.cs": "22d1c915158397daf359844279e9c96587c160e9b18fc0ef1cc5a1de8f816475",
+      "BossMod/Modules/Dawntrail/Raid/M11NTheTyrant/M11NTheTyrantStates.cs": "476b4fb0b2bd5df734306271cf239ed73204db92b16a3d88294c066e9261a578",
+      "BossMod/Modules/Dawntrail/Raid/M11NTheTyrant/Meteorain.cs": "f6e2d5f81245ccdf12396c02a24447d633afcd4ac005ef10810c55bfd8b0e8ec",
+      "BossMod/Modules/Dawntrail/Raid/M11NTheTyrant/WeaponAOEs.cs": "50fb578afe929692d2f48acca92f284aae9d7ac5bb46fab4fb69e35e3c0efe0f"
+    },
+    "sha256": "837f1496389a5b9ab5c5bb6bed6c7e87cfe422d6cb40fc1a83f1cf9ccd08179b",
+    "digest_encoding": "UTF-8 compact sorted-key JSON of path-to-file-SHA256 map"
+  },
+  "assembly_sha256": "4ce81ecf48c33b48afb27ee7076b33dbcbab808e0e43cf6054668446fdc7ee55",
+  "output_path": "/home/xeltor/Projects/xBMR/BossMod/bin/Release/BossModReborn.dll",
+  "sdk": "10.0.401",
+  "dalamud": "API15 development assemblies",
+  "build": {
+    "configuration": "Release",
+    "success": true,
+    "errors": 0,
+    "existing_obsolete_gauge_warnings": 6,
+    "log_sha256": "0920ccf5cb59664755f83d56828da62fca240eb3002c21854447877beb5b76f6"
+  },
+  "validation": {
+    "synthetic_assertions": 171,
+    "recorded_gust_assertions": 7,
+    "selected_recorded_gust_callbacks": 48,
+    "total_assertions": 178,
+    "native_navigation_cases": 5,
+    "full_original_replay": false,
+    "independent_holdout": false,
+    "live_gameplay": false,
+    "live_radar_screenshot": false,
+    "prior_optional_4891_row_projection_rerun": false,
+    "prior_projection_not_rerun_reason": "Private scratch trace unavailable; historical checkpoints remain separately recorded.",
+    "log_sha256": "fced0ef46fe957f712b730da869a7f050eaf08bfa0fa5b037ffa4fa4f7c22ac3",
+    "radar_policy": "Current wave highlighted; next wave translucent and drawn first; further waves retained internally. Geometry, activations and Risky flags preserved.",
+    "recording_id": "954347b97b5cb4eb96cc24b7dc417241d89ad2b4ceb197056e333f7c87adf490",
+    "gust_source_sequence_range": [
+      91336,
+      95540
+    ]
+  },
+  "private_evidence_directory": "/tmp/xbmr-tyrant-radar-20261015",
+  "limits": [
+    "September original unavailable locally; reconstructed selected numeric events omit frames, effects, health, render flags and other state.",
+    "September source assets differ from current game. October Avalanche failure and inspected Action rows both use2026.10.06.",
+    "Normal floor translation, exact lethal edges, displacement and server snapshots are not physically certified.",
+    "Great Wall of Fire and Avalanche46067/46069 lack recorded resolution coverage; additional branch checks are synthetic."
+  ],
+  "maturity": "WIP",
+  "history": {
+    "2026-10-14": {
+      "encounter_source_sha256": "d770d93a1c8c79b9436c7426a46790ea3ccf99bbea6bcda2f83a1bf30504e0d5",
+      "assembly_sha256": "7268962d82a862bf0194778d685c5b4b8b4322b6fc0536782ed5bbba6511181a",
+      "build": {
+        "configuration": "Release",
+        "success": true,
+        "errors": 0,
+        "existing_obsolete_gauge_warnings": 6,
+        "log_sha256": "e52781be085436ef97edb7d72cc64b7ffcdfd2c89dcafa30f65a22619175f93c",
+        "final_incremental_build_log_sha256": "1122db7ea4acf1d73fc8e9741121759c4e00d6084c23f782927e08589e959f0a"
+      },
+      "validation": {
+        "synthetic_assertions": 121,
+        "projected_recorded_checkpoints": 13,
+        "projection_completion_guard": 1,
+        "total_assertions": 135,
+        "selected_projected_events": 4891,
+        "native_navigation_cases": 5,
+        "full_original_replay": false,
+        "independent_holdout": false,
+        "live_gameplay": false,
+        "log_sha256": "9685ff80bc4d19b5f90071075fb2cd770ab2fc1d63ae5c73f3336d50c51940a9",
+        "avalanche_failure_regression": {
+          "baseline_failed": true,
+          "baseline_failure": "Avalanche 46063 lets everyone use an occupied escape tower",
+          "baseline_log_sha256": "1581ee280de5fbf00ab1caf32afd30c23f534b181b09daaa3003726b390898b0",
+          "new_assertions": 36,
+          "visual_ids": [
+            46063,
+            46065,
+            46067,
+            46069
+          ],
+          "helper_ids": [
+            46064,
+            46066,
+            46068,
+            46070
+          ],
+          "recorded_failure_source_sha256": "747a59508d98aa9390897cb7416e538fbe0a307e9062c9c5dfc977baa21d4cba",
+          "recorded_failure_range": [
+            327369,
+            339456
+          ],
+          "post_fix_live_evacuation": false
+        }
+      }
+    }
+  },
+  "validated_on": "2026-10-15",
+  "test_sources": {
+    "tests/TyrantRegression/Checks.cs": "a43688571ad3924b93ec942d1a0021a7d39eef98912c6ff52dae4518cc36c3c6",
+    "tests/TyrantRegression/GustCallbacks.json": "69f61b9497d622b4a4cd5d8fe619d39c5a553858b6c0a91d2d1cd651dc12b2b4",
+    "tests/TyrantRegression/Program.cs": "90ad32dac6d500fe430f594f1ecd42181637e459d71bae73e699a4c63caca681",
+    "tests/TyrantRegression/Projection.cs": "df89868c258eef1d634f06fa125d52c69dba6d9f5dfc5df379aec9724d7e8646",
+    "tests/TyrantRegression/Radar.cs": "8e1d0822e3f06d23726e89addef4446d94a6c5bb54682396d85d49397b69d644",
+    "tests/TyrantRegression/TyrantRegression.csproj": "8c67bdb409424cd13150fda30592bf9efe3bdde3accd5703b40055b540691f4a"
+  },
+  "release_validation": {
+    "release_version": "7.5.6.35.6",
+    "install_version": "7.5.6.3506",
+    "validated_on": "2026-10-15",
+    "assembly_sha256": "c0a48171d444db13a78e0c30c4c628d10a0e6baa64a93dffa7bf6fcc359a5337",
+    "full_build_log_sha256": "424d8dd29b2abb1343cffc7253515c671349f705feedb3da3c7dae414ba1ea0e",
+    "release_version_tests": 5,
+    "encounter_suites": 10,
+    "total_assertions": 3275,
+    "synthetic_assertions": 3268,
+    "selected_recorded_assertions": 7,
+    "tyrant_assertions": 178,
+    "suite_report_sha256": "91209173127a0f082dd938cbdfae92749713216dfdca3807b97400a1355a233a",
+    "live_gameplay": false
+  }
+}
