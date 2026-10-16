@@ -64,19 +64,20 @@ static partial class Checks
         Service.LuminaGameData = game;
         Service.Config.Initialize();
         ArenaAndLaunches(); AvalancheVariants(); Weapons(); Portals(); Stardust(); TowersAndExplosions(); Tethers(); Shelter(); Reset();
-        RadarWaves(); RecordedGustWaves();
+        RadarWaves(); RecordedGustWaves(); LaunchCoverage(); Restoration();
         if (projectionPath != null) Projection(projectionPath);
         Console.WriteLine($"{assertions} Tyrant assertions passed (synthetic and optional projected callbacks; no physical or live gameplay proof).");
     }
     private static void ArenaAndLaunches()
     {
         using var m = Module(); var p = Player(m, 1, new(84, 100));
+        var q = Player(m, 2, new(110, 100), slot: 1);
         Check(m.Arena.InBounds(new(100, 100)) && !m.Arena.InBounds(new(126, 100)), "initial 40y arena");
         var flatHelper = Create(m, Actor(9, (uint)OID.Helper, new(100,100)));
         Start(m,flatHelper,47759,5.7f);
         var flat = Component<SimpleKnockbacks>(m,"FlatlinerKnockUp");
-        Check(!Forbidden(Hints(flat,p,0),new(90,100)) && Forbidden(Hints(flat,p,0),new(110,100)), "even party slots land west for later tower coverage");
-        Check(Forbidden(Hints(flat,p,1),new(90,100)) && !Forbidden(Hints(flat,p,1),new(110,100)), "odd party slots land east instead of all AIs choosing one side");
+        Check(!Forbidden(Hints(flat,p,0),new(90,100)) && Forbidden(Hints(flat,p,0),new(110,100)), "first server actor identity lands west for later tower coverage");
+        Check(Forbidden(Hints(flat,q,1),new(90,100)) && !Forbidden(Hints(flat,q,1),new(110,100)), "second server actor identity lands east independently of local party ordering");
         Finish(m,flatHelper);
         Director(m, 2);
         foreach (var point in new WPos[] { new(75, 81), new(93, 119), new(107, 81), new(125, 119) })
@@ -96,7 +97,7 @@ static partial class Checks
         Check(before.ActionsToExecute.Entries.Count == 0, "launch never queues immunity abilities");
         Check(!Forbidden(before, new(84, 91.8f)), "north tower permits safe same-platform south launch");
         Check(Forbidden(before, new(86, 88.25f)), "observed fall direction is forbidden by landing constraint");
-        Check(!Forbidden(before, new(116, 91)), "west tower does not constrain unrelated east points");
+        Check(before.ForbiddenZones.Where(z=>z.shapeDistance is SDIntersection).All(z=>!z.shapeDistance.Contains(new(116,91))), "west landing predicate does not constrain unrelated east points");
         Start(m, m.PrimaryActor, 46065, 7.7f, -90f.Degrees());
         Check(Forbidden(Hints(kb, p), new(84, 91.8f)), "Avalanche rejects landing on doomed west platform");
         Check(!Forbidden(Hints(kb, p), new(87.2f, 89)), "Avalanche allows eastward cross-gap launch");
@@ -151,8 +152,32 @@ static partial class Checks
             Start(m, tossHelper, toss, 17.2f, 60f.Degrees());
             var aoes = Component<GenericAOEs>(m, "ArcadionAvalancheToss");
             Check(aoes.ActiveAOEs(0, p).Length == 1, $"Avalanche {toss} advertises the thrown-platform hazard");
+            var arena = Component<BossComponent>(m, "ArenaChanges");
+            var doomed = (GenericAOEs.AOEInstance?)arena.GetType().GetProperty("PendingDestruction")!.GetValue(arena);
+            Check(doomed is { } marker && marker.Color == Colors.Danger && marker.Check(west ? new(84, 100) : new(116, 100))
+                && !marker.Check(west ? new(116, 100) : new(84, 100)), $"Avalanche {visual} marks exactly the doomed island");
+            Check(Hints(arena, p).ForbiddenZones.Count == 0, "doomed-floor display cannot forbid the required meteor approach");
+            var preview = aoes.ActiveAOEs(0, p)[0];
+            Check(preview.Color == Colors.AOE && preview.Risky && preview.Activation == Now.AddSeconds(17.5), "later platform impact is shaded without changing its future danger or activation");
+            var tossHints = Hints(aoes, p);
+            Check(tossHints.ForbiddenZones.Count == 1 && tossHints.ForbiddenZones[0].activation == preview.Activation,
+                "throw preview preserves the actual future AI deadline");
+            Director(m, west ? 8u : 16u);
+            Check(arena.GetType().GetProperty("PendingDestruction")!.GetValue(arena) == null, "actual removal clears the doomed-platform marker");
+            Check(aoes.ActiveAOEs(0, p)[0].Color == Colors.Danger, "remaining platform impact becomes the immediate radar danger after removal");
             Finish(m, tossHelper);
             Check(aoes.ActiveAOEs(0, p).Length == 0, $"Avalanche {toss} clears on resolution");
+        }
+        using (var m = Module())
+        {
+            var p = Player(m, 1, new(84, 100)); Director(m, 2);
+            var arena = Component<BossComponent>(m, "ArenaChanges");
+            Start(m, m.PrimaryActor, 46063, 7.7f, -90f.Degrees());
+            m.WorldState.Execute(new ActorState.OpCastInfo(m.PrimaryActor.InstanceID, null));
+            Check(arena.GetType().GetProperty("PendingDestruction")!.GetValue(arena) == null, "cancelled Avalanche clears pending destruction marker and direction");
+            Start(m, m.PrimaryActor, 46063, 7.7f, -90f.Degrees());
+            Director(m, 0);
+            Check(arena.GetType().GetProperty("PendingDestruction")!.GetValue(arena) == null, "reset clears doomed-platform marker");
         }
     }
     private static void Weapons()

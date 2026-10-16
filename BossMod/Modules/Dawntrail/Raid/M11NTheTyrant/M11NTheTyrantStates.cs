@@ -31,6 +31,7 @@ sealed class M11NTheTyrantStates : StateMachineBuilder
             .ActivateOnEnter<MammothMeteor>()
             .ActivateOnEnter<ExplosionTower>()
             .ActivateOnEnter<ExplosionKnockUp>()
+            .ActivateOnEnter<LaunchPositionHints>()
             .ActivateOnEnter<ArcadionAvalancheToss>()
             .ActivateOnEnter<HeartbreakKick>()
             .ActivateOnEnter<GreatWallOfFire>();

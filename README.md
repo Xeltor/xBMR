@@ -8,7 +8,7 @@ in their existing modules. See [the encounter migration audit](docs/xcai-encount
 for the source changes, retired workarounds and remaining validation.
 The subsequent [Shinryu floor corrections](docs/shinryu-floor-corrections.md)
 document the bounded Twilight repair and its replay evidence.
-See the [7.5.6.35.7 release notes](docs/release-7.5.6.35.7.md) for the complete
+See the [7.5.6.35.8 release notes](docs/release-7.5.6.35.8.md) for the complete
 encounter changes and validation limits.
 
 ## Install

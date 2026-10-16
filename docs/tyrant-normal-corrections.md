@@ -3,8 +3,8 @@
 ## Scope and maturity
 
 Normal difficulty, CFC 1072, territory 1324, primary OID 0x4AE8. Reviewed source
-base `0eb881b79019ec4fb5a5cc8d36c1a664f3a9ccf4`, with the current encounter-only
-working-tree corrections. Assembly/internal compatibility and release version
+base `bd76a4daa6a852045fc8fc604fad157f22e42916` (published 7.5.6.35.7), with
+the current uncommitted launch-guidance corrections. Assembly/internal compatibility and release version
 are unchanged.
 
 Reopened from Contributed to WIP on 2026-10-14 following the maintainer's report
@@ -68,7 +68,7 @@ rows is expressly **not** a full original replay.
 | Gust / tornado | Tornado creates86757/90601; gust waves91336–91347 and92350–92357 | Source-bound live tornado circles; no clearing all on one destruction. Gust uses individual helper geometry and future activations, avoiding the previous immediate union of both angular waves. |
 | Meteorain | Towers103593–103596,112680–112685; tethers107300/107302 and117850/117852 | One AI soaker per meteor tower. Tethers can start on non-party rocks. Distinct tanks intercept distinct source-to-rock segments; single-target damage creates no false6y splash. Retarget preserves original8s deadline. |
 | Double Tyrannhilation | Windup123719; first387.52s shockwave; second helper127128/128186; rock explosions127320–127335 and128464/128467 | Select far rocks whose complete shadows fit inside a nearer rock's shadow. Hold far cover through both hits. First forecast visual finish+1.1s, then actual second helper deadline. First cast finish must not clear shelter; exploding rocks retire individually. |
-| Flatliner / floor | Helper130816/133411; director133439 `(0x8000000D,2)` | Radial15y launch, immunity ignored, alternating stable party slots assigned west/east for later tower coverage; destination tested against assigned floor with0.75y landing margin. Strip is not an immediate forbidden AOE that fights the mandatory knockback. Split bounds actually remove the gap from native pathfinding. |
+| Flatliner / floor | Helper130816/133411; director133439 `(0x8000000D,2)` | Radial15y launch, immunity ignored, alternating sorted living server actor identities assigned west/east for later tower coverage; destination tested against assigned floor with0.75y landing margin. Strip is not an immediate forbidden AOE that fights the mandatory knockback. Split bounds actually remove the gap from native pathfinding. |
 | Majestic portals | Map cues137804–137807,155301–155304,194674–194677; helper140298–140302 etc. | Predict normal lanes from map spawn, about4s before helper and10.2s before hit. Split columns79/89/111/121 and east rows at131; restored columns85/95/105/115 and east rows at125. Helpers replace corresponding forecasts and own exact timing. |
 | Fire and Fury / proximity | Helpers142926/142927,205322/205324; proximity142758/142765 etc. | Both opposite45-degree half-angle cones.22y proximity avoidance remains an inherited policy, not a measured lethal radius; actual damage range60y is not a whole-arena movement ban. |
 | Launch towers | Four147025–147029 / hits151864–151873; two165600/165601 / hits170720/170722 | Ten-second tower deadlines;25y radial landing model, ignore immunity. Scope forbidden landing directions to each4y affected circle. Advertise only same-platform towers. Normal towers distribute one AI each; every player on doomed side must enter its tower. |
@@ -246,7 +246,7 @@ remain in `ActiveAOEs` and timed AI hints, becoming visible as the sequence
 advances. This also prevents several translucent queued weapon shapes from
 combining into near-opaque shading over the whole arena.
 
-Current validation: **178 assertions pass**:171 synthetic cases, including
+Radar repair checkpoint (before the launch-guidance changes): **178 assertions passed**:171 synthetic cases, including
 all121 earlier synthetic cases, plus seven assertions over the48 recorded Gust
 callbacks. The new cases cover arrival order, same-wave jitter, out-of-order
 cleanup, promotion, cancellation, future-first draw ordering, weapon forecasts,
@@ -256,3 +256,171 @@ scratch storage and was not rerun; its historical13 checkpoints remain separate.
 Release build succeeds with zero errors and the same six existing obsolete-gauge
 warnings. No live radar screenshot, corrected gameplay run or physical boundary
 acceptance is claimed; the module remains WIP.
+
+
+## Launch positions and island coverage — 2026-10-15 initial checkpoint
+
+The maintainer requested Prishe-style tiny green launch positions and at least
+two living players on each surviving island. Re-reviewed the Normal guide's
+Flatliner, explosion-tower and Arcadion Avalanche sections above: ordinary tower
+launches can stay on the same island or cross; the doomed island must evacuate.
+The presentation reference is
+`BossMod/Modules/Dawntrail/Alliance/A11Prishe/AuroralUppercut.cs`, specifically
+`AuroralUppercutHint`. Its encounter geometry and knockback distances are not
+reused.
+
+A material assignment defect was found in the prior Flatliner implementation:
+`PartyState.PlayerSlot` is zero for the local player on every client, so alternating
+local party slots can send all clients west. Flatliner now alternates **living
+server actor identities**, sorted numerically, producing the same 4/4 plan on
+every client with the same eight-person roster. This does not establish a
+role-balanced split or control players who choose another position.
+
+Ordinary explosion waves default to **same-island landings**. Distinct living
+actors, ordered by server identity, cover the local towers ordered north to south.
+Only assigned tower users cross to repair a deficit below two players, and the
+donor island retains at least two. These choices are cached through movement and
+flight, rebuilding for new sources, cancellation, destruction, a changed living
+roster or the destruction cue. An empty island's current towers cannot be reached
+by walking; the module warns about this rather than routing across the gap.
+Fewer than four living players, or insufficient launch sources to repair the
+split, also produce a coverage warning.
+
+Avalanche overrides ordinary coverage: every actor targets the surviving island,
+and everyone on the doomed island must enter a local meteor even when occupied.
+Required soakers see their assigned local tower with sharing allowed, preventing
+an occupied-tower avoidance rule from contradicting evacuation or deficit repair.
+The minimum is a **planned landing population**, conditional on players following
+the assignments; it is not a promise that manual players will comply.
+
+`LaunchPositionHints` draws small green disks (radius 0.2y) around the launch
+source. They use the same assigned landing island as the AI and retain the
+source's activation. For towers, an assigned soaker sees its own tower; an
+unassigned player sees guidance only while already inside a tower. The marker
+component contributes no hazards, forced movement or inverted AI goals. Other
+active hazards and the knockback constraints remain authoritative.
+
+For the nominal radial model, every point in each disk must land inside the
+assigned floor's 0.75y inset. A conservative analytic deviation bound,
+`r * (1 + distance / (startingRadius - r))`, adds an extra inset when selecting
+disk centres. Flatliner centres are 2y from their source, meteor centres 3y.
+This tests a complete disk, rather than merely a centre that happens to project
+onto the island. It remains conditional on the documented 15y/25y radial model
+and nominal floor bounds; it does not certify physical collision or snapshots.
+
+The two-tower cue also starts preparation within 12y of the local meteor, before
+the later facing cue decides who must cross. Its AI deadline is launch activation
+minus 5.3s; the existing navigator keeps its additional 1s reserve. This is a
+conservative preparation policy, not a measured server deadline. The October
+failure has about 4.85s between the facing cue (seq329893) and tower effects
+(seq331972/331974); asking a far-corner player to start approaching only then
+would leave too little margin. After the facing cue, preparation is replaced by
+the actual stay/cross assignment. Players already nearby retain the normal
+future launch deadline.
+
+Validation at the initial launch-guidance checkpoint: **14,365 assertions passed**,
+including seven recorded Gust assertions and 14,358 synthetic assertions. Most
+of the new count consists of boundary probes around green disks, not independent
+encounter trials. The checks rotate all eight local party orders; cover ordinary
+0/8, 1/7, 2/6, 4/4, 6/2, 7/1 and 8/0 populations; test both destruction sides,
+occupied required towers, deaths, stable flight plans, later waves, cancelled
+sources, helper disappearance and fresh-pull cleanup. Native navigation follows
+intermediate waypoints for preparation and evacuation in four mirrored far-corner
+layouts, using the knockback component's timed constraints. The current-tree
+Release build passed with zero errors (incremental build: zero warnings; the
+preceding full compile retained six existing obsolete-gauge warnings).
+
+No new full-original replay, independent holdout, live radar capture or live AI
+acceptance is claimed. The earlier evidence gaps and WIP status remain. These
+changes are local development work after release 7.5.6.35.7; no new source tag or
+public release is created by this update.
+
+
+## Live-run follow-up — restoration and actionable green guidance
+
+The [October15 live review](tyrant-normal-live-review-20261015.md) found a material
+restoration omission: the local WHM survived east-platform destruction on west,
+but fell from X75.956 when director1 returned the floor to its original position.
+Crown now predicts that return and requires movement onto shared old/new floor
+before the outer strip disappears. Both Normal guides above support the
+Crown/restoration sequence; exact director timing comes from the new recording,
+not the guides. Physical bounds remain nominal, with this observed fall now
+corroborating the loss of the outer west strip.
+
+The maintainer was the only XCAI player. Initial7/1 population and an empty tower
+cannot establish that a coordinated all-AI split worked or failed. The module's
+minimum population remains a conditional plan, not control over manual players.
+The maintainer also reported that the green pips were visible but not actionable.
+The initial disk presentation above is superseded by **one outlined green wedge**
+per applicable source, with a direct stand-here/land-west-or-east hint.
+
+Restoration repair checkpoint:2700 assertions passed (2693 synthetic, seven recorded Gust).
+Restoration checks first fail against the prior DLL, then pass for mirrored
+inward routes, warning timing, held arena bounds and cleanup. Wedge validation
+covers the complete projected sector's coordinate extrema and samples its
+boundaries. Current-tree Release build passes with zero errors and six existing
+obsolete-gauge warnings. The compiled DLL stays at the watched development path.
+The correction has not been tested live; WIP and public release7.5.6.35.7 remain
+unchanged. Source/build identities are in tyrant-normal-validation.json.
+
+
+## Avalanche destruction marker and throw preview — 2026-10-15
+
+The maintainer reported early movement away from the later platform impact and
+no marker identifying the island being destroyed. Re-read the Normal Avalanche
+sections in both linked guides: the sequence is launch/evacuation, removal of the
+faced island, then the platform throw. Savage-specific visibility/timing was not
+used.
+
+The latest original shows helper46070 start at17:59:18.1931615 (seq168822),
+rotation-60degrees, origin(104.32593,97.48987), total17.2s and elapsed0.0155093s.
+With the native0.3s cast correction, the forecast is17:59:35.6776522; the observed
+effect is17:59:35.6586204 (seq176746). This is about19ms prediction difference,
+not proof of the server snapshot. Boss46069 starts in the same frame (seq168824),
+facing east. East removal is17:59:29.4970139 (seq173857).
+
+Combat diagnostics at15:59:21.3155761Z show position(76.34587,90.259125),
+navigation target(75.25,88.25), time-to-goal0.48591265s, leeway13.243929s and
+max-cast-time13.243929s. No cast was active at that sample. The player had
+prepositioned well before impact; the module had not supplied an immediate or
+incorrect throw deadline. The movement layer prefers an ultimately safe point
+and moves between casts even with positive leeway. This update does not claim
+to delay AI departure or establish an exact safe greed window.
+
+ArenaChanges now draws a filled and outlined platform warning at the
+facing cue, only on the designated current island. It also tells players on that
+floor to leave through their meteor. The marker is display-only: the existing
+launch requirement and landing constraints own evacuation, and current bounds
+still prohibit walking across the gap. Actual island removal, cancellation and
+reset clear the marker; normal visual completion retains it until removal.
+
+ArcadionAvalancheToss now draws the later impact with the configured translucent
+AOE colour while the doomed island is still present, then promotes it to the
+immediate danger colour after actual removal. Before removal its text describes
+the next step instead of saying to leave the throw immediately. Geometry, Risky
+flags and the complete future AI activation remain unchanged. Suppressing that
+future hazard to make the AI wait would discard reliable safety information;
+any departure scheduling improvement belongs in the movement layer and needs
+its own route/cast/latency validation.
+
+Current validation:2726 assertions pass (2719 synthetic and seven recorded Gust).
+All four Avalanche visual/helper pairs cover the marker side, absence of an
+ordinary walking prohibition, shaded preview, unchanged AI deadline, promotion
+on removal and cleanup. The Release build passes with zero errors and six
+existing obsolete-gauge warnings. No live radar or AI acceptance of this update
+is claimed; the module remains WIP and the public release is unchanged.
+
+The maintainer requested removal of the extra radar text label. The platform
+warning now uses only the established danger fill and outline; mechanic text
+hints and all AI timing remain unchanged.
+
+
+## Release checkpoint — 2026-10-16
+
+The restoration, launch-assignment/wedge and Avalanche display changes above
+are included in release **7.5.6.35.8** (install version **7.5.6.3508**). Earlier
+statements that these changes were uncommitted or unpublished describe their
+development checkpoints. The current-tree build, all five version tests and
+all ten encounter suites passed; see the [release notes](release-7.5.6.35.8.md)
+and release_validation in tyrant-normal-validation.json for current identities.
+WIP and the documented physical, replay and live-acceptance limits remain.
