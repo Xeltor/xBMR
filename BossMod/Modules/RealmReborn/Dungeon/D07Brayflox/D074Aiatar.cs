@@ -19,7 +19,53 @@ public enum AID : uint
 
 class SalivousSnap(BossModule module) : Components.SingleTargetCast(module, (uint)AID.SalivousSnap);
 class ToxicVomit(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ToxicVomitAOE, 2);
-class Burst(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Burst, 10, 4);
+// Keep every timed hazard for AI planning; only the earliest cohort is drawn.
+class Burst(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Burst, 10)
+{
+    public ReadOnlySpan<AOEInstance> PreviewAOEs(int slot, Actor actor)
+    {
+        var aoes = ActiveAOEs(slot, actor);
+        if (aoes.Length == 0)
+            return aoes;
+        var latest = aoes[0].Activation.AddSeconds(0.25); // display grouping only
+        var count = 1;
+        while (count < aoes.Length && aoes[count].Activation <= latest)
+            ++count;
+        return aoes[..count];
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        foreach (ref readonly var aoe in PreviewAOEs(slot, actor))
+            if (aoe.Risky && aoe.Check(actor.Position) && ArenaProjectionLayerParticipantApplies(actor, aoe.ArenaProjectionLayer, aoe.RestrictToArenaProjectionLayer))
+            {
+                hints.Add(WarningText);
+                break;
+            }
+    }
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        foreach (ref readonly var aoe in PreviewAOEs(pcSlot, pc))
+        {
+            using var layer = Arena.WorldProjectionLayer(aoe.ArenaProjectionLayer, aoe.RestrictToArenaProjectionLayer);
+            aoe.Shape.Draw(Arena, aoe.Origin, aoe.Rotation, aoe.Color);
+        }
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (caster.OID == (uint)OID.Helper && !caster.IsAlly && !caster.IsDeadOrDestroyed && spell.IsSpell(AID.Burst))
+        {
+            Casters.RemoveAll(a => a.ActorID == caster.InstanceID);
+            base.OnCastStarted(caster, spell);
+            Casters.Sort(static (a, b) => a.Activation.CompareTo(b.Activation));
+        }
+    }
+
+    public override void OnActorDeath(Actor actor) => Casters.RemoveAll(a => a.ActorID == actor.InstanceID);
+    public override void OnActorDestroyed(Actor actor) => Casters.RemoveAll(a => a.ActorID == actor.InstanceID);
+}
 class DragonBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.DragonBreath, new AOEShapeRect(30, 4));
 
 class D074AiatarStates : StateMachineBuilder

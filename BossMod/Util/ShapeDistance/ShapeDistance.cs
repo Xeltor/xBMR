@@ -10,6 +10,11 @@ public abstract class ShapeDistance
 
     public abstract float Distance(in WPos p);
 
+    // A finite global Lipschitz bound permits conservative swept-footprint/time queries:
+    // |Distance(a)-Distance(b)| <= bound*|a-b|. Unknown/binary/projected functions keep infinity.
+    // This does not assert that Distance is the exact Euclidean signed distance.
+    public virtual float ConservativeLipschitz => float.PositiveInfinity;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public virtual bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 

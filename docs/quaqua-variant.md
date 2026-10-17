@@ -60,7 +60,7 @@ fail under the old constructor. The parent owns compilation and execution of the
 updated suite; no new passing test count or final binary hash is claimed here.
 Sanitized reproducible asset facts are in `aloalo-arena-geometry.json`; proprietary
 raw assets and bounded reader outputs remain private under
-`/tmp/xbmr-aloalo-arena-20261014/`.
+`<isolated validation output>`.
 
 Map effect index 60 changes to `0x00020001` at sequence 57969 after the first
 Made Magic, and returns to `0x00080004` at 76489 when the boss dies. These are
@@ -233,24 +233,24 @@ DLL MVID: `c4518902-09a3-4e53-9c61-82be46407a14`.
 Native harness SHA-256:
 `bac58848af5311272aa34635d9b798c3f35d96fa750bbcf17442e19607ca1102`.
 
-Private evidence and reports are under `/tmp/xbmr-quaqua/`: `evidence.json`,
+Private evidence and reports are under `<isolated validation output>`: `evidence.json`,
 `accepted-source-manifest.json`, `accepted-0-report.json`,
 `accepted-1-report.json`, `accepted-coverage.json`, `timing-validation.json`,
 and the build/test logs. The subsequent build, two-source manifest, paired
 new-recording reports, rerun thunder reports and detailed numeric validation
-are under `/tmp/xbmr-quaqua-timing/`. These temporary paths are not durable
+are under `<isolated validation output>`. These temporary paths are not durable
 publication artifacts. Original paths and identifying replay contents are not
 committed.
 
 ```sh
-DALAMUD_HOME=/home/xeltor/.xlcore/dalamud/Hooks/dev \
-  /home/xeltor/.local/share/xbmr-dotnet/dotnet build \
+DALAMUD_HOME=${DALAMUD_HOME} \
+  dotnet build \
   tests/QuaquaRegression/QuaquaRegression.csproj -c Release
-/home/xeltor/.local/share/xbmr-dotnet/dotnet \
+dotnet \
   tests/QuaquaRegression/bin/Release/net10.0/QuaquaRegression.dll \
-  /home/xeltor/Projects/xBMR/BossMod/bin/Release/BossModReborn.dll \
-  /home/xeltor/.xlcore/dalamud/Hooks/dev \
-  '/home/xeltor/Games/steam/debian-installation/steamapps/common/FINAL FANTASY XIV Online/game'
+  BossMod/bin/Release/BossModReborn.dll \
+  ${DALAMUD_HOME} \
+  "$FFXIV_GAME"
 ```
 
 The development plugin watches the normal Release output. No installed plugin

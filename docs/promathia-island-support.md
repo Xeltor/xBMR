@@ -98,7 +98,7 @@ is still an acceptance limit.
   order; neither replay success nor an unavailable viewpoint is called route proof.
 
 Requests, reports, layout inspection and the validation summary are private local
-artifacts under `/tmp/xbmr-promathia-teleports/`. The final candidate assembly is
+artifacts under `<isolated validation output>`. The final candidate assembly is
 `e20c50e216c2c39a9eb363b462f7b3dcd529a067acc89a27464ad43d911b139b`.
 Earlier temporary candidate copies are superseded by `current/` and its reports.
 

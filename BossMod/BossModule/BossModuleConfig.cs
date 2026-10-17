@@ -25,6 +25,8 @@ public sealed class BossModuleConfig : ConfigNode
     public uint[] DisabledModuleOIDs = [];
     [JsonIgnore]
     internal HashSet<uint>? _disabledModuleOIDs;
+    [JsonIgnore]
+    internal uint[] _disabledModuleOIDSnapshot = [];
 
     [PropertyDisplay("Allow modules to automatically use actions", tooltip: "Example: modules can automatically use anti-knockback abilities before a knockback happens")]
     public bool AllowAutomaticActions = true;
@@ -317,10 +319,11 @@ public sealed class BossModuleConfig : ConfigNode
 
     private HashSet<uint> DisabledModuleOIDSet()
     {
-        if (_disabledModuleOIDs != null)
+        if (_disabledModuleOIDs != null && _disabledModuleOIDSnapshot.AsSpan().SequenceEqual(DisabledModuleOIDs))
         {
             return _disabledModuleOIDs;
         }
+        _disabledModuleOIDSnapshot = DisabledModuleOIDs.ToArray();
 
         var len = DisabledModuleOIDs.Length;
         var set = new HashSet<uint>(len);
@@ -337,6 +340,7 @@ public sealed class BossModuleConfig : ConfigNode
         set.CopyTo(persisted);
         Array.Sort(persisted);
         DisabledModuleOIDs = persisted;
+        _disabledModuleOIDSnapshot = persisted.ToArray();
     }
 
     public bool ShowPrePullHintsFor(uint primaryActorOID) => !SuppressedPrePullHintOIDSet().Contains(primaryActorOID);

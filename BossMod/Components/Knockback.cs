@@ -187,7 +187,18 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
 
     public List<(WPos from, WPos to)> CalculateMovements(int slot, Actor actor) => CalculateMovements(slot, actor, null);
 
-    private List<(WPos from, WPos to)> CalculateMovements(int slot, Actor actor, List<(int? layer, bool? restrict)>? projectionLayers)
+    public readonly record struct MovementProjection(WPos From, WPos To, DateTime Activation, int SourceIndex,
+        int? ArenaProjectionLayer, bool? RestrictToArenaProjectionLayer);
+
+    public List<MovementProjection> CalculateMovementProjections(int slot, Actor actor)
+    {
+        var result = new List<MovementProjection>();
+        CalculateMovements(slot, actor, null, result);
+        return result;
+    }
+
+    private List<(WPos from, WPos to)> CalculateMovements(int slot, Actor actor, List<(int? layer, bool? restrict)>? projectionLayers,
+        List<MovementProjection>? projections = null)
     {
         if (MaxCasts <= 0)
         {
@@ -281,6 +292,7 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
             var to = from + distance * dir;
             movements.Add((from, to));
             projectionLayers?.Add((s.ArenaProjectionLayer, s.RestrictToArenaProjectionLayer));
+            projections?.Add(new(from, to, s.Activation, i, s.ArenaProjectionLayer, s.RestrictToArenaProjectionLayer));
             from = to;
 
             if (++count == MaxCasts)

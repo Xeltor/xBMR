@@ -6,7 +6,7 @@ namespace BossMod.Autorotation;
 
 // preset is a manual override for the rotation state; it describes a set of active modules and selected strategy values for each one
 [JsonConverter(typeof(JsonPresetConverter))]
-public sealed record class Preset(string Name)
+public sealed partial record class Preset(string Name)
 {
     public bool HiddenByDefault;
 
@@ -24,7 +24,7 @@ public sealed record class Preset(string Name)
         public StrategyValue Value = Value;
     }
 
-    public record class ModuleSettings(Type Type, RotationModuleDefinition Definition, Func<RotationModuleManager, Actor, RotationModule> Builder) : IRotationModuleData
+    public partial record class ModuleSettings(Type Type, RotationModuleDefinition Definition, Func<RotationModuleManager, Actor, RotationModule> Builder) : IRotationModuleData
     {
         public readonly List<ModuleSetting> SerializedSettings = [];
         public readonly List<ModuleSetting> TransientSettings = [];
@@ -67,6 +67,7 @@ public sealed record class Preset(string Name)
         foreach (ref var s in m.TransientSettings.AsSpan())
             if ((s.Mod & mods) == s.Mod)
                 res.Values[s.Track] = s.Value;
+        m.ApplyOwnedStrategies(res.Values, mods);
         return res;
     }
 

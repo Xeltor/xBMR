@@ -11,6 +11,8 @@ document the bounded Twilight repair and its replay evidence.
 See the [7.5.6.35.8 release notes](docs/release-7.5.6.35.8.md) for the complete
 encounter changes and validation limits.
 
+Agent integration documentation: [versioned XCAI IPC guide](docs/xcai-integration-agent-guide.md).
+
 ## Install
 
 Add this custom repository in Dalamud:
@@ -51,6 +53,16 @@ relevant offline validation passes. Personal live testing is optional. Credible
 complaints or Git issues about material module defects return them to WIP until
 resolved. See [the module maturity policy](docs/module-maturity-policy.md) for
 promotion, reopening and archive collection rules.
+
+## Questionable compatibility
+
+Select **BossMod** as Questionable's combat module. xBMR provides the shared
+`BossMod.*` preset IPC and the `/vbm` and `/vbmai` command aliases itself; no
+companion plugin is required. Questionable may still display its BossMod Reborn
+warning and mark the original BossMod plugin as missing. The inspected version's
+combat and solo-duty paths check the IPC directly, independently of those notices.
+See [the compatibility notes](docs/questionable-compatibility.md) for the tested
+Questionable version, remaining gameplay validation, and scope.
 
 ## Development and releases
 

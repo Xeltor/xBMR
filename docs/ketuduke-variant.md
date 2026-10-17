@@ -40,7 +40,7 @@ its inner square corroborates the existing half-size20 independently of player
 positions. Collision material meaning, server DoT eligibility and phase enablement
 remain separate from this static geometry result. No geometry change is needed.
 See `aloalo-arena-geometry.json` for sanitized provenance and primary format links;
-raw assets/readers remain private under `/tmp/xbmr-aloalo-arena-20261014/`.
+raw assets/readers remain private under `<isolated validation output>`.
 
 The previous suggestion to require a personal in-game perimeter check is
 superseded by `docs/module-maturity-policy.md`: available replay/offline evidence
@@ -181,17 +181,17 @@ checks pass on this final development DLL too, and the existing module harness
 passed 1,251 native assertions. The five Python repository tests also pass.
 The aggregate receipt is in `ketuduke-variant-validation.json`. Detailed private
 reports/requests, original-to-digest mapping and code manifest remain under
-`/tmp/xbmr-ketuduke/`; original recording filenames are not committed.
+`<isolated validation output>`; original recording filenames are not committed.
 
 Run synthetic checks with the pinned SDK after building the plugin:
 
 ```sh
-/home/xeltor/.local/share/xbmr-dotnet/dotnet build tests/KetudukeVariant/KetudukeVariant.csproj -c Release
-/home/xeltor/.local/share/xbmr-dotnet/dotnet tests/KetudukeVariant/bin/Release/net10.0/KetudukeVariant.dll \
-  /home/xeltor/Projects/xBMR/BossMod/bin/Release/BossModReborn.dll \
-  /home/xeltor/.xlcore/dalamud/Hooks/dev \
-  '/home/xeltor/Games/steam/debian-installation/steamapps/common/FINAL FANTASY XIV Online/game'
-python tests/KetudukeVariant/verify-replays.py /tmp/xbmr-ketuduke
+dotnet build tests/KetudukeVariant/KetudukeVariant.csproj -c Release
+dotnet tests/KetudukeVariant/bin/Release/net10.0/KetudukeVariant.dll \
+  BossMod/bin/Release/BossModReborn.dll \
+  ${DALAMUD_HOME} \
+  "$FFXIV_GAME"
+python tests/KetudukeVariant/verify-replays.py <isolated validation output>
 ```
 
 ## Maturity reassessment after 7.5.6.35.4

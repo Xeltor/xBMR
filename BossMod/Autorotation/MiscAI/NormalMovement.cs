@@ -77,7 +77,9 @@ public sealed class NormalMovement : RotationModule
         return res;
     }
 
-    private readonly NavigationDecision.Context _navCtx = new();
+    private NavigationDecision.Context _navCtx = new(); // completed context, never written by the active worker
+    private NavigationDecision.Context _workerNavCtx = new();
+    internal NavigationPublication? PublishedNavigation { get; private set; }
 
     public const float MeleeRange = 2.6f; // Note: melee range is always hitbox radius + 2.6 for auto attacks, doesn't matter if skills have 3 range...
     public const float CasterRange = 25f;
@@ -99,16 +101,36 @@ public sealed class NormalMovement : RotationModule
     private NavigationDecision GetDecision(float speed, float cushionSize)
     {
         if (_decisionTask.IsCompletedSuccessfully)
+        {
             _lastDecision = _decisionTask.Result;
+            if (_lastDecision.Publication is { } built)
+            {
+                PublishedNavigation = built.Publish();
+                _lastDecision.Publication = PublishedNavigation;
+                (_navCtx, _workerNavCtx) = (_workerNavCtx, _navCtx);
+            }
+        }
 
         if (_decisionTask.IsCompleted)
         {
             if (_decisionTask.Exception is { } exception)
                 Service.Log($"exception during pathfind: {exception}");
 
-            _decisionTask = Task.Run(() => NavigationDecision.Build(_navCtx, World.CurrentTime, Hints, Player, speed, forbiddenZoneCushion: cushionSize));
+            var input = NavigationDecision.CaptureInput(World.CurrentTime, Hints, Player, speed, cushionSize, World.CurrentZone, World.CurrentCFCID);
+            var worker = _workerNavCtx;
+            _decisionTask = Task.Run(() => NavigationDecision.BuildCaptured(worker, input));
         }
 
+        if (PublishedNavigation is { } publication)
+        {
+            if (publication.TryRemainingLeeway(World.CurrentTime, Player.InstanceID, World.CurrentZone, World.CurrentCFCID, out var leeway))
+                _lastDecision.LeewaySeconds = leeway;
+            else
+            {
+                _lastDecision = new() { LeewaySeconds = float.MaxValue };
+                PublishedNavigation = null;
+            }
+        }
         return _lastDecision;
     }
 
@@ -264,6 +286,7 @@ public sealed class NormalMovement : RotationModule
         if (resetStats)
         {
             _lastDecision = default;
+            PublishedNavigation = null;
         }
 
         if (World.CurrentCFCID == 844u && Player.FindStatus(2973u) != null) // spinning in alzadaal, expand if needed for other content
@@ -315,7 +338,7 @@ public sealed class NormalMovement : RotationModule
                                 navi.Destination = uptimePosition;
                             break;
 
-                        // TODO: don't use a _navCtx that's being modified in a background thread; we should hold onto two of them and swap them when the task completes
+                        // _navCtx is the retained completed context; the worker writes its other buffer.
                         case RangeStrategy.GreedAutomatic:
                             var uptimeCell = _navCtx.Map.GridToIndex(_navCtx.Map.WorldToGrid(uptimePosition));
                             var curCell = _navCtx.ThetaStar.StartNodeIndex;

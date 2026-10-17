@@ -71,7 +71,7 @@ accepting its rear probe. Earlier Explosion constraints still reject that probe
 while those attacks remain active; the correction does not turn an earlier
 hazard into safe floor. Eight optional native navigation fixtures are included.
 Detailed requests, reports and summary are under
-`/tmp/xbmr-promathia-overlap/`.
+`<isolated validation output>`.
 
 - Baseline assembly: `0c237993a4fba0b957a2e01b70bba9127758504f2daffe0728370ef63e2170a6`
 - Candidate assembly: `9d07bd1011b4a7691bf75352e7493eaab61d17389c52458b88b0d288b7f3f768`

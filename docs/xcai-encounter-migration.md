@@ -112,4 +112,4 @@ dotnet run --project tests/ModuleRegression -c Release -p:EnableWindowsTargeting
 ```
 
 Private raw runner reports and logs for this task are under
-`/tmp/xbmr-migration/`; they are local, ephemeral evidence, not release assets.
+`<isolated validation output>`; they are local, ephemeral evidence, not release assets.

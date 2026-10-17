@@ -6,14 +6,15 @@ public enum OID : uint
     Boss = 0x3DE, // Inferno Drake
 
     // Trash
-    TemplestBiast = 0x3DF // Templest Biast
+    TemplestBiast = 0x3DF, // Tempest Biast; retain existing enum name
+    Brayflox = 0x1A6 // friendly NPC; can be untargetable while baiting the cleave
 }
 
 public enum AID : uint
 {
     // Boss
     AutoAttack = 870, // Boss->player, no cast
-    BurningCyclone = 984, // Boss->self, 0.5s, range 9.6 ?-degree cone cleave (120-degree)
+    BurningCyclone = 984, // Boss->self, 0.5s, nominal range 6+R = 9.6; angle remains uncalibrated
 
     // Trash
     AutoAttackTrash = 871, // Trash->player, no cast
@@ -21,18 +22,75 @@ public enum AID : uint
     Levinfang = 519 // Trash->player, no cast, single target
 }
 
-class BurningCyclone(BossModule module) : Components.Cleave(module, (uint)AID.BurningCyclone, new AOEShapeCone(8.6f, 60.Degrees()));
+class BurningCyclone(BossModule module) : Components.Cleave(module, (uint)AID.BurningCyclone, new AOEShapeCone(9.6f, 60.Degrees()));
+
+// A half-second cast is too late to establish a fresh safe position. Preview
+// the add's potential cleave toward Brayflox while it lives, then use the actual
+// cast placement/rotation: its normal TargetID can still point at the tank.
+// No matching omen establishes the angle. This front semicircle is an explicit
+// conservative movement policy, not a measured 180-degree damage boundary.
+class Levinshower(BossModule module) : Components.GenericAOEs(module, (uint)AID.Levinshower, "Keep clear of the Tempest Biast's front!")
+{
+    public static readonly AOEShapeCone PolicyShape = new(8.16f, 90.Degrees()); // nominal 6 + recorded R2.16
+    private readonly Dictionary<Actor, (ActorCastInfo Cast, AOEInstance AOE)> _casts = [];
+    private readonly List<AOEInstance> _aoes = [];
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        _aoes.Clear();
+        var brayflox = Module.Enemies((uint)OID.Brayflox).FirstOrDefault(b => b.IsAlly && !b.IsDeadOrDestroyed);
+        foreach (var caster in Module.Enemies((uint)OID.TemplestBiast))
+        {
+            if (caster.IsAlly || caster.IsDeadOrDestroyed)
+                continue;
+            if (_casts.TryGetValue(caster, out var cast))
+                _aoes.Add(cast.AOE);
+            else
+            {
+                // Missing NPC state cannot establish safety. Retain a facing-
+                // based policy with an explicit uncertainty warning below.
+                var rotation = brayflox != null ? caster.AngleTo(brayflox) : caster.Rotation;
+                _aoes.Add(new(PolicyShape, caster.Position, rotation, actorID: caster.InstanceID));
+            }
+        }
+        return CollectionsMarshal.AsSpan(_aoes);
+    }
+
+    public override void AddGlobalHints(Actor actor, GlobalHints hints)
+    {
+        if (Module.Enemies((uint)OID.TemplestBiast).Any(c => !c.IsAlly && !c.IsDeadOrDestroyed && !_casts.ContainsKey(c))
+            && !Module.Enemies((uint)OID.Brayflox).Any(b => b.IsAlly && !b.IsDeadOrDestroyed))
+            hints.Add("Tempest cleave direction uncertain: keep clear of its front.");
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (caster.OID == (uint)OID.TemplestBiast && !caster.IsAlly && !caster.IsDeadOrDestroyed && spell.IsSpell(AID.Levinshower)
+            && (!_casts.TryGetValue(caster, out var old) || old.Cast != spell))
+            _casts[caster] = (spell, new(PolicyShape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell), actorID: caster.InstanceID));
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.IsSpell(AID.Levinshower) && _casts.TryGetValue(caster, out var old) && old.Cast == spell)
+            _casts.Remove(caster);
+    }
+
+    public override void OnActorDeath(Actor actor) => _casts.Remove(actor);
+    public override void OnActorDestroyed(Actor actor) => _casts.Remove(actor);
+}
 
 class D072InfernoDrakeStates : StateMachineBuilder
 {
     public D072InfernoDrakeStates(BossModule module) : base(module)
     {
         TrivialPhase()
-            .ActivateOnEnter<BurningCyclone>();
+            .ActivateOnEnter<BurningCyclone>()
+            .ActivateOnEnter<Levinshower>();
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "Chuggalo", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 8, NameID = 1284)]
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Chuggalo", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 8, NameID = 1284)]
 public class D072InfernoDrake(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
     private static readonly WPos[] shape = [new(-6.17f, -107.64f), new(2.20f, -106.20f), new(2.74f, -105.76f), new(4.22f, -101.99f), new(4.58f, -101.54f),
@@ -68,11 +126,13 @@ public class D072InfernoDrake(WorldState ws, Actor primary) : BossModule(ws, pri
         for (var i = 0; i < count; ++i)
         {
             var e = hints.PotentialTargets[i];
+            if (e.Priority < 0 || e.Actor.IsAlly || !e.Actor.IsTargetable || e.Actor.IsDeadOrDestroyed)
+                continue;
             e.Priority = e.Actor.OID switch
             {
                 (uint)OID.TemplestBiast => 2,
                 (uint)OID.Boss => 1,
-                _ => 0
+                _ => e.Priority
             };
         }
     }

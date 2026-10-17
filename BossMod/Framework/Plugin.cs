@@ -35,6 +35,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
     private AI.AIManager _ai = null!;
     private AI.Broadcast _broadcast = null!;
     private IPCProvider _ipc = null!;
+    private Integration.IntegrationCoordinator _integration = null!;
     private DTRProvider _dtr = null!;
     private MultiboxManager _mbox = null!;
     private PartyRolesManager _partyRoles = null!;
@@ -112,6 +113,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         Service.Config.Modified.Subscribe(() => Task.Run(() => Service.Config.SaveToFile(_dalamud.ConfigFile)));
 
         CommandManager.AddHandler("/bmr", new CommandInfo(OnCommand) { HelpMessage = "Show boss mod settings UI" });
+        CommandManager.AddHandler("/vbm", new CommandInfo(OnCommand) { HelpMessage = "xBMR compatibility alias for /bmr" });
 
         ActionDefinitions.Instance.UnlockCheck = QuestUnlocked; // ensure action definitions are initialized and set unlock check functor (we don't really store the quest progress in clientstate, for now at least)
 
@@ -129,7 +131,9 @@ public sealed class Plugin : IAsyncDalamudPlugin
         _rotation = new(_rotationDB, _bossmod, _hints);
         _ai = new(_rotation, _amex, _movementOverride);
         _broadcast = new();
-        _ipc = new(_bossmod, _hints, _rotation, _amex, _movementOverride, _ai, _hintsBuilder.Obstacles);
+        _integration = new(_bossmod, _zonemod, _hints, _rotation, _amex, _movementOverride, _ai);
+        _integration.AttachControls();
+        _ipc = new(_bossmod, _hints, _rotation, _amex, _movementOverride, _ai, _hintsBuilder.Obstacles, _integration);
         _dtr = new(_rotation, _ai);
         _mbox = new(_rotation, _ws);
         _partyRoles = new(_ws);
@@ -186,6 +190,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         _bossmod.Dispose();
         _rsr.Dispose();
         CommandManager.RemoveHandler("/bmr");
+        CommandManager.RemoveHandler("/vbm");
         GarbageCollection();
     }
 
@@ -215,6 +220,9 @@ public sealed class Plugin : IAsyncDalamudPlugin
                 break;
             case "GC":
                 GarbageCollection();
+                break;
+            case "CLEAR-MAPS":
+                _hintsBuilder.Obstacles.ClearTempMap();
                 break;
             case "R":
                 HandleReplayCommand(split);
@@ -312,11 +320,13 @@ public sealed class Plugin : IAsyncDalamudPlugin
 
         _dtr.Update();
         Camera.Instance?.Update();
+        _integration.BeginWorldUpdate();
         _wsSync.Update(_prevUpdateTime);
         _partyRoles.Update();
         _bossmod.Update();
         _zonemod.ActiveModule?.Update();
         _hintsBuilder.Update(_hints, PartyState.PlayerSlot, moveImminent);
+        _integration.HintsReady();
         _amex.QueueManualActions();
         _rotation.Update(_amex.AnimationLockDelayEstimate, _movementOverride.IsMoving(), Service.Condition[ConditionFlag.DutyRecorderPlayback]);
         _ai.Update();
@@ -330,7 +340,9 @@ public sealed class Plugin : IAsyncDalamudPlugin
             Service.WindowSystem?.Draw();
         }
 
+        _integration.MovementProposed();
         ExecuteHints();
+        _integration.MovementApplied();
 
         Camera.Instance?.DrawWorldPrimitives();
         _prevUpdateTime = DateTime.Now - tsStart;

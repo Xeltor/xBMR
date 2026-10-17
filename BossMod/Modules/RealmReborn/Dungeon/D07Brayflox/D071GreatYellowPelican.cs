@@ -19,21 +19,38 @@ public enum AID : uint
 
     // Trash
     AutoAttackTrash = 871, // Trash->player, no cast
-    PoisonBreath = 1393 // VioletBack->self, no cast, range 7.20 ?-degree cone cleave
+    PoisonBreath = 1393, // VioletBack->self, no cast, range 7.20 ?-degree cone cleave
+    SlumberBreath = 508 // SableBack->self, 3.0s cast, nominal range 6+R 120-degree cone
 }
 
 class NumbingBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.NumbingBreath, new AOEShapeCone(9.2f, 60.Degrees()));
+
+class SlumberBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.SlumberBreath, new AOEShapeCone(7.2f, 60.Degrees()))
+{
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (caster.OID == (uint)OID.SableBack && !caster.IsAlly && !caster.IsDeadOrDestroyed && spell.IsSpell(AID.SlumberBreath))
+        {
+            Casters.RemoveAll(a => a.ActorID == caster.InstanceID);
+            base.OnCastStarted(caster, spell);
+        }
+    }
+
+    public override void OnActorDeath(Actor actor) => Casters.RemoveAll(a => a.ActorID == actor.InstanceID);
+    public override void OnActorDestroyed(Actor actor) => Casters.RemoveAll(a => a.ActorID == actor.InstanceID);
+}
 
 class D071GreatYellowPelicanStates : StateMachineBuilder
 {
     public D071GreatYellowPelicanStates(BossModule module) : base(module)
     {
         TrivialPhase()
-            .ActivateOnEnter<NumbingBreath>();
+            .ActivateOnEnter<NumbingBreath>()
+            .ActivateOnEnter<SlumberBreath>();
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "Chuggalo", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 8, NameID = 1280)]
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Chuggalo", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 8, NameID = 1280)]
 public class D071GreatYellowPelican(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
     private static readonly WPos[] shape = [new(119.50f, -32.71f), new(122.83f, -28.25f), new(123.29f, -27.95f), new(129.68f, -25.59f), new(129.94f, -24.72f),
@@ -56,12 +73,14 @@ public class D071GreatYellowPelican(WorldState ws, Actor primary) : BossModule(w
         for (var i = 0; i < count; ++i)
         {
             var e = hints.PotentialTargets[i];
+            if (e.Priority < 0 || e.Actor.IsAlly || !e.Actor.IsTargetable || e.Actor.IsDeadOrDestroyed)
+                continue;
             e.Priority = e.Actor.OID switch
             {
                 (uint)OID.VioletBack => 3,
                 (uint)OID.SableBack => 2,
                 (uint)OID.Boss => 1,
-                _ => 0
+                _ => e.Priority
             };
         }
     }

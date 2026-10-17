@@ -6,14 +6,14 @@ using System.Threading;
 
 namespace BossMod;
 
-public sealed class ConfigRoot
+public sealed partial class ConfigRoot
 {
     public Event Modified = new();
     public readonly Dictionary<Type, ConfigNode> _nodes = [];
     private readonly Dictionary<string, ConfigNode> _nodesByName = [];
 
     // fields temporarily overridden by other plugins (via IPC); the config file always keeps the user's original value
-    private readonly record struct TransientOverride(object? Original, object? Value);
+    private readonly record struct TransientOverride(object? Original, object? Value, string? Owner = null, long Revision = 0);
     private readonly Dictionary<(ConfigNode node, ConfigFieldMetadata field), TransientOverride> _transient = [];
     private int _transientVersion; // incremented under the lock whenever the overrides change
 
@@ -23,7 +23,7 @@ public sealed class ConfigRoot
     {
         // subscribed first, so that it runs before the save is triggered
         node.Modified.Subscribe(() => DropChangedTransients(node));
-        node.Modified.Subscribe(Modified.Fire);
+        node.Modified.Subscribe(NotifyPersistentChange);
         _nodes[type] = node;
         if (type.FullName is { } fullName)
         {
@@ -62,6 +62,11 @@ public sealed class ConfigRoot
     }
 
     public void SaveToFile(FileInfo file)
+    {
+        lock (_saveGate) SaveToFileCore(file);
+    }
+
+    private void SaveToFileCore(FileInfo file)
     {
         try
         {
@@ -158,6 +163,7 @@ public sealed class ConfigRoot
                         if (_transient.Remove((selectedNode, selectedField)))
                             ++_transientVersion;
                         selectedField.Setter(selectedNode, value);
+                        ExplicitOwnedFieldIntent(selectedNode, selectedField);
                     }
                     if (save)
                         selectedNode.Modified.Fire();
@@ -199,6 +205,12 @@ public sealed class ConfigRoot
             // the value is changed under the lock, so that a concurrent save sees it together with its override entry
             lock (_transient)
             {
+                RefreshOwnedFields(selectedNode);
+                if (_transient.TryGetValue((selectedNode, selectedField), out var owned) && owned.Owner != null)
+                {
+                    result.Add("Setting has an active owner-scoped lease");
+                    return result;
+                }
                 // if the field is already overridden, keep the user's value from before the first override
                 var original = _transient.TryGetValue((selectedNode, selectedField), out var existing) ? existing.Original : selectedField.Getter(selectedNode);
                 _transient[(selectedNode, selectedField)] = new(original, value);
@@ -221,11 +233,12 @@ public sealed class ConfigRoot
         var restored = 0;
         lock (_transient)
         {
-            if (_transient.Count == 0)
+            var legacy = _transient.Where(pair => pair.Value.Owner == null).ToArray();
+            if (legacy.Length == 0)
                 return 0;
 
             ++_transientVersion;
-            foreach (var ((node, field), entry) in _transient)
+            foreach (var ((node, field), entry) in legacy)
             {
                 // don't clobber the field if something has changed it in the meantime
                 if (Equals(field.Getter(node), entry.Value))
@@ -234,8 +247,8 @@ public sealed class ConfigRoot
                     modified.Add(node);
                     ++restored;
                 }
+                _transient.Remove((node, field));
             }
-            _transient.Clear();
         }
         foreach (var node in modified)
             node.Modified.Fire();
@@ -263,6 +276,7 @@ public sealed class ConfigRoot
     {
         lock (_transient)
         {
+            RefreshOwnedFields(node);
             foreach (var (key, entry) in _transient)
             {
                 if (key.node == node && !Equals(key.field.Getter(node), entry.Value))

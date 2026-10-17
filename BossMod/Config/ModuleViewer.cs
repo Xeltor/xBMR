@@ -600,7 +600,15 @@ public sealed class ModuleViewer(PlanDatabase? planDB, WorldState ws) : IDisposa
                 groupId |= module.GroupID;
                 var cfcRow = Service.LuminaRow<ContentFinderCondition>(module.GroupID)!.Value;
                 var cfcSort = cfcRow.SortKey;
-                return new(FixCase(cfcRow.Name), groupId, cfcSort != 0 ? cfcSort : groupId);
+                var cfcName = FixCase(cfcRow.Name);
+                // Solo quest duties can have an empty CFC name; their linked quest still names the battle.
+                if (string.IsNullOrWhiteSpace(cfcName))
+                {
+                    var battleQuestID = cfcRow.TerritoryType.ValueNullable?.QuestBattle.ValueNullable?.Quest.RowId;
+                    if (battleQuestID is uint questID && Service.LuminaRow<Quest>(questID) is { } battleQuest)
+                        cfcName = battleQuest.Name.ToString();
+                }
+                return new(string.IsNullOrWhiteSpace(cfcName) ? $"Duty {module.GroupID}" : cfcName, groupId, cfcSort != 0 ? cfcSort : groupId);
             case BossModuleInfo.GroupType.MaskedCarnivale:
                 groupId |= module.GroupID;
                 var mcRow = Service.LuminaRow<ContentFinderCondition>(module.GroupID)!.Value;
@@ -637,7 +645,11 @@ public sealed class ModuleViewer(PlanDatabase? planDB, WorldState ws) : IDisposa
             case BossModuleInfo.GroupType.Quest:
                 var questRow = Service.LuminaRow<Quest>(module.GroupID)!.Value;
                 groupId |= questRow.JournalGenre.RowId;
-                return new(questRow.JournalGenre.ValueNullable?.Name.ToString() ?? "", groupId, groupId);
+                var questGroupName = questRow.JournalGenre.ValueNullable?.Name.ToString();
+                // Older quest rows may have no journal genre, despite retaining a valid quest name.
+                if (string.IsNullOrWhiteSpace(questGroupName))
+                    questGroupName = questRow.Name.ToString();
+                return new(string.IsNullOrWhiteSpace(questGroupName) ? $"Quest {module.GroupID}" : questGroupName, groupId, groupId);
             case BossModuleInfo.GroupType.Fate:
                 return new($"{module.Expansion.ShortName()} FATE", groupId, groupId, _iconFATE);
             case BossModuleInfo.GroupType.Hunt:

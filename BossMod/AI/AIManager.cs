@@ -27,6 +27,7 @@ sealed class AIManager : IDisposable
         Autorot = autorot;
         Controller = new(autorot.WorldState, amex, movement);
         Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Toggle AI mode" });
+        Service.CommandManager.AddHandler("/vbmai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "xBMR compatibility alias for /bmrai" });
     }
 
     public void SetAIPreset(Preset? p)
@@ -41,6 +42,7 @@ sealed class AIManager : IDisposable
         SwitchToIdle();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
+        Service.CommandManager.RemoveHandler("/vbmai");
         Instance = null;
     }
 
@@ -55,7 +57,7 @@ sealed class AIManager : IDisposable
         var master = WorldState.Party[MasterSlot];
         if (Beh != null && player != null && master != null && !WorldState.Party.Members[PartyState.PlayerSlot].InCutscene)
         {
-            _ = Beh.Execute(player, master);
+            Beh.Execute(player, master);
         }
         else
         {

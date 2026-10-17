@@ -266,6 +266,7 @@ public sealed class UIPresetEditor
                     var v2 = ms.SerializedSettings[active].Value with { }; // make clone
                     if (RendererFactory.Draw(StrategyContext.Preset, cfg, ref v2))
                     {
+                        ms.UserStrategyIntent(track);
                         ms.SerializedSettings.RemoveAt(active);
                         if (!cfg.IsDefault(v2))
                             ms.SerializedSettings.Insert(active, new(default, track, v2));
@@ -277,6 +278,7 @@ public sealed class UIPresetEditor
                     var v1 = cfg.CreateEmpty();
                     if (RendererFactory.Draw(StrategyContext.Preset, cfg, ref v1))
                     {
+                        ms.UserStrategyIntent(track);
                         if (!cfg.IsDefault(v1))
                             ms.SerializedSettings.Add(new(default, track, v1));
                         Modified = true;
@@ -299,6 +301,7 @@ public sealed class UIPresetEditor
                 for (var i = 0; i < ms.Definition.Configs.Count; ++i)
                     if (ImGui.Selectable(ms.Definition.Configs[i].UIName))
                     {
+                        ms.UserStrategyIntent(i);
                         ms.SerializedSettings.Add(new(Preset.Modifier.Shift, i, ms.Definition.Configs[i].CreateForEditor()));
                     }
             }
@@ -314,16 +317,25 @@ public sealed class UIPresetEditor
 
             using var _i2 = ImRaii.PushId($"{cfg.InternalName}_override_{i}");
 
-            Modified |= RendererFactory.Draw(StrategyContext.Preset, cfg, ref val.Value);
+            var editedTrack = val.Track;
+            var edited = RendererFactory.Draw(StrategyContext.Preset, cfg, ref val.Value);
 
-            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Shift, "Shift");
+            edited |= DrawModifier(ref val.Mod, Preset.Modifier.Shift, "Shift");
             ImGui.SameLine();
-            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Ctrl, "Ctrl");
+            edited |= DrawModifier(ref val.Mod, Preset.Modifier.Ctrl, "Ctrl");
             ImGui.SameLine();
-            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Alt, "Alt");
+            edited |= DrawModifier(ref val.Mod, Preset.Modifier.Alt, "Alt");
             ImGui.SameLine();
             if (ImGui.Button("Delete override"))
+            {
                 ms.SerializedSettings.RemoveAt(i);
+                edited = true;
+            }
+            if (edited)
+            {
+                ms.UserStrategyIntent(editedTrack);
+                Modified = true;
+            }
         }
     }
 

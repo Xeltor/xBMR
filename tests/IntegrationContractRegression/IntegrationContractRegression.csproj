@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <BossModAssembly Condition="'$(BossModAssembly)' == ''">../../BossMod/bin/Release/BossModReborn.dll</BossModAssembly>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.Numerics" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationSession.cs" Link="IntegrationSession.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationGoalSet.cs" Link="IntegrationGoalSet.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationActionEffects.cs" Link="IntegrationActionEffects.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationDamage.cs" Link="IntegrationDamage.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationArena.cs" Link="IntegrationArena.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationRoutes.cs" Link="IntegrationRoutes.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationInputObservation.cs" Link="IntegrationInputObservation.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationLeases.cs" Link="IntegrationLeases.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationMechanics.cs" Link="IntegrationMechanics.cs" />
+    <Compile Include="../../BossMod/Pathfinding/NavigationMapSource.cs" Link="NavigationMapSource.cs" />
+    <Compile Include="../../BossMod/Pathfinding/NavigationPublication.cs" Link="NavigationPublication.cs" />
+    <Compile Include="../../docs/examples/BossModV1Consumer.cs" Link="BossModV1Consumer.cs" />
+    <Compile Include="../../docs/examples/BossModV1DirectionalScope.cs" Link="BossModV1DirectionalScope.cs" />
+    <Compile Include="../../docs/examples/BossModV1StrategyLease.cs" Link="BossModV1StrategyLease.cs" />
+    <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
+  </ItemGroup>
+</Project>

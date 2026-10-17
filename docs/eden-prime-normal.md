@@ -134,7 +134,7 @@ was added.
   explicit ignored/unresolved observations. This is scoped action coverage, not
   exhaustive status/environment or alternate-pattern acceptance.
 
-The earlier native summary in `/tmp/xbmr-eden-20261014/validation-summary.json`
+The earlier native summary in `<isolated validation output>`
 explicitly checks 19 components. Its source manifest contains only
 `E01EdenPrime.cs` and `ViceAndVirtue.cs`; it does not include `Intermission.cs`.
 The later `pass2/` directory contains typed sheet and TMB asset research, not a
@@ -159,7 +159,7 @@ Earlier 19-component module-source manifest SHA256:
 Earlier 19-component candidate DLL SHA256:
 `14cfee7eab2b44e87b633a76178baee863568db3fc9367038a4b3fbd6d947e32`.
 Private evidence, requests, failed/successful reports, asset facts and preserved
-original are under `/tmp/xbmr-eden-20261014/`.
+original are under `<isolated validation output>`.
 
 ## Follow-up acceptance review
 

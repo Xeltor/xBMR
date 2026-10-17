@@ -92,7 +92,7 @@ The clock trace also distinguishes a rate factor from elapsed time. SharedGroup0
 
 The remaining decoder boundary is now narrower: establish the scene-update input units and floor end event, and identify any independent SharedGroup/TimeLineLayoutInstance completion polling or parent EventObject restoration route. The inspected C055 cleanup and scheduler completion callbacks provide no such restore. Do not assume stored `df_on` automatically plays at `df_act` completion, or assume collision necessarily remains active throughout the40.4864857-second packet gap. Server lethal material behavior, harmful interval and last-safe departure remain separate evidence requirements.
 
-Private receipt `/tmp/dun-scaith-evidence-20261014/floor-lifecycle-scheduler-continuation.json` (SHA256 `56de9cf3afca5abed056374b5c151b89fd1cf5693e51779ff8423e9748129009`) records addresses, bounded disassembly selectors/hashes and exact game/asset/source identity. Immutable cache receipt: `/home/xeltor/.cache/ffxiv-asset-inspection/0430122a501b5693a099b367b118c6baffa24881f678aa53df2d94f2a5fe2515/manifest.json`. No encounter source, tests, plugin build output or live state changed in this pass.
+Private receipt `/tmp/dun-scaith-evidence-20261014/floor-lifecycle-scheduler-continuation.json` (SHA256 `56de9cf3afca5abed056374b5c151b89fd1cf5693e51779ff8423e9748129009`) records addresses, bounded disassembly selectors/hashes and exact game/asset/source identity. Immutable cache receipt: `<private evidence location>`. No encounter source, tests, plugin build output or live state changed in this pass.
 
 
 ## Recorded floor strikes and forecast implementation

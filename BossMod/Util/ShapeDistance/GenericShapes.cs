@@ -4,6 +4,8 @@ public sealed class SDHalfPlane : ShapeDistance
 {
     private readonly float normalX, normalZ, bias;
 
+    public override float ConservativeLipschitz => float.IsFinite(bias) ? MathF.Sqrt(normalX * normalX + normalZ * normalZ) : float.PositiveInfinity;
+
     public SDHalfPlane(WPos Point, WDir Normal)
     {
         var normal = Normal;
@@ -35,6 +37,8 @@ public sealed class SDHalfPlane : ShapeDistance
 public sealed class SDCircle : ShapeDistance
 {
     private readonly float originX, originZ, radius, radiusSq;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(radius) && radius >= 0 ? 1f : float.PositiveInfinity;
 
     public SDCircle(WPos Origin, float Radius)
     {
@@ -99,6 +103,8 @@ public sealed class SDInvertedCircle : ShapeDistance
 {
     private readonly float originX, originZ, radius, radiusSq;
 
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(radius) && radius >= 0 ? 1f : float.PositiveInfinity;
+
     public SDInvertedCircle(WPos Origin, float Radius)
     {
         var origin = Origin;
@@ -143,6 +149,8 @@ public sealed class SDInvertedCircle : ShapeDistance
 public sealed class SDDonut : ShapeDistance
 {
     private readonly float originX, originZ, innerRadius, outerRadius, innerRadiusSq, outerRadiusSq;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(innerRadius) && float.IsFinite(outerRadius) && innerRadius >= 0 && outerRadius >= innerRadius ? 1f : float.PositiveInfinity;
 
     public SDDonut(WPos Origin, float InnerRadius, float OuterRadius)
     {
@@ -231,6 +239,8 @@ public sealed class SDDonut : ShapeDistance
 public sealed class SDInvertedDonut : ShapeDistance
 {
     private readonly float originX, originZ, innerRadius, outerRadius, innerRadiusSq, outerRadiusSq;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(innerRadius) && float.IsFinite(outerRadius) && innerRadius >= 0 && outerRadius >= innerRadius ? 1f : float.PositiveInfinity;
 
     public SDInvertedDonut(WPos Origin, float InnerRadius, float OuterRadius)
     {
@@ -328,6 +338,8 @@ public sealed class SDInvertedDonut : ShapeDistance
 public sealed class SDCone : ShapeDistance
 {
     private readonly float originX, originZ, coneFactor, radius, radiusSq, nlX, nlZ, nrX, nrZ;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(radius) && radius >= 0 ? Math.Max(1f, Math.Max(MathF.Sqrt(nlX * nlX + nlZ * nlZ), MathF.Sqrt(nrX * nrX + nrZ * nrZ))) : float.PositiveInfinity;
 
     public SDCone(WPos Origin, float Radius, Angle CenterDir, Angle HalfAngle)
     {
@@ -513,6 +525,8 @@ public sealed class SDCone : ShapeDistance
 public sealed class SDInvertedCone : ShapeDistance
 {
     private readonly float originX, originZ, coneFactor, radius, radiusSq, nlX, nlZ, nrX, nrZ;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(radius) && radius >= 0 ? Math.Max(1f, Math.Max(MathF.Sqrt(nlX * nlX + nlZ * nlZ), MathF.Sqrt(nrX * nrX + nrZ * nrZ))) : float.PositiveInfinity;
 
     public SDInvertedCone(WPos Origin, float Radius, Angle CenterDir, Angle HalfAngle)
     {
@@ -1097,6 +1111,8 @@ public sealed class SDRect : ShapeDistance
 {
     private readonly float originX, originZ, dirX, dirZ, normalX, normalZ, lenFront, lenBack, halfWidth;
 
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(lenFront) && float.IsFinite(lenBack) && float.IsFinite(halfWidth) && lenFront + lenBack >= 0 && halfWidth >= 0 ? MathF.Sqrt(dirX * dirX + dirZ * dirZ) : float.PositiveInfinity;
+
     public SDRect(WPos Origin, Angle Direction, float LenFront, float LenBack, float HalfWidth) : this(Origin, Direction.ToDirection(), LenFront, LenBack, HalfWidth) { }
 
     public SDRect(WPos From, WPos To, float HalfWidth)
@@ -1259,6 +1275,8 @@ public sealed class SDInvertedRect : ShapeDistance
 {
     private readonly float originX, originZ, dirX, dirZ, normalX, normalZ, lenFront, lenBack, halfWidth;
 
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(lenFront) && float.IsFinite(lenBack) && float.IsFinite(halfWidth) && lenFront + lenBack >= 0 && halfWidth >= 0 ? MathF.Sqrt(dirX * dirX + dirZ * dirZ) : float.PositiveInfinity;
+
     public SDInvertedRect(WPos Origin, Angle Direction, float LenFront, float LenBack, float HalfWidth) : this(Origin, Direction.ToDirection(), LenFront, LenBack, HalfWidth) { }
 
     public SDInvertedRect(WPos From, WPos To, float HalfWidth)
@@ -1352,6 +1370,8 @@ public sealed class SDCapsule : ShapeDistance
     private readonly float originX, originZ, dirX, dirZ, length, radius, radiusSq;
     private readonly WDir direction;
     private readonly WPos origin;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(length) && float.IsFinite(radius) && length >= 0 && radius >= 0 ? 1f + dirX * dirX + dirZ * dirZ : float.PositiveInfinity;
 
     public SDCapsule(WPos Origin, Angle Direction, float Length, float Radius) : this(Origin, Direction.ToDirection(), Length, Radius) { }
 
@@ -1494,6 +1514,8 @@ public sealed class SDInvertedCapsule : ShapeDistance
     private readonly float originX, originZ, dirX, dirZ, length, radius, radiusSq;
     private readonly WDir direction;
     private readonly WPos origin;
+
+    public override float ConservativeLipschitz => float.IsFinite(originX) && float.IsFinite(originZ) && float.IsFinite(length) && float.IsFinite(radius) && length >= 0 && radius >= 0 ? 1f + dirX * dirX + dirZ * dirZ : float.PositiveInfinity;
 
     public SDInvertedCapsule(WPos Origin, Angle Direction, float Length, float Radius) : this(Origin, Direction.ToDirection(), Length, Radius) { }
 

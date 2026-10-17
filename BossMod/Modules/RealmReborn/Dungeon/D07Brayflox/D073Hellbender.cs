@@ -89,7 +89,9 @@ class D120HellbenderStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "Chuggalo", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 8, NameID = 1286)]
+// Reopened for the missing follow-up coverage and unverified instant Bog Bubble
+// prediction/floor geometry; the follow-up now has its own actor-bound module.
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Chuggalo", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 8, NameID = 1286)]
 public class D120Hellbender(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
     private static readonly WPos[] shape = [new(-118.14f, -57.46f), new(-116.88f, -56.86f), new(-116.30f, -56.76f), new(-115.77f, -57.08f), new(-115.12f, -57.40f),
@@ -114,12 +116,13 @@ public class D120Hellbender(WorldState ws, Actor primary) : BossModule(ws, prima
         for (var i = 0; i < count; ++i)
         {
             var e = hints.PotentialTargets[i];
-            e.Priority = e.Actor.OID switch
+            var target = e.Actor;
+            if (e.Priority < 0 || target.IsAlly || target.IsDeadOrDestroyed || !target.IsTargetable)
+                continue;
+            if (target.OID is (uint)OID.QueerBubble or (uint)OID.Boss)
             {
-                (uint)OID.QueerBubble => 2,
-                (uint)OID.Boss => 1,
-                _ => 0
-            };
+                e.Priority = target.OID == (uint)OID.QueerBubble ? 2 : 1;
+            }
         }
     }
 

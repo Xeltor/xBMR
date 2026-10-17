@@ -138,7 +138,7 @@ Candidate DLL SHA-256:
 Candidate assembly MVID: `701feb46-428d-4ed6-9fc6-2dcd880a5b7f`.
 The declaration-review contract is
 `50eabe250d3d18854222e0e8a3b0d7908bdd7a7bb8b889a112fdee13f69208a0`.
-Private reports and original paths remain outside Git under `/tmp/xbmr-doomtrain`.
+Private reports and original paths remain outside Git under `<isolated validation output>`.
 
 ## Follow-up from the 14 October live run
 
@@ -234,7 +234,7 @@ Module source-manifest SHA-256 is
 DLL SHA-256 is `11f1114139f73c699d8c90ab4f218d4d3a993502141aed9a4fa37a0a26b02b24`;
 assembly MVID is `58165e14-1952-40e2-a763-c1794580dde3`.
 Detailed reports and identifying original filenames remain private under
-`/tmp/xbmr-doomtrain-followup`. The bridge observes the development plugin loaded,
+`<isolated validation output>`. The bridge observes the development plugin loaded,
 but its plugin description does not expose an assembly MVID, so this is not proof
 that the running instance has this exact build identity.
 

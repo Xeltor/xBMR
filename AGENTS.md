@@ -111,6 +111,15 @@ qualify. Record promotion/reopening reasons and evidence or issue links. After
 repair, validate the affected behavior and adjacent interactions before promoting
 again; a full encounter retest is not required for every change.
 
+## Versioned integration contracts
+
+For supported XCAI/BMR IPC work, start with
+[the agent guide](docs/xcai-integration-agent-guide.md) and its linked contract
+specification/example. Advertise families independently, keep unknown/stale
+results explicit, and preserve BMR frame/movement/safety ownership. The delivery
+ledger records residual gaps; capability publication alone does not prove a
+completed consumer migration or live gameplay acceptance.
+
 ## Local development builds
 
 After applying changes, always build the plugin successfully before handing the
@@ -119,20 +128,19 @@ do not leave a stale DLL as the reported test artifact. If the build fails, fix
 errors within the task's scope or report the blocker explicitly.
 
 Use the SDK pinned in `global.json` and compatible Dalamud API 15 development
-assemblies. On this workstation, the portable SDK and build command are:
+assemblies. Configure `DALAMUD_HOME` in your environment, then build:
 
 ```sh
-DALAMUD_HOME=/home/xeltor/.xlcore/dalamud/Hooks/dev \
-  /home/xeltor/.local/share/xbmr-dotnet/dotnet build \
-  BossMod/BossModReborn.csproj -c Release -p:EnableWindowsTargeting=true
+dotnet build BossMod/BossModReborn.csproj -c Release -p:EnableWindowsTargeting=true
 ```
 
-The Dalamud development plugin targets this build output directly:
-`/home/xeltor/Projects/xBMR/BossMod/bin/Release/BossModReborn.dll`.
-Keep that output path stable. Dalamud automatically reloads the development
-plugin when the DLL is rebuilt; do not copy it into installed plugin directories
-or trigger a manual reload. Report build success separately from live gameplay
-validation.
+The development plugin may watch `BossMod/bin/Release/BossModReborn.dll` and
+reload automatically when it changes. Preserve the configured output path;
+confirm affected clients are out of combat before rebuilding a watched output.
+Use an isolated output for offline validation while combat state is unknown.
+Do not copy into installed plugin directories or trigger a manual reload.
+Report build success separately from live gameplay validation. Machine-specific
+build environments belong in local configuration outside the repository.
 
 ## Release version policy
 

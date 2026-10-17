@@ -141,7 +141,7 @@ are committed, published or uploaded.
   are identical. Original hashes are checked before and after each serialized
   read. The missing helper after boss death remains an explicit phase-exit case.
   Detailed results are saved in
-  `/tmp/xbmr-promathia-more/validation-summary.json`.
+  `<isolated validation output>`.
 - The five Python release/version tests, metadata validator and whitespace check
   pass. No version bump, tag, feed change, installed-directory copy or manual
   plugin reload is performed.
@@ -157,7 +157,7 @@ Candidate assembly SHA-256:
 This candidate includes the unrelated current working-tree changes; only the
 owned Promathia paths and test registration were edited for this repair.
 Requests, reports, sanitized event citations and private asset inspection are
-under `/tmp/xbmr-promathia-more/`.
+under `<isolated validation output>`.
 
 ## Remaining acceptance
 

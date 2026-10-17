@@ -122,7 +122,7 @@ Candidate assembly SHA-256:
 `8689a7d6ab8263e7c2a61350a4e7bc1f28c186d82a06785c2a7e3234bf7b21c7`.
 The normal development output contains that candidate assembly. Private replay
 requests, reports, pattern citations, comparison scripts and the validation
-summary are under `/tmp/xbmr-shinryu/`; these are local ephemeral evidence,
+summary are under `<isolated validation output>`; these are local ephemeral evidence,
 not release assets.
 
 ## Remaining acceptance

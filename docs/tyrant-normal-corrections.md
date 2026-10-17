@@ -127,12 +127,12 @@ unresolved semantics. They are not silently advertised as verified handling.
 Run the Release plugin build first, then:
 
 ```sh
-DALAMUD_HOME=/home/xeltor/.xlcore/dalamud/Hooks/dev \
-  /home/xeltor/.local/share/xbmr-dotnet/dotnet build tests/TyrantRegression -c Release
-/home/xeltor/.local/share/xbmr-dotnet/dotnet \
+DALAMUD_HOME=${DALAMUD_HOME} \
+  dotnet build tests/TyrantRegression -c Release
+dotnet \
   tests/TyrantRegression/bin/Release/net10.0/TyrantRegression.dll \
-  BossMod/bin/Release/BossModReborn.dll /home/xeltor/.xlcore/dalamud/Hooks/dev \
-  '/home/xeltor/Games/steam/debian-installation/steamapps/common/FINAL FANTASY XIV Online/game'
+  BossMod/bin/Release/BossModReborn.dll ${DALAMUD_HOME} \
+  "$FFXIV_GAME"
 ```
 
 A fourth argument may select a private sanitized numeric callback trace; private

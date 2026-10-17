@@ -1,0 +1,12 @@
+<Project>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Support/ConsoleRunner.cs" Link="ConsoleRunner.cs" />
+  </ItemGroup>
+  <Target Name="UseSelectedBossModAssembly" BeforeTargets="ResolveAssemblyReferences" Condition="'$(BossModAssembly)' != ''">
+    <ItemGroup>
+      <Reference Condition="'%(Reference.Identity)' == 'BossModReborn'">
+        <HintPath>$(BossModAssembly)</HintPath>
+      </Reference>
+    </ItemGroup>
+  </Target>
+</Project>

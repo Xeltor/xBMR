@@ -153,7 +153,7 @@ behavior, last-safe departures and live BMR/XCAI execution remain unverified;
 recording/replay success is not a claim that the changed plugin has completed a
 live encounter safely.
 
-Detailed private inputs/outputs are under `/tmp/xbmr-promathia-phase-repair`.
+Detailed private inputs/outputs are under `<isolated validation output>`.
 Concurrent Shinryu source/test changes are preserved and are not owned by this
 repair. No installed plugin copy, manual reload, release, or live game action is
 performed. The watched development DLL was rebuilt only after the out-of-combat

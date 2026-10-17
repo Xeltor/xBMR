@@ -79,7 +79,18 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
         --NumActiveForcedMarches;
     }
 
-    public List<(WPos from, WPos to, Angle dir)> ForcedMovements(Actor player)
+    public readonly record struct MovementProjection(WPos From, WPos To, Angle Direction, DateTime Activation, DateTime End, int? PendingIndex);
+
+    public List<MovementProjection> CalculateMovementProjections(Actor player)
+    {
+        var result = new List<MovementProjection>();
+        ForcedMovements(player, result);
+        return result;
+    }
+
+    public List<(WPos from, WPos to, Angle dir)> ForcedMovements(Actor player) => ForcedMovements(player, null);
+
+    private List<(WPos from, WPos to, Angle dir)> ForcedMovements(Actor player, List<MovementProjection>? projections)
     {
         var state = State.GetValueOrDefault(player.InstanceID);
         if (state == null || !ArenaProjectionLayerParticipantApplies(player, ArenaProjectionLayer, RestrictToArenaProjectionLayer))
@@ -110,6 +121,7 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
 
             var to = from + movementDistance * wdir;
             movements.Add((from, to, dir));
+            projections?.Add(new(from, to, dir, WorldState.CurrentTime, state.ForcedEnd, null));
             from = to;
         }
 
@@ -139,6 +151,7 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
 
             var to = from + movementDistance * wdir;
             movements.Add((from, to, dir));
+            projections?.Add(new(from, to, dir, move.activation, move.activation.AddSeconds(move.duration), i));
             from = to;
         }
         return movements;

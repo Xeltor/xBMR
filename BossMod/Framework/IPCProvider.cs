@@ -11,8 +11,41 @@ sealed class IPCProvider : IDisposable
 {
     private Action? _disposeActions;
 
-    public IPCProvider(BossModuleManager bossmod, AIHints hints, RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai, ObstacleMapManager obstacles)
+    public IPCProvider(BossModuleManager bossmod, AIHints hints, RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai, ObstacleMapManager obstacles, Integration.IntegrationCoordinator integration)
     {
+        Register("Integration.V1.Capabilities", integration.Capabilities);
+        Register("Integration.V1.Register", (string request, Action<string> callback) => Integration.IntegrationSession.Serialize(integration.Session.Register(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Registration>(request), callback)));
+        Register("Integration.V1.Renew", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Renew(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
+        Register("Integration.V1.Unregister", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Unregister(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
+        Register("Goals.V1.Submit", (string request, Func<Vector2, float> score) => Integration.IntegrationSession.Serialize(integration.Session.Submit(Integration.IntegrationSession.Parse<Integration.IntegrationSession.GoalRequest>(request), score)));
+        Register("Goals.V1.Clear", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Clear(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
+        Register("Goals.V1.EvaluateNative", (string request) => integration.EvaluateNativeGoals(request));
+        Register("Movement.V1.GetSnapshot", (string request) => integration.GetSnapshot(request));
+        Register("Movement.V1.Latest", integration.GetLatestSnapshot);
+        Register("Hints.V1.GetTargets", (string request) => integration.GetTargets(request));
+        Register("Hints.V1.GetPredictedDamage", (string request) => integration.GetPredictedDamage(request));
+        Register("World.V1.GetActionEffects", (string request) => integration.GetActionEffects(request));
+        Register("Arena.V1.GetSnapshot", (string request) => integration.GetArenaSnapshot(request));
+        Register("Arena.V1.QueryPoints", (string request) => integration.QueryArena(request));
+        Register("Navigation.V1.StartSearch", (string request) => integration.StartSearch(request));
+        Register("Navigation.V1.PollSearch", (string request) => integration.PollSearch(request));
+        Register("Navigation.V1.GetSnapshot", (string request) => integration.GetNavigationSnapshot(request));
+        Register("Navigation.V1.GetLocalMap", (string request) => integration.GetNavigationMap(request));
+        Register("Navigation.V1.EvaluateRoutes", (string request) => integration.EvaluateRoutes(request));
+        Register("Follow.V1.GetSnapshot", (string request) => integration.GetFollow(request));
+        Register("Follow.V1.Stop", (string request) => integration.StopFollow(request));
+        Register("Mechanics.V1.GetSnapshot", (string request) => integration.GetMechanics(request));
+        Register("Mechanics.V1.EvaluateMovement", (string request) => integration.EvaluateMechanicMovement(request));
+        Register("Modules.V1.GetSnapshot", (string request) => integration.GetModules(request));
+        Register("Strategies.V1.GetSnapshot", (string request) => integration.GetStrategy(request));
+        Register("Strategies.V1.Apply", (string request) => integration.ApplyStrategy(request));
+        Register("Control.V1.GetSettings", (string request) => integration.GetSettings(request));
+        Register("Control.V1.ApplySetting", (string request) => integration.ApplySetting(request));
+        Register("Control.V1.Renew", (string request) => integration.RenewControl(request));
+        Register("Control.V1.Release", (string request) => integration.ReleaseControl(request));
+        Register("Control.V1.WithDirectionalAngle", (string request, Func<bool> execute) => integration.WithDirectionalAngle(request, execute));
+        _disposeActions += integration.Dispose;
+
         Register("HasModuleByDataId", static (uint dataId) => BossModuleRegistry.FindByOID(dataId) != null);
 
         // Timeline IPC endpoints for external plugin integration (e.g. RotationSolverReborn)
@@ -287,7 +320,9 @@ sealed class IPCProvider : IDisposable
             return ActionPredicate.IsDashSafe(player.Position, dest, hints);
         });
 
-        Register("Configuration", (List<string> args, bool save) => Service.Config.ConsoleCommand(args.AsSpan(), save));
+        // VBM clients use IReadOnlyList (including collection expressions); older BMR clients use List.
+        // Keep returning a concrete List so both subscriber return types remain compatible.
+        Register("Configuration", (IReadOnlyList<string> args, bool save) => IPCConfiguration.Execute(Service.Config, args, save));
         // same arguments as Configuration, but the change is never saved; ClearTransient restores the user's values
         Register("Configuration.SetTransient", (List<string> args) => Service.Config.SetTransient(args.AsSpan()));
         Register("Configuration.ClearTransient", () => Service.Config.ClearTransient());
@@ -438,6 +473,9 @@ sealed class IPCProvider : IDisposable
             {
                 return false;
             }
+
+            if (ms.HasOwnedStrategy(iTrack))
+                return false; // a legacy client cannot steal a V1 owner
 
             var setting = new Preset.ModuleSetting(default, iTrack, tempValue);
             var index = ms.TransientSettings.FindIndex(s => s.Track == iTrack);

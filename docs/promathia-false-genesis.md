@@ -111,7 +111,7 @@ Baseline assembly SHA-256:
 Candidate assembly SHA-256:
 `1518243fc09199de095c22dd5e683e70a17726c0a27e68f1d3f55dd1ef724309`.
 Candidate MVID: `94058e24-7cde-426c-905c-a828d3e3cee0`.
-Private requests, reports and detailed evidence are in `/tmp/xbmr-promathia/`.
+Private requests, reports and detailed evidence are in `<isolated validation output>`.
 At completion of that repair, the normal development output contained the
 candidate DLL and was watched for
 automatic reload. DevBridge reports the development plugin loaded; its inspection

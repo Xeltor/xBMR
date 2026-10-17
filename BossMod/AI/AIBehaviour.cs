@@ -1,6 +1,5 @@
 using BossMod.Autorotation;
 using BossMod.Pathfinding;
-using System.Threading;
 
 namespace BossMod.AI;
 
@@ -19,120 +18,137 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     public float ForceMovementIn = float.MaxValue; // TODO: reconsider
     public Preset? AIPreset = aiPreset;
     private static readonly AIConfig _config = Service.Config.Get<AIConfig>();
-    private readonly NavigationDecision.Context _naviCtx = new();
-    private NavigationDecision _naviDecision;
+    private NavigationDecision.Context _naviCtx = new();
+    private NavigationDecision.Context _workerNaviCtx = new();
+    private Task<NavigationDecision>? _navigationTask;
+    private string? _navigationScope;
+    private NavigationDecision _naviDecision = new() { LeewaySeconds = float.MaxValue };
+    private volatile NavigationPublication? _publishedNavigation;
+    internal NavigationPublication? PublishedNavigation => _publishedNavigation;
     private bool _afkMode;
     private bool _followMaster; // if true, our navigation target is master rather than primary target - this happens e.g. in outdoor or in dungeons during gathering trash
     private WPos _masterPrevPos;
     private WPos _masterMovementStart;
     private DateTime _masterLastMoved;
     private DateTime _navStartTime; // if current time is < this, navigation won't start
-    private static readonly SemaphoreSlim _semaphore = new(1, 1);
     private static readonly Random random = new();
 
-    private bool cancel; // used to cancel autorotation AI preset during async
+    private volatile bool cancel; // used to cancel autorotation AI preset during async
 
-    public void Dispose() => cancel = true;
+    public void Dispose()
+    {
+        cancel = true;
+        _publishedNavigation = null;
+        // Pending work owns only captured inputs and its private map; it cannot apply a continuation.
+        if (_navigationTask != null)
+            _ = _navigationTask.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+    }
 
-    public async Task Execute(Actor player, Actor master)
+    public void Execute(Actor player, Actor master)
     {
         // lots of assumptions made in this AI are broken by being in flight (or diving)
         // e.g. being inside an obstacle is fine, AOEs may not reach the player depending on vertical distance, etc
-        if (WorldState.Client.Flying)
+        if (cancel || WorldState.Client.Flying)
         {
             return;
         }
 
-        if (await _semaphore.WaitAsync(0).ConfigureAwait(false))
+        // Only this synchronous frame executor may read actors or write hints/controller state.
+        // The worker builds a map/result from captured inputs and is polled without waiting.
+        ForceMovementIn = float.MaxValue;
+        if (player.IsDead)
         {
-            try
+            return;
+        }
+
+        // keep master in focus
+        if (_config.FocusTargetMaster)
+        {
+            FocusMaster(master);
+        }
+
+        _afkMode = _config.AutoAFK && !master.InCombat && (WorldState.CurrentTime - _masterLastMoved).TotalSeconds > _config.AFKModeTimer;
+        var gazeImminent = autorot.Hints.ForbiddenDirections.Count != 0 && autorot.Hints.ForbiddenDirections.Ref(0).activation <= WorldState.FutureTime(0.5d);
+        var pyreticImminent = autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && autorot.Hints.ImminentSpecialMode.activation <= WorldState.FutureTime(1d);
+        var misdirectionMode = autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && autorot.Hints.ImminentSpecialMode.activation <= WorldState.CurrentTime;
+        var forbidTargeting = _config.ForbidActions || _afkMode || gazeImminent || pyreticImminent;
+        var hadNavi = _naviDecision.Destination != null;
+        var hints = autorot.Hints;
+        Targeting target = default;
+        if (!forbidTargeting && AIPreset != null && (!_config.ForbidAIMovementMounted || _config.ForbidAIMovementMounted && player.MountId == default))
+        {
+            target = SelectPrimaryTarget(player, master);
+            if (_config.ManualTarget)
             {
-                ForceMovementIn = float.MaxValue;
-                if (player.IsDead)
+                var t = autorot.WorldState.Actors.Find(player.TargetID);
+                if (t != null)
                 {
-                    return;
+                    target.Target = new AIHints.Enemy(t, 100, false);
                 }
-
-                // keep master in focus
-                if (_config.FocusTargetMaster)
+                else
                 {
-                    FocusMaster(master);
+                    target = default;
                 }
-
-                _afkMode = _config.AutoAFK && !master.InCombat && (WorldState.CurrentTime - _masterLastMoved).TotalSeconds > _config.AFKModeTimer;
-                var gazeImminent = autorot.Hints.ForbiddenDirections.Count != 0 && autorot.Hints.ForbiddenDirections.Ref(0).activation <= WorldState.FutureTime(0.5d);
-                var pyreticImminent = autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && autorot.Hints.ImminentSpecialMode.activation <= WorldState.FutureTime(1d);
-                var misdirectionMode = autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && autorot.Hints.ImminentSpecialMode.activation <= WorldState.CurrentTime;
-                var forbidTargeting = _config.ForbidActions || _afkMode || gazeImminent || pyreticImminent;
-                var hadNavi = _naviDecision.Destination != null;
-                var hints = autorot.Hints;
-                Targeting target = default;
-                if (!forbidTargeting && AIPreset != null && (!_config.ForbidAIMovementMounted || _config.ForbidAIMovementMounted && player.MountId == default))
-                {
-                    target = SelectPrimaryTarget(player, master);
-                    if (_config.ManualTarget)
-                    {
-                        var t = autorot.WorldState.Actors.Find(player.TargetID);
-                        if (t != null)
-                        {
-                            target.Target = new AIHints.Enemy(t, 100, false);
-                        }
-                        else
-                        {
-                            target = default;
-                        }
-                    }
-                    if (target.Target != null || TargetIsForbidden(player.TargetID))
-                    {
-                        hints.ForcedTarget ??= target.Target?.Actor;
-                    }
-
-                    AdjustTargetPositional(player, ref target);
-                }
-
-                var followTarget = _config.FollowTarget;
-                _followMaster = master != player;
-
-                // note: if there are pending knockbacks, don't update navigation decision to avoid fucking up positioning
-                if (player.PendingKnockbacks.Count == 0)
-                {
-                    var actorTarget = autorot.WorldState.Actors.Find(player.TargetID);
-                    var naviDecision = followTarget && actorTarget != null
-                        ? await BuildNavigationDecision(player, actorTarget, target).ConfigureAwait(false)
-                        : await BuildNavigationDecision(player, master, target).ConfigureAwait(false);
-                    _naviDecision = naviDecision;
-
-                    // there is a difference between having a small positive leeway and having a negative one for pathfinding, prefer to keep positive
-                    _naviDecision.LeewaySeconds = Math.Max(0f, _naviDecision.LeewaySeconds - 0.1f);
-                }
-
-                var masterIsMoving = TrackMasterMovement(master);
-                var moveWithMaster = masterIsMoving && _followMaster;
-                ForceMovementIn = moveWithMaster || gazeImminent || pyreticImminent ? default : _naviDecision.LeewaySeconds;
-
-                if (_config.MoveDelay != 0d && !hadNavi && _naviDecision.Destination != null)
-                {
-                    _navStartTime = WorldState.FutureTime(_config.MoveDelay);
-                }
-
-                if (!forbidTargeting && !cancel)
-                {
-                    autorot.Preset = target.Target != null ? AIPreset : null;
-                }
-                if (WorldState.CurrentCFCID == 844u && player.FindStatus(2973u) != null) // spinning in alzadaal, expand if needed for other content
-                {
-                    if (hints.SpinDirection == null && _naviDecision.Destination is WPos dest)
-                    {
-                        hints.SpinDirection = player.DirectionTo(dest).ToAngle();
-                    }
-                }
-                UpdateMovement(player, master, gazeImminent || pyreticImminent, misdirectionMode ? hints.MisdirectionThreshold : default, !forbidTargeting ? hints.ActionsToExecute : null);
             }
-            finally
+            if (target.Target != null || TargetIsForbidden(player.TargetID))
             {
-                _semaphore.Release();
+                hints.ForcedTarget ??= target.Target?.Actor;
+            }
+
+            AdjustTargetPositional(player, ref target);
+        }
+
+        var followTarget = _config.FollowTarget;
+        _followMaster = master != player;
+
+        // note: if there are pending knockbacks, don't update navigation decision to avoid fucking up positioning
+        if (player.PendingKnockbacks.Count == 0)
+        {
+            var actorTarget = autorot.WorldState.Actors.Find(player.TargetID);
+            var naviDecision = followTarget && actorTarget != null
+                ? BuildNavigationDecision(player, actorTarget, target)
+                : BuildNavigationDecision(player, master, target);
+            if (naviDecision is { } completed)
+            {
+                _naviDecision = completed;
+                _publishedNavigation = completed.Publication?.Publish();
+            }
+            if (_publishedNavigation is { } publication)
+            {
+                if (!publication.TryRemainingLeeway(WorldState.CurrentTime, player.InstanceID, WorldState.CurrentZone,
+                    WorldState.CurrentCFCID, out var leeway))
+                {
+                    _naviDecision = new() { LeewaySeconds = float.MaxValue };
+                    _publishedNavigation = null;
+                }
+                else
+                {
+                    _naviDecision.LeewaySeconds = Math.Max(0f, leeway - 0.1f);
+                }
             }
         }
+
+        var masterIsMoving = TrackMasterMovement(master);
+        var moveWithMaster = masterIsMoving && _followMaster;
+        ForceMovementIn = moveWithMaster || gazeImminent || pyreticImminent ? default : _naviDecision.LeewaySeconds;
+
+        if (_config.MoveDelay != 0d && !hadNavi && _naviDecision.Destination != null)
+        {
+            _navStartTime = WorldState.FutureTime(_config.MoveDelay);
+        }
+
+        if (!forbidTargeting && !cancel)
+        {
+            autorot.Preset = target.Target != null ? AIPreset : null;
+        }
+        if (WorldState.CurrentCFCID == 844u && player.FindStatus(2973u) != null) // spinning in alzadaal, expand if needed for other content
+        {
+            if (hints.SpinDirection == null && _naviDecision.Destination is WPos dest)
+            {
+                hints.SpinDirection = player.DirectionTo(dest).ToAngle();
+            }
+        }
+        UpdateMovement(player, master, gazeImminent || pyreticImminent, misdirectionMode ? hints.MisdirectionThreshold : default, !forbidTargeting ? hints.ActionsToExecute : null);
     }
 
     // returns null if we're to be idle, otherwise target to attack
@@ -233,13 +249,13 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         }
     }
 
-    private async Task<NavigationDecision> BuildNavigationDecision(Actor player, Actor master, Targeting targeting)
+    private NavigationDecision? BuildNavigationDecision(Actor player, Actor master, Targeting targeting)
     {
         var hints = autorot.Hints;
         if (_config.ForbidMovement || _config.ForbidAIMovementMounted && player.MountId != default
             || hints.ImminentSpecialMode.mode is AIHints.SpecialMode.NoMovement or AIHints.SpecialMode.Pyretic && hints.ImminentSpecialMode.activation <= WorldState.FutureTime(1d))
         {
-            return new() { LeewaySeconds = float.MaxValue };
+            return new NavigationDecision() { LeewaySeconds = float.MaxValue };
         }
 
         if (hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Freezing && hints.ImminentSpecialMode.activation <= WorldState.FutureTime(2.1d))
@@ -248,7 +264,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             var randomO2 = random.NextSingle() * 2f - 1f;
             var pos = player.Position;
             hints.ForcedMovement = new WPos(pos.X * randomO1, pos.Z * randomO2).ToVec3();
-            return new() { LeewaySeconds = float.MaxValue };
+            return new NavigationDecision() { LeewaySeconds = float.MaxValue };
         }
 
         Actor? forceDestination = null;
@@ -297,7 +313,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                     hints.GoalZones.Add(AIHints.GoalDonut(target.Position, min, max, 2f));
                 }
             }
-            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState.CurrentTime, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: _config.PreferredDistance)).ConfigureAwait(false);
+            return BuildCapturedNavigation(player, master);
         }
 
         // TODO: remove this once all rotation modules are fixed
@@ -306,7 +322,33 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             autorot.Hints.GoalZones.Add(AIHints.GoalSingleTarget(targeting.Target.Actor, targeting.PreferredPosition, targeting.PreferredRange));
         }
 
-        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState.CurrentTime, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, _config.PreferredDistance)).ConfigureAwait(false);
+        return BuildCapturedNavigation(player, master);
+    }
+
+    private NavigationDecision? BuildCapturedNavigation(Actor player, Actor master)
+    {
+        var scope = $"{player.InstanceID}:{master.InstanceID}:{WorldState.CurrentZone}:{WorldState.CurrentCFCID}:{(AIPreset == null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(AIPreset))}:{AIPreset?.Name}";
+        NavigationDecision? result = null;
+        if (_navigationTask?.IsCompleted == true)
+        {
+            if (_navigationTask.IsCompletedSuccessfully && _navigationScope == scope)
+            {
+                result = _navigationTask.Result;
+                (_naviCtx, _workerNaviCtx) = (_workerNaviCtx, _naviCtx);
+            }
+            else if (_navigationTask.IsFaulted)
+                Service.LogVerbose($"[AI] Navigation failed: {_navigationTask.Exception?.GetBaseException().Message}");
+            _navigationTask = null;
+        }
+        if (_navigationTask == null)
+        {
+            var input = NavigationDecision.CaptureInput(WorldState.CurrentTime, autorot.Hints, player, WorldState.Client.MoveSpeed,
+                _config.PreferredDistance, WorldState.CurrentZone, WorldState.CurrentCFCID);
+            var context = _workerNaviCtx;
+            _navigationScope = scope;
+            _navigationTask = Task.Run(() => NavigationDecision.BuildCaptured(context, input));
+        }
+        return result;
     }
 
     private void FocusMaster(Actor master)

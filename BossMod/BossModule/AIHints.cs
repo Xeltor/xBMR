@@ -39,11 +39,13 @@ public sealed class AIHints
         public bool StayAtLongRange; // if set, players with ranged attacks don't bother coming closer than max range (TODO: reconsider)
         public bool Spikes; // if set, autoattacks will be prevented
 
+        internal bool? ExplicitTargetRequirement { get; private set; }
         public bool ShouldBeTargeted
         {
             set
             {
                 field = value;
+                ExplicitTargetRequirement = value;
                 if (value)
                     Priority = Math.Max(0, Priority);
             }
@@ -131,6 +133,7 @@ public sealed class AIHints
     public readonly List<Func<WPos, float>> GoalZones = [];
 
     public bool GoalZonesEnabled = true;
+    internal Integration.IntegrationGoalSet? IntegrationGoals;
 
     // AI will treat the pixels inside these shapes as unreachable and not try to pathfind through them (unlike imminent forbidden zones)
     public List<ShapeDistance> TemporaryObstacles = [];
@@ -211,6 +214,7 @@ public sealed class AIHints
         ForbiddenZones.Clear();
         GoalZones.Clear();
         GoalZonesEnabled = true;
+        IntegrationGoals = null;
         TemporaryObstacles.Clear();
         Teleporters.Clear();
         RecommendedPositional = default;
@@ -381,53 +385,12 @@ public sealed class AIHints
     }
 
     public void InitPathfindMap(Pathfinding.Map map)
-    {
-        if (PathfindMapBounds is ArenaBoundsCustom custom)
-        {
-            custom.PathfindMap(map, PathfindMapCenter, PathfindMapArenaProjectionLayer);
-        }
-        else
-        {
-            PathfindMapBounds.PathfindMap(map, PathfindMapCenter);
-        }
-        if (PathfindMapObstacles.Bitmap != null && !_config.DisableObstacleMaps)
-        {
-            var offX = -PathfindMapObstacles.Rect.Left;
-            var offY = -PathfindMapObstacles.Rect.Top;
-            var r = PathfindMapObstacles.Rect.Clamped(PathfindMapObstacles.Bitmap.FullRect);
-            var height = map.Height;
-            var width = map.Width;
-            var rTop = r.Top;
-            var rBottom = r.Bottom;
-            var rLeft = r.Left;
-            var rRight = r.Right;
+        => Pathfinding.NavigationMapSource.Init(map, PathfindMapBounds, PathfindMapCenter, PathfindMapArenaProjectionLayer,
+            _config.DisableObstacleMaps ? default : PathfindMapObstacles);
 
-            for (var y = rTop; y < rBottom; ++y)
-            {
-                var my = y + offY;
-                if (my < 0 || my >= height)
-                {
-                    continue;
-                }
-                for (var x = rLeft; x < rRight; ++x)
-                {
-                    if (!PathfindMapObstacles.Bitmap[x, y])
-                    {
-                        continue;
-                    }
-
-                    var mx = x + offX;
-                    if (mx < 0 || mx >= width)
-                    {
-                        continue;
-                    }
-                    var index = map.GridToIndex(mx, my);
-                    map.PixelMaxG[index] = -1000f;
-                    map.PixelPriority[index] = float.MinValue;
-                }
-            }
-        }
-    }
+    internal Pathfinding.NavigationMapSource CapturePathfindMapSource()
+        => Pathfinding.NavigationMapSource.Capture(PathfindMapBounds, PathfindMapCenter, PathfindMapArenaProjectionLayer,
+            PathfindMapObstacles, _config.DisableObstacleMaps);
 
     // Allocation-free views used by consumers. These remain valid only until PotentialTargets is modified; in normal use that means until the next hints update.
     public ReadOnlySpan<Enemy> PriorityTargetsSpan

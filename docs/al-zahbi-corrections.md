@@ -14,7 +14,7 @@ exaflare corrections, wave-1 coverage and interrupt component remain. XCAI's
 agent owns the general consumer-side fix. The diagnosis and temporary-workaround
 validation below are historical evidence, not acceptance of the restored code
 with the affected XCAI build. The removed test fixture is preserved privately at
-`/tmp/xbmr-alzahbi-followup/removed-xbmr-integration-fixture.txt` for that agent.
+`<isolated validation output>` for that agent.
 
 The first correction did **not** pass live acceptance. A later Al Zahbi push
 still sent the player past the west boundary. The following combined regression
@@ -71,7 +71,7 @@ XCAI test assembly MVID: `ce72fa68-3a4f-4cc6-9bbf-66d20319d25c`.
 The live failed source's parser MVID was
 `c4518902-09a3-4e53-9c61-82be46407a14`.
 
-Private receipt and logs: `/tmp/xbmr-alzahbi-followup/`. The selected diagnostic
+Private receipt and logs: `<isolated validation output>`. The selected diagnostic
 scan reached the retained archive's end; full mechanic-window output was
 truncated and is not treated as complete. The replay window consumed an
 unfinished compressed prefix, so recorder completeness remains false. Event
@@ -196,4 +196,4 @@ That current workspace also builds successfully and passes **1,251 native
 synthetic assertions**, including additional separately owned Promathia cases.
 Its frozen test DLL SHA256 is
 `51d0b09dfaf93f461866530bbf1e5f5418a30b4936780c5721fcdbdfed766f3b`.
-Private runner reports and build/test logs are under `/tmp/xbmr-alzahbi/`.
+Private runner reports and build/test logs are under `<isolated validation output>`.

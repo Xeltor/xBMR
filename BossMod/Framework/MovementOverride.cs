@@ -29,6 +29,7 @@ public unsafe struct MoveControllerSubMemberForMine
 public sealed unsafe class MovementOverride : IDisposable
 {
     public Vector3? DesiredDirection;
+    internal readonly Integration.IntegrationInputObservation IntegrationInput = new();
     public Angle MisdirectionThreshold;
     public Angle? DesiredSpinDirection;
 
@@ -188,6 +189,8 @@ public sealed unsafe class MovementOverride : IDisposable
             : default; // misdirection mode, not moving yet and don't want to
         *sumLeft = output.X;
         *sumForward = output.Z;
+        IntegrationInput.Observe("walk-input-result", DesiredDirection, new(UserMove.X, UserMove.Z),
+            new(ActualMove.X, ActualMove.Z), new(output.X, output.Z), !movementAllowed && FollowPathActive(), misdirectionMode);
     }
 
     private void RMIFlyDetour(void* self, PlayerMoveControllerFlyInput* result)
