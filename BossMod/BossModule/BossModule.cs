@@ -510,6 +510,10 @@ public abstract class BossModule : IDisposable
     // default implementation activates if primary target is both targetable and in combat
     protected virtual bool CheckPull() => PrimaryActor.IsTargetable && PrimaryActor.InCombat;
 
+    // A control may change future load eligibility, but cannot withdraw a phase that already
+    // owns positioning or a module whose native pull predicate is currently satisfied.
+    internal bool CanTemporarilyDisable() => StateMachine.ActivePhase == null && !PrimaryActor.InCombat && !CheckPull();
+
     // called during update if module is active; should return true if module is to be reset (i.e. deleted and new instance recreated for same actor)
     // default implementation never resets, but it's useful for outdoor bosses that can be leashed
     public virtual bool CheckReset() => false;

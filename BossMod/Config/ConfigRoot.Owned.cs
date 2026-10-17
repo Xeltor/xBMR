@@ -55,6 +55,8 @@ public sealed partial class ConfigRoot
 
     private void ExplicitOwnedFieldIntent(ConfigNode node, ConfigFieldMetadata field)
     {
+        if (node is BossModuleConfig modules && field.Name == nameof(BossModuleConfig.DisabledModuleOIDs))
+            modules.ModuleEnablementUserIntent();
         ++_ownedExternalRevision;
         if (_ownedFieldWatches.ContainsKey((node, field)))
             _ownedFieldWatches[(node, field)] = new(field.Getter(node), ++_ownedRevision);

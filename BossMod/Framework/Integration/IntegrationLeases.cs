@@ -46,6 +46,24 @@ internal sealed class IntegrationLeases(Func<string, bool> ownerAlive, Action<Ex
             if (_disposed || !ownerAlive(owner) || leaseMs < 1 || leaseMs > resource.MaxLeaseMs || leaseMs > IntegrationSession.MaxLeaseMs)
                 return new(false, "invalid-owner-or-duration");
             var entry = _entries.Values.FirstOrDefault(e => e.Resource.Key == resource.Key);
+            if (entry is { Pending: false, CleanupPending: false } observedEntry)
+            {
+                try
+                {
+                    if (observedEntry.Resource.Read().LeaseId != observedEntry.Id)
+                    {
+                        // A native user change/expiry already removed the old runtime layer.
+                        // Do not reserve an unowned resource until that owner's original TTL.
+                        _entries.Remove(observedEntry.Id);
+                        entry = null;
+                    }
+                }
+                catch (Exception error)
+                {
+                    Log(observedEntry, error);
+                    return new(false, "resource-unavailable");
+                }
+            }
             if (entry != null && (entry.Owner != owner || entry.Id != leaseId || entry.Scope != scope || entry.Pending || entry.CleanupPending || entry.Expires <= _clock()))
                 return new(false, "resource-owned-or-stale-lease");
             if (entry == null && (leaseId != null || _entries.Count >= MaxLeases))

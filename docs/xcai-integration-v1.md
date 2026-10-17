@@ -24,7 +24,7 @@ the xBMR implementation deliverable.
 | 5. Targets | Bounded policy/geometry/cast observation, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, interrupt/deadline/source correlation and migration |
 | 6. Mechanics/projection | Bounded native generic publications, explicit coverage/later-pulse gaps, actual-pose native knockback/march observation preserving DestinationUnsafe, filtered source identity and activation | Counterfactual/independent-hazard/recovery safety, richer applicability and migration |
 | 7. Damage/effects | Full bounded damage list with same-observation party mapping/world time, copied recipient identities and explicit resolution completeness; bounded current-update action effects | Consumer migration and representative live overlap/party-change acceptance |
-| 8. Ownership controls/native corrections | Allowlisted settings and transient-strategy leases, synchronous directional scopes, conditional native follow stop; module catalog and current native enablement cache | Module/preset-selection leases, validated movement preferences, additional constraints and other justified native corrections |
+| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Preset-selection leases, validated movement preferences, additional constraints and other justified native corrections; consumer/live module-toggle acceptance |
 
 No complete reflection-removal or live gameplay acceptance claim is made by this
 ledger. Unsupported fields remain null or explicitly unknown. In particular a
@@ -46,7 +46,7 @@ Currently the advertised families are `frame-stages`, `goal-scoring`,
 `arena-geometry`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
 `mechanic-observation`, `current-native-projection`,
-`configuration-leases`, `transient-strategy-leases`, `module-catalog`,
+`configuration-leases`, `transient-strategy-leases`, `module-catalog`, `module-enablement-leases`,
 `directional-angle-scopes`, and `follow-control`, each
 version 1.
 The target and movement observations have the gaps listed above.
@@ -652,11 +652,76 @@ observations are capped at 16 with an explicit completeness flag; total native
 loaded/pending observations must fit 1024. Configuration eligibility does not
 claim that a module is loaded or owns positioning.
 
-This is read-only discovery, not module mutation or a maturity bypass.
-`enablementLeasesSupported:false` and the capability unsupported list make the
-remaining module-control gap explicit. Native disabled-OID caching now refreshes
+Catalog observation remains distinct from mutation or a maturity bypass.
+`configuredEnabled` is the native configured preference; `effectiveEnabled` and
+`eligibleToLoad` include runtime leases. Loaded actor entries additionally report
+`retainedAfterLease` when native active-phase coverage survives a temporary
+enable's expiry. `enablementLeasesSupported:true` advertises the separate control
+family described below. Native disabled-OID caching refreshes
 when its public list is replaced or edited in place, so native eligibility and
 the catalog do not retain an obsolete disabled set.
+
+### Owned module enablement
+
+`module-enablement-leases:1` advertises two `Func<string,string>` endpoints:
+
+- `Modules.V1.GetEnablement` accepts `{context,identity}`. Use the exact catalog
+  `identity` (`<uppercase hexadecimal OID>:<full native module type name>`), never
+  infer it from names, category, maturity or hitbox. The response returns
+  `savedEnabled`, runtime `enabled`, `revision`, `userRevision`, `leased`,
+  `maxLeaseMs`, `meetsMinimumMaturity`, and `canTemporarilyDisable`.
+- `Modules.V1.ApplyEnablement` accepts the following. Both booleans must be
+  explicitly present; missing/null values reject rather than defaulting to a
+  disable. The exact observed revision and effective value must still match.
+
+```json
+{"context":{"schemaVersion":1,"instanceGeneration":"provider","frameId":42,"stage":"hints-ready"},"ownerToken":"owner","identity":"41E2:BossMod.Dawntrail.Dungeon.D05Origenics.D050OrigenicsAerostat.D050OrigenicsAerostat","expectedRevision":7,"expectedEnabled":true,"enabled":false,"leaseMs":1000}
+```
+
+Acquisition requires hints-ready, a live owner, current native identity/maturity,
+and the usual no-manual/death/mount/cutscene/pause state. A new disable additionally
+requires the player out of combat and every loaded/pending instance of that OID
+inactive with its native pull predicate false and primary actor out of combat.
+It cannot withdraw an active or about-to-activate module. Future load eligibility
+changes on the next native manager update, not by executing another frame.
+An already accepted disable can be renewed without reapplying it; native expiry,
+manual/scope/preset/territory changes and owner loss still revoke it. A lost lease
+cannot be blindly reacquired during combat. Module disabling removes bespoke
+coverage and can fall back to native automatic hints; it is not equivalent hazard
+coverage or a generic fix for a faulty encounter arena.
+
+Enabling an explicitly configured-disabled module requires
+`reason:"user-requested-temporary-enable"`, reflecting an actual user request.
+Automatic integrations must preserve saved opt-outs. Dummy/unknown identities
+and modules below the current maturity gate are rejected.
+
+Successful acquisition returns `accepted`, `leaseId` and `resourceRevision`.
+An update also supplies its existing `leaseId`. Renew/release through
+`Control.V1.Renew`/`Release`, and renew the integration owner separately. The
+runtime layer expires within 2000 ms and is removed independently by native
+eligibility reads/framework sweeps; lifecycle calls read a copied configuration
+observation, not game state from another thread. At most 32 layers/resources and
+128 bounded observations are kept. Unowned observations may be evicted, which
+invalidates stale revisions. Active native provenance is pinned and cannot be
+evicted by catalog paging.
+
+The configured disabled-OID list is never borrowed or rewritten, including on
+unrelated saves. Serialization omits the runtime table. Explicit user single,
+bulk, expansion/category, console and config-import choices revoke affected
+ownership, even when the chosen value equals the borrowed or saved value.
+Observed raw array edits also invalidate affected watches. Different OIDs remain
+independent. Removal of a runtime layer never restores a stale saved list.
+
+If a temporary enable loaded a module which became active, expiry/release
+restores configured eligibility but retains that native instance's coverage
+until its normal reset/end/unload. A later explicit user change to that OID
+overrides retention. An inactive leased instance can return to pending on
+expiry; native cleanup releases its provenance pin. This preserves native
+hazards during owner failure without silently changing the user's saved choice.
+Use loaded/active/retention observations rather than assuming release unloads
+a module immediately. The [compile-checked module lease example](examples/BossModV1ModuleLease.cs)
+shows exact state comparison, explicit opt-in for enables, renewal and checked
+release. Production hallway-toggle adoption and live behavior remain unverified.
 
 ## Migration and validation still required
 
@@ -677,7 +742,7 @@ outside this issue.
 | `BossModUpcomingAoeReader`, stack/separation/activity, landing/knockback/forced-march/immunity and learned-safety clones | `Mechanics.V1` bounded generic publications and actual-pose native projections | Whole-encounter coverage, counterfactual/independent-hazard/recovery evaluations still required before migrating dependent optimizations |
 | `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer migration and live overlap/party-change acceptance; offline overlap/identity tests pass |
 | `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Poll from the frame callback and handle dropped/incomplete updates; production subscription not yet replaced |
-| Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/synchronous scopes, `Strategies.V1` ownership, and `Modules.V1` catalog; legacy IPC stays compatible | Module enablement and preset-selection leases remain unsupported; production reflected adapters are downstream adoption work |
+| Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Preset-selection leases remain unsupported; honor module acquisition/retention/user-intent semantics during production adoption |
 | Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | No movement-write endpoint introduced | BMR-validated preference/control contracts and native ownership decisions still required |
 | Stack masks, redundant tank-facing, FATE pathfinding-frame guards and additional projected constraints | Native defects have not been established by this contract work | Gather evidence, preserve user opt-outs, then implement justified native behavior/capability or a narrowly validated lease; do not clone existing workarounds blindly |
 
@@ -721,13 +786,15 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
 
 ### Provider evidence, 2026-10-17
 
-- Source generation and C# compilation passed with the pinned SDK and
-  compatible API 15 references. Optional diagnostic analyzers were not validated
-  at this checkpoint.
-- All 17 regression suites passed: 7,350 assertions/checks, including 1,406
-  integration assertions. Tests selected the exact built assembly.
-- Provider discovery and stage observations were inspected. Continuous stage
-  delivery with the legacy consumer wrapper remains unverified.
+- Full Release compilation with the pinned SDK, compatible API 15 references,
+  source generation and diagnostic analyzers passed with six existing
+  obsolete-gauge warnings and zero errors.
+- All 18 regression suites passed: 7,718 assertions/checks, including 1,621
+  integration assertions and 153 Heretic among Us checks. Tests selected the
+  exact built assembly. These are synthetic/offline checks.
+- The twenty independently versioned families were observed through a read-only
+  live capabilities query. Live module-toggle behavior and production consumer
+  adoption remain unverified.
 - Python discovery passed 8 tests with one installed-game helper case skipped.
 - Representative gameplay, the full XCAI migration and residual provider
   requirements in the delivery ledger remain open. No release publication or

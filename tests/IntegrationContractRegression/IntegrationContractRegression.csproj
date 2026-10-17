@@ -13,6 +13,7 @@
     <Compile Include="../../BossMod/Framework/Integration/IntegrationGoalSet.cs" Link="IntegrationGoalSet.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationActionEffects.cs" Link="IntegrationActionEffects.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationDamage.cs" Link="IntegrationDamage.cs" />
+    <Compile Include="../../BossMod/Config/OwnedModuleEnablement.cs" Link="OwnedModuleEnablement.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationArena.cs" Link="IntegrationArena.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationRoutes.cs" Link="IntegrationRoutes.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationInputObservation.cs" Link="IntegrationInputObservation.cs" />
@@ -23,6 +24,7 @@
     <Compile Include="../../docs/examples/BossModV1Consumer.cs" Link="BossModV1Consumer.cs" />
     <Compile Include="../../docs/examples/BossModV1DirectionalScope.cs" Link="BossModV1DirectionalScope.cs" />
     <Compile Include="../../docs/examples/BossModV1StrategyLease.cs" Link="BossModV1StrategyLease.cs" />
+    <Compile Include="../../docs/examples/BossModV1ModuleLease.cs" Link="BossModV1ModuleLease.cs" />
     <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
   </ItemGroup>
 </Project>

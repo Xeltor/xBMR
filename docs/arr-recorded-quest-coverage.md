@@ -1,5 +1,11 @@
 # Recorded ARR quest instance coverage
 
+Follow-up on 2026-10-17: [The Heretic among Us](the-heretic-among-us.md) adds
+Guillaime's two forms, Wyrmhound/Wyvern hazards and Drillemont protection for
+territory 302 / CFC 344. It remains WIP because the authored planning envelope
+does not establish the full cliff/ramp floor. The historical audit below retains
+its original scope and counts.
+
 Follow-up on 2026-10-17: [The Lominsan Way](the-lominsan-way.md) adds objective
 selection, strict wrong-target exclusions, Rive cast handling and paralysis
 guidance for the newly recorded territory 307 / CFC 354. It is the fifteenth

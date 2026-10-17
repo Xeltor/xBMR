@@ -75,6 +75,14 @@ static partial class Checks
         Check(!store.Renew("a", a.LeaseId!, "scope", 1000).Accepted && first.Value == "borrowed", "equal-value explicit user intent revokes renewal without overwriting it");
         Check(!store.Release("a", a.LeaseId!).Accepted && first.Value == "borrowed", "released/lost ownership cannot later restore a user's chosen value");
         first.UserChange("original");
+        a = Acquire(first, "a");
+        first.UserChange("new-user-choice");
+        b = Acquire(first, "b");
+        Check(b.Accepted && !store.Release("a", a.LeaseId!).Accepted,
+            "a native user revocation immediately frees the resource without giving the old owner restoration rights");
+        Check(store.Release("b", b.LeaseId!).Accepted && first.Value == "new-user-choice",
+            "a later legitimate owner restores the user's current choice rather than the first owner's stale original");
+        first.UserChange("original");
         var expected = first.Read(); first.UserChange("other"); first.UserChange("original");
         Check(!store.Apply("a", null, "scope", first, expected.Revision, expected.Value, "borrowed", 100).Accepted, "away-and-back user revision rejects stale acquisition");
         var failed = new LeaseResource("failed") { ThrowAfterApply = true };

@@ -3,7 +3,8 @@
 Start with [the contract specification](xcai-integration-v1.md) and the
 [compile-checked consumer](examples/BossModV1Consumer.cs) and
 [directional setting scope](examples/BossModV1DirectionalScope.cs), plus the
-[owned strategy example](examples/BossModV1StrategyLease.cs). The implementation
+[owned strategy example](examples/BossModV1StrategyLease.cs) and
+[module lease example](examples/BossModV1ModuleLease.cs). The implementation
 tracks [GitHub issue #1](https://github.com/Xeltor/xBMR/issues/1). This is a
 working-tree integration, not a published release or a completed XCAI migration.
 
@@ -81,7 +82,7 @@ policy or its remaining native-contract migrations.
 | Temporary configuration | `Control.V1.GetSettings` / `ApplySetting` / `Renew` / `Release` | Allowlisted, expiring compare-and-restore leases; inspect expected value/revision |
 | Directional-action angle option | `Control.V1.WithDirectionalAngle` | Synchronous, audited action only; restore in `finally`; does not validate or confirm an action |
 | Owned transient strategy | `Strategies.V1.GetSnapshot` / `Apply`, `Control.V1.Renew` / `Release` | Exact active preset identity, track/revision/value; native modifier/user changes win; no saved-list mutation |
-| Module identity and state | `Modules.V1.GetSnapshot` | Bounded pages; configuration eligibility is separate from loaded/active positioning; enablement mutation remains unsupported |
+| Module identity/state and temporary enablement | `Modules.V1.GetSnapshot`, `GetEnablement` / `ApplyEnablement` | Exact stable identity and expected value/revision; runtime layers never edit the saved list; active native coverage survives temporary-enable expiry; later user intent wins |
 | Existing follow compatibility repair | `Follow.V1.GetSnapshot` / `Stop` | Exact observed revision, `hints-ready`, live owner and explicit repair reason; saved preferences remain intact |
 
 Every consumer must handle both `available:false` observations and

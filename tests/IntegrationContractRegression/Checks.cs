@@ -43,6 +43,8 @@ static partial class Checks
         ModuleEnablementCache();
         StrategyLeaseConsumer();
         DamagePublications();
+        ModuleEnablementOwnership();
+        ModuleLeaseConsumer();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 

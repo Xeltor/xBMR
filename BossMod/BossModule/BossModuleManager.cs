@@ -7,6 +7,8 @@ public sealed class BossModuleManager : IDisposable
     public readonly RaidCooldowns RaidCooldowns;
     public static readonly BossModuleConfig Config = Service.Config.Get<BossModuleConfig>();
     private readonly EventSubscriptions _subsciptions;
+    private readonly Dictionary<BossModule, long> _leasedLoadOrigins = [];
+    private long _moduleEnablementVersion;
 
     public readonly List<BossModule> PendingModules = [];
     public readonly List<BossModule> LoadedModules = [];
@@ -51,6 +53,7 @@ public sealed class BossModuleManager : IDisposable
 
     public void Dispose()
     {
+        foreach (var module in _leasedLoadOrigins.Keys.ToArray()) ForgetLeasedLoad(module);
         _activeModule = null;
         foreach (var m in LoadedModules)
         {
@@ -71,6 +74,12 @@ public sealed class BossModuleManager : IDisposable
 
     public void Update()
     {
+        Config.RefreshModuleEnablement();
+        if (_moduleEnablementVersion != Config.ModuleEnablementOwners.Version)
+        {
+            ReconcileModuleEligibility();
+            _moduleEnablementVersion = Config.ModuleEnablementOwners.Version;
+        }
         // update all loaded modules, handle activation/deactivation
         var bestPriority = 0;
         BossModule? bestModule = null;
@@ -120,6 +129,7 @@ public sealed class BossModuleManager : IDisposable
                     if (!exists)
                     {
                         LoadedModules.Add(m);
+                        RememberLeasedLoad(m);
                         Service.Log($"[BMM] Boss module '{m.GetType()}' moved from pending to loaded for actor {prim}");
                         ModuleLoaded.Fire(m);
                         PendingModules.RemoveAt(i);
@@ -216,6 +226,7 @@ public sealed class BossModuleManager : IDisposable
         if (ModuleEligible(m) && !oidExists && WorldState.Party[0]?.PosRot.AsVector3() is Vector3 playerPos && (playerPos - m.PrimaryActor.PosRot.AsVector3()).LengthSquared() <= maxDist * maxDist)
         {
             LoadedModules.Add(m);
+            RememberLeasedLoad(m);
             Service.Log($"[BMM] Boss module '{m.GetType()}' loaded for actor {m.PrimaryActor}");
             ModuleLoaded.Fire(m);
         }
@@ -226,18 +237,42 @@ public sealed class BossModuleManager : IDisposable
         }
     }
 
-    private static bool ModuleEligible(BossModule m)
+    private bool ModuleEligible(BossModule m)
     {
         if (m is DemoModule || m.Info == null)
         {
             return true;
         }
-        return m.Info.Maturity >= Config.MinMaturity && Config.IsModuleEnabled(m.Info.PrimaryActorOID);
+        if (m.Info.Maturity < Config.MinMaturity) return false;
+        var enabled = Config.IsModuleEnabled(m.Info.PrimaryActorOID);
+        if (enabled) return true;
+        // An expiring temporary enable cannot remove an active phase's hazards. Preserve this
+        // native instance until its normal reset/end, unless the user explicitly changes this OID.
+        return m.StateMachine.ActivePhase != null && _leasedLoadOrigins.TryGetValue(m, out var userRevision)
+            && Config.ModuleEnablementOwners.Read(m.Info.PrimaryActorOID)?.UserRevision == userRevision;
     }
+
+    private void RememberLeasedLoad(BossModule module)
+    {
+        if (module.Info is not { } info || _leasedLoadOrigins.ContainsKey(module)) return;
+        var state = Config.ModuleEnablementOwners.Read(info.PrimaryActorOID);
+        if (state is { SavedEnabled: false, Enabled: true, LeaseId: not null } && Config.ModuleEnablementOwners.Pin(info.PrimaryActorOID))
+            _leasedLoadOrigins[module] = state.UserRevision;
+    }
+
+    private void ForgetLeasedLoad(BossModule module)
+    {
+        if (_leasedLoadOrigins.Remove(module) && module.Info is { } info) Config.ModuleEnablementOwners.Unpin(info.PrimaryActorOID);
+    }
+
+    internal bool RetainedAfterModuleLease(BossModule module) => module.Info is { } info
+        && _leasedLoadOrigins.TryGetValue(module, out var revision) && !Config.IsModuleEnabled(info.PrimaryActorOID)
+        && Config.ModuleEnablementOwners.Read(info.PrimaryActorOID)?.UserRevision == revision && module.StateMachine.ActivePhase != null;
 
     private void UnloadModule(int index)
     {
         var m = LoadedModules[index];
+        ForgetLeasedLoad(m);
         Service.Log($"[BMM] Boss module '{m.GetType()}' unloaded for actor {m.PrimaryActor}");
         ModuleUnloaded.Fire(m);
         if (_activeModule == m)
@@ -252,6 +287,7 @@ public sealed class BossModuleManager : IDisposable
     private void MoveModuleToPending(int index)
     {
         var m = LoadedModules[index];
+        ForgetLeasedLoad(m);
         Service.Log($"[BMM] Boss module '{m.GetType()}' for actor {m.PrimaryActor} was moved to pending status");
         if (_activeModule == m)
         {
@@ -339,6 +375,7 @@ public sealed class BossModuleManager : IDisposable
 
     private void ConfigChanged()
     {
+        Config.RefreshModuleEnablement();
         var demoIndex = LoadedModules.FindIndex(m => m is DemoModule);
         if (Config.ShowDemo && demoIndex < 0)
         {
@@ -349,6 +386,11 @@ public sealed class BossModuleManager : IDisposable
             UnloadModule(demoIndex);
         }
 
+        ReconcileModuleEligibility();
+    }
+
+    private void ReconcileModuleEligibility()
+    {
         // Maturity and Supported-fights enable state are load eligibility, not discovery filters.
         // If a loaded module becomes ineligible, move it to pending
         for (var i = LoadedModules.Count - 1; i >= 0; --i)

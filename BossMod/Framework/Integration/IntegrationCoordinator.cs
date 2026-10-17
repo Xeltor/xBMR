@@ -50,14 +50,14 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
             ["mechanic-observation"] = 1, ["current-native-projection"] = 1,
-            ["module-catalog"] = 1, ["transient-strategy-leases"] = 1, ["configuration-leases"] = 1, ["directional-angle-scopes"] = 1, ["follow-control"] = 1
+            ["module-catalog"] = 1, ["module-enablement-leases"] = 1, ["transient-strategy-leases"] = 1, ["configuration-leases"] = 1, ["directional-angle-scopes"] = 1, ["follow-control"] = 1
         },
         limits = new { owners = IntegrationSession.MaxOwners, goalsPerOwner = IntegrationSession.MaxGoalsPerOwner,
             leaseMs = IntegrationSession.MaxLeaseMs, frameAgeMs = IntegrationSession.MaxFrameAgeMs, queryPoints = IntegrationSession.MaxQueryPoints,
             rasterCells = NavigationRaster.MaxCells, rasterWindowCells = NavigationRaster.MaxWindowCells,
             searchJobs = 4, runningSearches = 1, searchCells = IntegrationSearch.MaxCells,
             routes = IntegrationRoutes.MaxRoutes, routePoints = IntegrationRoutes.MaxPoints, routeEvaluations = 8192, routeBudgetMs = 4 },
-        unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "module-enable-leases", "validated-movement-preferences", "projected-constraints" }
+        unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "validated-movement-preferences", "projected-constraints" }
     });
 
     internal string GetSnapshot(string request) => WithContext(request, Snapshot);

@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace BossMod;
 
 [ConfigDisplay(Name = "Boss modules and radar", Order = 1)]
-public sealed class BossModuleConfig : ConfigNode
+public sealed partial class BossModuleConfig : ConfigNode
 {
     public bool RadarResize;
 
@@ -173,12 +173,16 @@ public sealed class BossModuleConfig : ConfigNode
 
     public override void Deserialize(JsonElement j, JsonSerializerOptions ser)
     {
-        base.Deserialize(j, ser);
-        _disabledModuleOIDs = null;
-        _suppressedPrePullHintOIDs = null;
+        try { base.Deserialize(j, ser); }
+        finally
+        {
+            _disabledModuleOIDs = null;
+            _suppressedPrePullHintOIDs = null;
+            if (j.TryGetProperty(nameof(DisabledModuleOIDs), out _)) ModuleEnablementUserIntent();
+        }
     }
 
-    public bool IsModuleEnabled(uint primaryActorOID) => !DisabledModuleOIDSet().Contains(primaryActorOID);
+    public bool IsModuleEnabled(uint primaryActorOID) => EffectiveModuleEnabled(primaryActorOID, DisabledModuleOIDSet());
 
     public bool IncludeInSupportedFightControls(BossModuleRegistry.Info info)
         => info.Maturity != BossModuleInfo.Maturity.Dummy || MinMaturity == BossModuleInfo.Maturity.Dummy;
@@ -187,6 +191,7 @@ public sealed class BossModuleConfig : ConfigNode
     {
         var set = DisabledModuleOIDSet();
         var disabled = set.Contains(primaryActorOID);
+        ModuleEnablementOwners.UserIntent(primaryActorOID, enabled);
         if (enabled == !disabled)
         {
             return;
@@ -212,6 +217,7 @@ public sealed class BossModuleConfig : ConfigNode
         var count = primaryActorOIDs.Count;
         for (var i = 0; i < count; ++i)
         {
+            ModuleEnablementOwners.UserIntent(primaryActorOIDs[i], enabled);
             changed |= enabled ? set.Remove(primaryActorOIDs[i]) : set.Add(primaryActorOIDs[i]);
         }
 
@@ -230,7 +236,7 @@ public sealed class BossModuleConfig : ConfigNode
         var count = primaryActorOIDs.Count;
         for (var i = 0; i < count; ++i)
         {
-            var enabled = !set.Contains(primaryActorOIDs[i]);
+            var enabled = EffectiveModuleEnabled(primaryActorOIDs[i], set);
             anyEnabled |= enabled;
             allEnabled &= enabled;
         }
@@ -247,6 +253,7 @@ public sealed class BossModuleConfig : ConfigNode
             {
                 continue;
             }
+            ModuleEnablementOwners.UserIntent(info.PrimaryActorOID, enabled);
             changed |= enabled ? set.Remove(info.PrimaryActorOID) : set.Add(info.PrimaryActorOID);
         }
 
@@ -267,6 +274,7 @@ public sealed class BossModuleConfig : ConfigNode
             {
                 continue;
             }
+            ModuleEnablementOwners.UserIntent(info.PrimaryActorOID, enabled);
             changed |= enabled ? set.Remove(info.PrimaryActorOID) : set.Add(info.PrimaryActorOID);
         }
 
@@ -290,7 +298,7 @@ public sealed class BossModuleConfig : ConfigNode
                 continue;
             }
             any = true;
-            var enabled = !set.Contains(info.PrimaryActorOID);
+            var enabled = EffectiveModuleEnabled(info.PrimaryActorOID, set);
             anyEnabled |= enabled;
             allEnabled &= enabled;
         }
@@ -310,7 +318,7 @@ public sealed class BossModuleConfig : ConfigNode
                 continue;
             }
             any = true;
-            var enabled = !set.Contains(info.PrimaryActorOID);
+            var enabled = EffectiveModuleEnabled(info.PrimaryActorOID, set);
             anyEnabled |= enabled;
             allEnabled &= enabled;
         }
