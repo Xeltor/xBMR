@@ -250,12 +250,12 @@ public sealed class AIHintsBuilder : IDisposable
             {
                 if (aoe.Target != player)
                 {
-                    hints.AddForbiddenZone(new SDRect(aoe.Caster.Position.Quantized(), target, ((AOEShapeRect)aoe.Shape).HalfWidth), finishAt, aoe.Caster.InstanceID);
+                    hints.AddForbiddenZoneFromCast(new SDRect(aoe.Caster.Position.Quantized(), target, ((AOEShapeRect)aoe.Shape).HalfWidth), finishAt, aoe.Caster.InstanceID, caster);
                 }
             }
             else
             {
-                hints.AddForbiddenZone(aoe.Shape, target, rot, finishAt);
+                hints.AddForbiddenZoneFromCast(aoe.Shape.Distance(target, rot), finishAt, aoe.Caster.InstanceID, caster);
             }
         }
 

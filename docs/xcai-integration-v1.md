@@ -21,7 +21,7 @@ the xBMR implementation deliverable.
 | 2. Coherent movement | Stage-bound observation, authored versus final direction, cast pressure/manual/follow state; real search/capture/build/publication identities and native witness route | Exact final controller/input generations after native range/cast/follow corrections; XCAI migration |
 | 3. Navigation/raster/timed routes | Copied raster windows, raw warning limits, native fallback classification, complete current walk-route validation; bounded asynchronous native detour/nearest-safe-raster candidates | Continuous nearest-safe/ingress semantics, more distance/projection support, production migration and live route acceptance |
 | 4. Rich arena | Logical containment, signed clearance, boundary and inset candidates; circle/rotated rectangle/custom contours and holes; explicit current projection layer | Route-validated ingress, complete obstacle provenance/generation and consumer migration |
-| 5. Targets | Bounded policy/geometry/cast observation, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, interrupt/deadline/source correlation and migration |
+| 5. Targets | Bounded policy/geometry/cast observation, native cast identities/deadline estimates and producer-recorded zone links, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, additional cast-linked producers and migration |
 | 6. Mechanics/projection | Bounded native generic publications, explicit coverage/later-pulse gaps, actual-pose native knockback/march observation preserving DestinationUnsafe, filtered source identity and activation | Counterfactual/independent-hazard/recovery safety, richer applicability and migration |
 | 7. Damage/effects | Full bounded damage list with same-observation party mapping/world time, copied recipient identities and explicit resolution completeness; bounded current-update action effects | Consumer migration and representative live overlap/party-change acceptance |
 | 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Preset-selection leases, validated movement preferences, additional constraints and other justified native corrections; consumer/live module-toggle acceptance |
@@ -42,7 +42,7 @@ assembly reference, WPos adapter, pointer, reflected manager, or mutable map.
 `families`, `limits`, and an explicit `unsupported` list. A consumer must check
 the family it needs instead of inferring support from a plugin release number.
 Currently the advertised families are `frame-stages`, `goal-scoring`,
-`movement-observation`, `target-policy`, `predicted-damage`, `action-effects`,
+`movement-observation`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
 `arena-geometry`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
 `mechanic-observation`, `current-native-projection`,
@@ -222,6 +222,89 @@ chose that transform. `targetRequirement` is null until a native producer sets
 `ShouldBeTargeted`; true/false preserve an explicit requirement/no-requirement.
 False alone does not mean forbidden: priority/eligibility remain authoritative.
 Cast remaining time is not a proven server interrupt deadline.
+
+### Native cast identity and linked point observations
+
+The independent `cast-control-observation:1` family provides
+`Hints.V1.GetCastControl: Func<string,string>`:
+
+```json
+{"context":{"schemaVersion":1,"instanceGeneration":"<provider>","frameId":42,"stage":"hints-ready"},"points":[[100,100],[105,100]]}
+```
+
+Call synchronously on the current native callback thread with the exact context.
+Omit `points` to inspect the current player's point. An explicit batch has 1–16
+finite `[x,z]` world positions. Missing player, stale/incompatible context, invalid
+coordinates or unsupported batches return `available:false`. This is a read-only
+observation, permitted at each of the three current frame stages.
+
+`targets` contains at most 100 entries with `actorId`, native `priority`,
+`pendingDead`, `isTargetable`, `interruptRequested`, `stunRequested` and nullable `cast`. Its cast fields are:
+`castId`, `actionId`, `actionType`, `targetId`, `interruptible`, `eventHappened`,
+`remainingSeconds`, `reportedRemainingSeconds`, `deadlineTicks`, `deadlineKind`.
+`Hints.V1.GetTargets` uses the same cast object/schema, retaining its previous
+fields. Opaque `castId` identifies the actual native cast object's lifetime;
+restarting the same action/target at the same estimated time produces a new ID.
+Discard identities on provider generation change. An ID is not a server sequence.
+
+`worldTime` supplies this publication's `ticks`/`kind`. `deadlineTicks` estimates
+`worldTime + native NPCRemainingTime`, including native `NPCFinishDelay`.
+`reportedRemainingSeconds` retains the unadjusted game-reported remainder.
+Invalid/nonfinite or overflowing timing has a null deadline. These estimates
+are not server snapshot, last-safe action or interrupt cutoffs; do not add the
+NPC delay again, refresh cached deadlines, or assume enough execution margin.
+Native interruptibility and request flags do not establish action range,
+readiness, stun immunity or permission to remove the associated hazard.
+
+`zones` enumerates at most 128 current native forbidden zones. Each entry has
+frame-local `index`, nullable `sourceActorId`, nullable `castId`/`actionId`,
+`correlation`, nullable `activationTicks` and one nullable `distances` value per
+requested point. The values come from the actual clipped native shape function:
+`<= 0` means point containment, positive means outside that function, and null
+means failed/nonfinite/uncomputed. Some native functions are binary or projected;
+their magnitudes are not general Euclidean clearance, footprint or route safety.
+Zone activation and cast deadline are separate observations, never inferred
+from one another.
+
+`correlation` is one of:
+
+- `producer-recorded-cast`: the native producer retained its actual cast source;
+  join **both** cast and actor identities to the current target's cast.
+- `source-actor-only`: a native source actor is known but no exact cast link was
+  recorded. An identical timestamp or a single casting enemy cannot upgrade it.
+- `unknown`: source/cast attribution is missing or ambiguous.
+
+Native automatic AoE producers and the four `SimpleAOEs`/charge/group cast-start
+paths now record these links. Other generic publications preserve an available
+`ActorID` as source-actor evidence but do not invent a cast. Shape/time/source
+ambiguity, mutated cast action/target and provenance-table overflow cannot
+produce an exact link. A retained old constraint keeps its old cast ID when the
+caster cancels or starts another cast. `AIHints.Clear` removes the provenance
+table. Geometry, activation, layer clipping and native avoidance remain intact.
+
+`complete` means the current bounded target/zone enumeration and metadata fit;
+it is false for overflow or work exhaustion. `pointQueriesComplete` additionally
+requires finite results for every returned point/zone. There are at most 128
+provenance records, 2,048 native point evaluations and 16,384 provenance tuple
+comparisons, with a cooperative 4 ms query budget. A native shape call cannot be
+preempted. No map rebuild or worker wait is involved. Coverage of all threats
+from a cast or encounter is **not** established: `castThreatCoverageComplete`
+remains false even for an empty or completely enumerated result.
+
+The compilechecked [consumer](examples/BossModV1CastControl.cs) returns positive
+published threat evidence only when native policy, current cast/actor/action
+identity, point containment and event/deadline observations agree. It rejects
+incomplete, unknown or mismatched evidence and never turns an empty result into
+safety or action permission. Example wiring:
+
+```csharp
+var castControl = new IntegrationExample.BossModV1CastControl(
+    pi.GetIpcSubscriber<string, string>("BossMod.Hints.V1.GetCastControl").InvokeFunc);
+// Inside a current native callback, after discovery of cast-control-observation:1:
+var observation = castControl.Read(context, new System.Numerics.Vector2(x, z));
+// observation.PublishedThreats is positive evidence; check action legality separately.
+// observation.ThreatCoverageComplete is false: absence never proves no threat.
+```
 
 Damage predictions are capped at 128 with `complete:false` when truncated. Each
 has `activationTicks`, `secondsFromWorldTime`, `type`, `recipientSlotMask`, copied
@@ -577,7 +660,7 @@ use native publication/query identities; a completed map is now separate from
 the active worker context. No compatibility claim is made for private-field
 reflection or for its old completion heuristic.
 
-Preset selection leases, module enablement leases, validated pacing/cast holds/
+Preset selection leases, validated pacing/cast holds/
 ingress/destination preferences and contributed projected constraints remain
 explicitly unsupported. The general `control-leases` umbrella is not advertised.
 
@@ -738,7 +821,7 @@ outside this issue.
 | `BossModMovementIntentReader`, duty/encounter classification and movement diagnostics | Stage snapshots, authored versus proposed/applied direction, selected versus active module; actual async search/build/publication identity | Exact final applied controller/path/follow ownership and physical input publication identity remain incomplete |
 | `BossModReflectionSafety`, `BossModRegroupingNavigation`, `BossModRouteObservation`, raster/knockback recovery navigation | Copied map/route publication and bounded current complete walk-route validation; existing dash/position safety endpoints continue | Continuous nearest-safe/ingress semantics and additional projections remain required; production map/task/semaphore reflection not removed yet |
 | `BossModCustomArenaClearance`, edge/ingress readers and shape adapters | `Arena.V1` geometry descriptors, containment/clearance/boundary/inset candidates | Route-safe ingress and obstacle generations remain unsupported; production reader not yet migrated |
-| `BossModOffensiveTargetHints`, `BossModTankHints`, `BossModCastControlHints`, AoE/FATE target-policy reads | `Hints.V1.GetTargets`, hint-boundary transform provenance and nullable explicit requirement | Component-specific default/authored reasons and cast-source/deadline correlation remain incomplete; no consumer removal claim |
+| `BossModOffensiveTargetHints`, `BossModTankHints`, `BossModCastControlHints`, AoE/FATE target-policy reads | `Hints.V1.GetTargets`, `Hints.V1.GetCastControl`, native cast identity/producer links, hint-boundary transform provenance and nullable explicit requirement | Component-specific default/authored reasons and additional cast-linked producers remain incomplete; native estimates do not prove server interrupt cutoffs; no consumer removal claim |
 | `BossModUpcomingAoeReader`, stack/separation/activity, landing/knockback/forced-march/immunity and learned-safety clones | `Mechanics.V1` bounded generic publications and actual-pose native projections | Whole-encounter coverage, counterfactual/independent-hazard/recovery evaluations still required before migrating dependent optimizations |
 | `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer migration and live overlap/party-change acceptance; offline overlap/identity tests pass |
 | `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Poll from the frame callback and handle dropped/incomplete updates; production subscription not yet replaced |
@@ -800,3 +883,23 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   requirements in the delivery ledger remain open. No release publication or
   complete reflection-removal claim is made. Machine-specific build operations
   and incident diagnostics are maintained outside repository documentation.
+
+### Cast-control checkpoint, 2026-10-17
+
+- Added `cast-control-observation:1` as the twenty-first independently advertised
+  family. The existing target schema retains its cast fields and shares the
+  native cast identity with the new observation.
+- Full Release compilation with the pinned SDK, compatible API 15 references,
+  source generation and diagnostic analyzers passed: zero errors and six
+  existing obsolete-gauge warnings.
+- All 19 regression suites passed against the exact built assembly: 7,807
+  assertions/checks, including 1,675 integration assertions and 35 Isgebind
+  checks. Coverage includes the actual native query endpoint, point limits,
+  schema/thread/context guards, missing player, cast restart/cancellation,
+  ambiguous/unknown source links, failed point evaluation, bounded enumeration,
+  native cast-start producers, target-schema compatibility and the compiled
+  positive-evidence consumer.
+- Source/build/fixture proof does not establish a real server interrupt cutoff,
+  action legality, complete encounter threat coverage, production XCAI migration
+  or representative live gameplay acceptance. The issue remains open for the
+  residual provider and consumer requirements in the delivery ledger.

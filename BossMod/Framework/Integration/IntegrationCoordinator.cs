@@ -46,7 +46,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         families = new Dictionary<string, int>
         {
             ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
-            ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
+            ["cast-control-observation"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
             ["mechanic-observation"] = 1, ["current-native-projection"] = 1,
@@ -185,8 +185,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             desiredRotationProvenance = TargetIntentSource(t, rotation: true), desiredPositionProvenance = TargetIntentSource(t, rotation: false),
             targetRequirement = t.ExplicitTargetRequirement, requirementMeaning = "null=producer-has-not-specified; true=required; false=explicitly-not-required",
             targetId = t.Actor.TargetID.ToString("X"), t.Actor.FateID, t.ShouldBeInterrupted, t.ShouldBeStunned,
-            cast = t.Actor.CastInfo is { } c ? new { actionId = c.Action.ID, actionType = (int)c.Action.Type, targetId = c.TargetID.ToString("X"),
-                remainingSeconds = Finite(c.NPCRemainingTime), c.Interruptible, c.EventHappened } : null
+            cast = IntegrationCastControl.ObserveCast(t.Actor.CastInfo, World.CurrentTime)
         }).ToArray()
     }));
 

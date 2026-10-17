@@ -19,11 +19,7 @@ public enum AID : uint
 }
 
 class RimeWreath(BossModule module) : Components.RaidwideCast(module, (uint)AID.RimeWreath);
-class FrostBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FrostBreath, new AOEShapeCone(27f, 60f.Degrees()))
-{
-    public static readonly AOEShapeCone Cone = new(27f, 60f.Degrees());
-}
-class FrostBreathCleave(BossModule module) : Components.Cleave(module, (uint)AID.FrostBreath, FrostBreath.Cone, activeWhileCasting: false);
+class FrostBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FrostBreath, new AOEShapeCone(27f, 60f.Degrees()));
 class SheetOfIce(BossModule module) : Components.SimpleAOEs(module, (uint)AID.SheetOfIce, 5f);
 class SheetOfIce2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.SheetOfIce2, 5f);
 class Cauterize(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Cauterize, new AOEShapeRect(48f, 10f));
@@ -59,7 +55,6 @@ class D103IsgebindStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<RimeWreath>()
             .ActivateOnEnter<FrostBreath>()
-            .ActivateOnEnter<FrostBreathCleave>()
             .ActivateOnEnter<SheetOfIce>()
             .ActivateOnEnter<SheetOfIce2>()
             .ActivateOnEnter<Cauterize>()

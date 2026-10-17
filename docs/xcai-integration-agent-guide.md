@@ -70,6 +70,7 @@ policy or its remaining native-contract migrations.
 | --- | --- | --- |
 | Direction, deadlines, cast pressure, follow/encounter state | `Movement.V1.GetSnapshot` | Stage-bound; retained navigation can be older than hints; final physical input is not implied |
 | Target eligibility, tank intent, cast identity | `Hints.V1.GetTargets` | Native policy is authoritative; provenance and missing source/deadline correlations remain explicit |
+| Native cast identity, policy and linked point threats | `Hints.V1.GetCastControl` | Exact producer-recorded cast/actor links; nullable native function values; no timestamp-based attribution or negative safety inference |
 | Overlapping damage recipients | `Hints.V1.GetPredictedDamage` | Use all entries and the exact same-observation party mapping |
 | Current action effects | `World.V1.GetActionEffects` | Per-world-update, bounded observations; duplicates retained; inspect dropped count |
 | Shape/containment/clearance | `Arena.V1.GetSnapshot` / `QueryPoints` | Arena and pathfinding window differ; containment/inset is geometry, not a safe route |
@@ -118,6 +119,7 @@ consumer's state. Never write back a saved value after losing a lease.
 - `IntegrationCoordinator*.cs`: native observations, input validation and
   independently advertised capabilities.
 - `IntegrationGoalSet.cs`: encounter/combat/mechanic/presentation composition.
+- `IntegrationCastControl.cs` and `AIHints.CastSources.cs`: current cast identity, native deadline estimates and producer-recorded cast/zone links. The [BCL consumer](examples/BossModV1CastControl.cs) joins exact identities for positive point-threat evidence.
 - `IntegrationMechanics.cs`: bounded generic publications and coverage.
 - `IntegrationArena.cs`, `IntegrationRoutes.cs`: geometry and swept timed-route
   queries. An unsupported distance bound must continue to return unknown.

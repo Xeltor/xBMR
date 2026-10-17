@@ -13,6 +13,7 @@ public abstract class GenericAOEs(BossModule module, uint aid = default, string 
         public bool Risky = risky;
         public ulong ActorID = actorID;
         public ShapeDistance? ShapeDistance = shapeDistance;
+        internal AIHints.CastSource? SourceCast;
         // Null = current/default floor unless RestrictToArenaProjectionLayer is null (all layers).
         // Non-null selects ArenaBoundsCustom.WorldProjectionLayers[index] for the 2D stencil and 3D projection.
         public int? ArenaProjectionLayer = arenaProjectionLayer;
@@ -53,8 +54,12 @@ public abstract class GenericAOEs(BossModule module, uint aid = default, string 
             ref readonly var c = ref aoes[i];
             if (ArenaProjectionLayerApplies(actor, c.ArenaProjectionLayer, c.RestrictToArenaProjectionLayer) && c.Risky)
             {
-                hints.AddForbiddenZone(c.ShapeDistance ?? c.Shape.Distance(c.Origin, c.Rotation), c.Activation,
-                    arenaProjectionLayer: ArenaProjectionLayerForAI(c.ArenaProjectionLayer, c.RestrictToArenaProjectionLayer));
+                var distance = c.ShapeDistance ?? c.Shape.Distance(c.Origin, c.Rotation);
+                var layer = ArenaProjectionLayerForAI(c.ArenaProjectionLayer, c.RestrictToArenaProjectionLayer);
+                if (c.SourceCast is { } cast)
+                    hints.AddForbiddenZoneWithCast(distance, c.Activation, c.ActorID, cast, layer);
+                else
+                    hints.AddForbiddenZone(distance, c.Activation, c.ActorID, layer);
             }
         }
     }
@@ -161,7 +166,7 @@ public class SimpleAOEs(BossModule module, uint aid, AOEShape shape, int maxCast
             var rotation = spell.Rotation;
             var layer = ResolveArenaProjectionLayer(spell.Location.Y);
             Casters.Add(new(Shape, origin, rotation, Module.CastFinishAt(spell), actorID: caster.InstanceID, shapeDistance: Shape.Distance(origin, rotation),
-                arenaProjectionLayer: layer, restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer));
+                arenaProjectionLayer: layer, restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer) { SourceCast = new(spell) });
         }
     }
 
@@ -199,7 +204,7 @@ public class ChargeAOEs(BossModule module, uint aid, float halfWidth, int maxCas
             var origin = caster.Position.Quantized();
             var rotation = Angle.FromDirection(dir);
             Casters.Add(new(shape, origin, rotation, Module.CastFinishAt(spell), actorID: caster.InstanceID, shapeDistance: shape.Distance(origin, rotation),
-                arenaProjectionLayer: ResolveArenaProjectionLayer(spell.Location.Y), restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer));
+                arenaProjectionLayer: ResolveArenaProjectionLayer(spell.Location.Y), restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer) { SourceCast = new(spell) });
         }
     }
 }
@@ -226,7 +231,7 @@ public class SimpleAOEGroups(BossModule module, uint[] aids, AOEShape shape, int
                 var rotation = spell.Rotation;
                 var layer = ResolveArenaProjectionLayer(spell.Location.Y);
                 Casters.Add(new(Shape, loc, spell.Rotation, Module.CastFinishAt(spell), actorID: caster.InstanceID, shapeDistance: Shape.Distance(loc, rotation),
-                    arenaProjectionLayer: layer, restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer));
+                    arenaProjectionLayer: layer, restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer) { SourceCast = new(spell) });
                 if (Casters.Count >= ExpectedNumCasters)
                 {
                     SortHelpers.SortAOEByActivation(Casters);
@@ -329,7 +334,7 @@ public class SimpleChargeAOEGroups(BossModule module, uint[] aids, float halfWid
                 var origin = caster.Position.Quantized();
                 var rotation = Angle.FromDirection(dir);
                 Casters.Add(new(shape, origin, rotation, Module.CastFinishAt(spell), actorID: caster.InstanceID, shapeDistance: shape.Distance(origin, rotation),
-                    arenaProjectionLayer: ResolveArenaProjectionLayer(spell.Location.Y), restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer));
+                    arenaProjectionLayer: ResolveArenaProjectionLayer(spell.Location.Y), restrictToArenaProjectionLayer: RestrictToArenaProjectionLayer) { SourceCast = new(spell) });
                 if (Casters.Count == ExpectedNumCasters)
                 {
                     SortHelpers.SortAOEByActivation(Casters);

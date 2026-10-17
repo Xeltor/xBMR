@@ -25,6 +25,7 @@
     <Compile Include="../../docs/examples/BossModV1DirectionalScope.cs" Link="BossModV1DirectionalScope.cs" />
     <Compile Include="../../docs/examples/BossModV1StrategyLease.cs" Link="BossModV1StrategyLease.cs" />
     <Compile Include="../../docs/examples/BossModV1ModuleLease.cs" Link="BossModV1ModuleLease.cs" />
+    <Compile Include="../../docs/examples/BossModV1CastControl.cs" Link="BossModV1CastControl.cs" />
     <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
   </ItemGroup>
 </Project>

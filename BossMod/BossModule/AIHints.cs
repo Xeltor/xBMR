@@ -1,7 +1,7 @@
 namespace BossMod;
 
 // information relevant for AI decision making process for a specific player
-public sealed class AIHints
+public sealed partial class AIHints
 {
     public class Enemy(Actor actor, int priority, bool shouldBeTanked)
     {
@@ -212,6 +212,7 @@ public sealed class AIHints
         SpinDirection = null;
         InteractWithTarget = null;
         ForbiddenZones.Clear();
+        ClearCastSources();
         GoalZones.Clear();
         GoalZonesEnabled = true;
         IntegrationGoals = null;

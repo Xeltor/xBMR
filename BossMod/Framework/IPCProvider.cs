@@ -22,6 +22,7 @@ sealed class IPCProvider : IDisposable
         Register("Goals.V1.EvaluateNative", (string request) => integration.EvaluateNativeGoals(request));
         Register("Movement.V1.GetSnapshot", (string request) => integration.GetSnapshot(request));
         Register("Movement.V1.Latest", integration.GetLatestSnapshot);
+        Register("Hints.V1.GetCastControl", (string request) => integration.GetCastControl(request));
         Register("Hints.V1.GetTargets", (string request) => integration.GetTargets(request));
         Register("Hints.V1.GetPredictedDamage", (string request) => integration.GetPredictedDamage(request));
         Register("World.V1.GetActionEffects", (string request) => integration.GetActionEffects(request));

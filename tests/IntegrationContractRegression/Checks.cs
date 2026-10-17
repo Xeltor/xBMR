@@ -45,6 +45,7 @@ static partial class Checks
         DamagePublications();
         ModuleEnablementOwnership();
         ModuleLeaseConsumer();
+        CastControlPublications();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 
