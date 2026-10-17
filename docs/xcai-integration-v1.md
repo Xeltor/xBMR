@@ -45,7 +45,7 @@ Currently the advertised families are `frame-stages`, `goal-scoring`,
 `movement-observation`, `controller-input-provenance`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
 `arena-geometry`, `native-default-terrain-frame`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
-`mechanic-observation`, `current-native-projection`, `counterfactual-projection-geometry`,
+`mechanic-observation`, `current-native-projection`, `counterfactual-projection-geometry`, `native-knockback-landing-constraints`,
 `native-goal-presence`, `dash-policy-observation`, `target-aggro-observation`,
 `configuration-leases`, `transient-strategy-leases`, `module-catalog`, `module-enablement-leases`,
 `directional-angle-scopes`, and `follow-control`, each
@@ -799,6 +799,85 @@ var candidates = geometry.TryProject(context, componentId,
 // Null means unavailable. Non-null supplies native geometry, never safety approval.
 ```
 
+### Native knockback landing constraints
+
+Require `native-knockback-landing-constraints:1` independently. Register before
+the next native world/hint update: BMR captures bounded component collection
+provenance only while an owner is live. An owner registered inside `hints-ready`
+must wait for a new hint build. Old/absent/truncated/changed attribution is never
+inferred from matching geometry or activation timestamps alone.
+
+`Mechanics.V1.EvaluateLandings: Func<string,string>` accepts the same shape as
+`ProjectPoses`:
+
+```json
+{"context":{"schemaVersion":1,"instanceGeneration":"provider","frameId":42,"stage":"hints-ready"},"componentId":"<current native component ID>","poses":[{"position":[3,0],"facing":0}]}
+```
+
+Use the exact fresh native callback context at any of the three stages. There
+are 1–4 poses with the geometry endpoint's coordinate/facing limits. The initial
+supported scope is one published, future (at most 120 seconds) radial away-from-
+origin knockback from an unchanged `SimpleKnockbacks.ActiveKnockbacks` provider,
+without shaped applicability, walls, safe walls, pull minimums, pending native
+displacement or projection layers. Native immunity/ignore-immunity filtering
+remains authoritative; no eligible displacement remains unavailable here.
+
+BMR records exact shape/activation/source tuples at the native component
+collection boundary, with bounded union graph identities and the exact player
+object/ID and owning module. Replaced/reidentified actors cannot inherit capture. It recognizes only
+pure native circular/axis-aligned-square radial preparation constraints (or
+unions containing only these) emitted in that selected collection scope, and
+checks their exact source transform/activation. The preparation transform is
+separated in a read-only evaluation view; its full landing envelope, including
+authored insets, remains a landing rule. No live actor/hint/shape list is cloned,
+filtered or edited. Unknown mixed own constraints, source mismatches, ambiguous
+duplicates, rewritten prefixes, changed/cyclic graphs and unsupported providers
+return `available:false`. Another component's matching time/geometry never
+establishes ownership.
+
+The result retains root `status:"unknown"` and returns `observations`, each
+containing `geometry` (the native ordered projection),
+`currentPublishedConstraintsStatus` (`clear`, `blocked`, `unknown`), `reason`,
+`evaluatedAtTicks`, `separatedProjectionConstraints`, `independentConstraints`,
+`laterWarnings`, `arenaFootprintClear`, `ownLandingEnvelopesClear`, and nullable
+`blockerSourceActorId`. Actor footprint plus 0.05-yalm margin constrains the
+native arena and every recognized landing envelope. Remaining current warning
+regions and temporary obstacles are checked with finite conservative distance
+bounds; native unions retain all children. Unknown/invalid distance bounds keep
+the result unknown. A clearance rejection is conservative, not a damage claim.
+`DestinationUnsafe` is still called with the real actor; an override's false
+result cannot prove hypothetical actor context and keeps the combined result
+unknown. A native true result rejects the landing.
+
+Evaluation time is the native activation estimate, with the native one-second
+activation cushion plus 0.25 seconds when including nearby warning activations.
+Past activations never imply expiry. Later warnings are counted explicitly for
+recovery planning. No server snapshot/last-safe departure time is invented.
+`independentPublishedConstraintsEvaluated:true` describes this limited current
+publication check. `physicalObstaclesEvaluated`, `preparationReachabilityEvaluated`
+and `recoveryReachabilityEvaluated` remain false. A per-observation `clear` never
+grants complete encounter/landing/route/action safety or proves future-pulse
+coverage. Unknown components and remaining movement requirements stay open.
+
+Bounds: 128 current zones/obstacles and flattened leaves, 128 nodes/depth 8 per
+union graph, 64 components, four poses and a shared cooperative 4-ms query budget.
+No partial successful batch is returned on budget exhaustion. Without a live
+owner there is no provenance traversal/allocation during native hint collection.
+Existing endpoint semantics and the unsupported full `mechanic-projection`
+umbrella remain unchanged.
+
+The [compiled BCL reader](examples/BossModV1LandingConstraints.cs) preserves these
+observations as data, with no safety-approval method:
+
+```csharp
+var landing = new IntegrationExample.BossModV1LandingConstraints(
+    pi.GetIpcSubscriber<string, string>("BossMod.Mechanics.V1.EvaluateLandings").InvokeFunc);
+// Inside the next fresh callback after registration and component discovery:
+var evidence = landing.Inspect(context, componentId,
+    new[] { new Vector2(3, 0) }, new[] { 0f });
+// Null = unavailable. Every result still needs independent physical/recovery proof.
+```
+
 ## Owner-safe settings and follow controls
 
 | Endpoint | IPC signature | Payload |
@@ -1148,7 +1227,7 @@ remain outside this issue.
 | `BossModReflectionSafety`, `BossModRegroupingNavigation`, `BossModRouteObservation`, raster/knockback recovery navigation | Copied map/route publication and bounded current complete walk-route validation; existing dash/position safety endpoints continue | Consumer reports native raster/route adoption; asynchronous-search adoption, continuous nearest-safe/ingress and additional projection safety remain open |
 | `BossModCustomArenaClearance`, edge/ingress readers and shape adapters | `Arena.V1` geometry descriptors, containment/clearance/boundary/inset candidates | Consumer reports authored geometry adoption; route-safe ingress, complete obstacle provenance and live acceptance remain open |
 | `BossModOffensiveTargetHints`, `BossModTankHints`, `BossModCastControlHints`, AoE/FATE target-policy reads | `Hints.V1.GetTargets`, `Hints.V1.GetCastControl`, native cast identity/producer links, hint-boundary transform provenance and nullable explicit requirement | Consumer reports target/cast adoption; new goal/dash/aggro publication use, more exact producer semantics and live acceptance remain open |
-| `BossModUpcomingAoeReader`, stack/separation/activity, landing/knockback/forced-march/immunity and learned-safety clones | `Mechanics.V1` publications, actual-pose projection and bounded native counterfactual geometry | Whole-encounter coverage, custom pose-dependent sources, independent-hazard/recovery safety and remaining mechanic consumers stay open |
+| `BossModUpcomingAoeReader`, stack/separation/activity, landing/knockback/forced-march/immunity and learned-safety clones | `Mechanics.V1` publications, actual-pose/counterfactual geometry and bounded native radial landing constraint evaluation | Whole-encounter coverage, custom pose-dependent sources, physical/preparation/recovery reachability and remaining mechanic consumers stay open |
 | `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer reports native recipient adoption; live overlap/party-change acceptance remains open |
 | `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Consumer reports native current-update effect adoption; preserve drop/completeness handling and verify live behavior |
 | Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Consumer reports scoped control adoption; historical saved-state repair and durable hallway policy across preset transitions remain unsupported |
@@ -1336,3 +1415,27 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
 - Concurrent encounter work was preserved separately. No installed binary,
   reload, release, consumer migration or live terrain acceptance is implied.
   Remaining provider/consumer requirements and gameplay acceptance stay open.
+
+
+### Native landing constraint checkpoint, 2026-10-17
+
+- Added independently versioned `native-knockback-landing-constraints:1` and
+  `BossMod.Mechanics.V1.EvaluateLandings` (`Func<string,string>`), with a
+  compile-checked BCL-only reader. Exact native component collection, shape
+  tuple/union graph, player object/ID, module and frame provenance permit a
+  read-only separation of supported radial preparation transforms. Every owned
+  landing envelope/inset remains enforced alongside current independent
+  published zones, temporary obstacles, native destination rules and footprint
+  margins. No live actor or native hint list is edited or cloned.
+- Root safety remains `unknown`; physical obstacle, preparation and recovery
+  reachability are explicitly unevaluated. Unknown mixed/composite rules,
+  unsupported source kinds, changed attribution, stale frames and bounded-out
+  batches cannot produce approval. Later warnings remain explicitly counted.
+- The pinned Release artifact passed 19 regression suites: 8,421 checks,
+  including 2,289 integration assertions. The 45 added integration assertions
+  cover actual native producer/coordinator/endpoint and compiled consumer use,
+  independent hazards, retained stricter envelopes, footprint margins, unknown
+  composites, graph/prefix/timing changes, actor replacement, owner loss and
+  lifecycle/batch bounds. Compilation passed with zero errors and six existing
+  obsolete-gauge warnings. This is offline contract evidence, separate from
+  runtime reload and representative live gameplay acceptance.

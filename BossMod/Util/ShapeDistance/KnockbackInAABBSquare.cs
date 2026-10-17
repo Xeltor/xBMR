@@ -100,6 +100,8 @@ public sealed class SDKnockbackInAABBSquareAwayFromOrigin(WPos Center, WPos Orig
     private readonly float halfWidth = HalfWidth;
     private readonly float distance = Distance;
 
+    internal Integration.IntegrationLandingConstraints.Envelope ProjectionEnvelope => new("square", center, origin, distance, halfWidth);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Contains(in WPos p) => !(p + distance * (p - origin).Normalized()).InSquare(center, halfWidth);
 

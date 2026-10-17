@@ -486,7 +486,7 @@ public abstract class BossModule : IDisposable
         var count = Components.Count;
         for (var i = 0; i < count; ++i)
         {
-            Components[i].AddAIHints(slot, actor, assignment, hints);
+            hints.CollectComponentHints(Components[i], slot, actor, assignment);
         }
 
         CalculateModuleAIHints(slot, actor, assignment, hints);

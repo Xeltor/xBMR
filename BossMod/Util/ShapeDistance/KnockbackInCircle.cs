@@ -7,6 +7,8 @@ public sealed class SDKnockbackInCircleAwayFromOrigin(WPos Center, WPos Origin, 
     private readonly float radius = Radius;
     private readonly float distance = Distance;
 
+    internal Integration.IntegrationLandingConstraints.Envelope ProjectionEnvelope => new("circle", center, origin, distance, radius);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Contains(in WPos p)
     {

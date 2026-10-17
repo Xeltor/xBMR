@@ -34,6 +34,7 @@
     <Compile Include="../../docs/examples/BossModV1AutomaticPace.cs" Link="BossModV1AutomaticPace.cs" />
     <Compile Include="../../docs/examples/BossModV1MovementProvenance.cs" Link="BossModV1MovementProvenance.cs" />
     <Compile Include="../../docs/examples/BossModV1ProjectionGeometry.cs" Link="BossModV1ProjectionGeometry.cs" />
+    <Compile Include="../../docs/examples/BossModV1LandingConstraints.cs" Link="BossModV1LandingConstraints.cs" />
     <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
   </ItemGroup>
 </Project>

@@ -19,6 +19,8 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     internal void BeginWorldUpdate()
     {
         Session.BeginWorldUpdate();
+        hints.ProjectionSourcesRequested = Session.HasActiveOwners;
+        hints.ProjectionSourcesContext = null;
         _nativeHintEvidence = null;
         _effects.BeginUpdate();
     }
@@ -36,6 +38,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         Session.BeginFrame(ControlScope(),
             player is { IsDead: false } && !movement.IsMoveRequested() && !hints.AutomaticMovementPaused);
         _nativeHintEvidence = new(Session.CurrentContext, hints.GoalZones.Count);
+        hints.ProjectionSourcesContext = hints.ProjectionSourcesValid ? Session.CurrentContext : null;
         hints.IntegrationGoals = new(Session, hints.GoalZones.ToArray());
         Session.Publish("hints-ready", Snapshot);
     }
@@ -65,6 +68,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
             ["mechanic-observation"] = 1, ["current-native-projection"] = 1,
             ["counterfactual-projection-geometry"] = 1,
+            ["native-knockback-landing-constraints"] = 1,
             ["native-goal-presence"] = 1, ["dash-policy-observation"] = 1, ["target-aggro-observation"] = 1,
             ["module-catalog"] = 1, ["module-enablement-leases"] = 1, ["transient-strategy-leases"] = 1, ["configuration-leases"] = 1, ["directional-angle-scopes"] = 1, ["follow-control"] = 1
         },
@@ -74,6 +78,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             searchJobs = 4, runningSearches = 1, searchCells = IntegrationSearch.MaxCells,
             automaticPaceLeaseMs = IntegrationPacing.MaxLeaseMs, automaticPaceMinScale = IntegrationPacing.MinScale,
             counterfactualPoses = IntegrationCounterfactualProjection.MaxPoses,
+            projectionConstraintZones = 128, projectionConstraintTreeNodes = 128, projectionConstraintTreeDepth = 8,
             routes = IntegrationRoutes.MaxRoutes, routePoints = IntegrationRoutes.MaxPoints, routeEvaluations = 8192, routeBudgetMs = 4 },
         unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "validated-movement-preferences", "projected-constraints" }
     });

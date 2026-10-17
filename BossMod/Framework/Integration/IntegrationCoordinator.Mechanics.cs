@@ -12,6 +12,40 @@ internal sealed partial class IntegrationCoordinator
     internal sealed record ProjectionRequest(IntegrationSession.Context Context, string ComponentId, float[] Position, float Facing);
     internal sealed record ProjectionPoses(IntegrationSession.Context Context, string ComponentId, IntegrationCounterfactualProjection.Pose[] Poses);
 
+    internal string EvaluateKnockbackLandings(string json)
+    {
+        var request = IntegrationSession.Parse<ProjectionPoses>(json);
+        if (request == null || !Session.Matches(request.Context) || World.Party.Player() is not { IsDead: false, IsDestroyed: false } actor
+            || bossmod.ActiveModule is not { } module || module.StateMachine.ActivePhase == null
+            || request.Poses is not { Length: >= 1 and <= IntegrationCounterfactualProjection.MaxPoses }
+            || hints.ProjectionSourcesContext is not { } captured || captured.InstanceGeneration != request.Context.InstanceGeneration
+            || captured.FrameId != request.Context.FrameId || !hints.ProjectionSourcesValid)
+            return Unavailable("invalid-or-uncaptured-landing-context");
+        var slot = World.Party.FindSlot(actor.InstanceID);
+        if (slot < 0) return Unavailable("actor-not-in-native-party");
+        try
+        {
+            var component = module.Components.Take(IntegrationMechanics.MaxComponents)
+                .FirstOrDefault(c => IntegrationMechanics.ComponentId(c) == request.ComponentId) as GenericKnockback;
+            var observations = component == null ? null : IntegrationLandingConstraints.Evaluate(hints, module, component, actor, slot,
+                request.Poses, new());
+            if (observations == null) return Unavailable("unsupported-ambiguous-stale-or-bounded-out-landing-constraints");
+            return IntegrationSession.Serialize(new
+            {
+                available = true, context = request.Context, request.ComponentId, actorId = actor.InstanceID.ToString("X"), observations,
+                status = "unknown", independentPublishedConstraintsEvaluated = true,
+                physicalObstaclesEvaluated = false, preparationReachabilityEvaluated = false, recoveryReachabilityEvaluated = false,
+                sourceTimeMeaning = "native activation estimate; not verified server snapshot or last-safe movement time",
+                meaning = "current published point/footprint constraints at the estimated landing; never complete mechanic/route safety or action approval"
+            });
+        }
+        catch (Exception error)
+        {
+            Service.LogVerbose($"[Integration] Landing constraints unavailable: {error.GetType().Name}: {error.Message}");
+            return Unavailable("native-landing-constraints-unavailable");
+        }
+    }
+
     internal string ProjectMechanicPoses(string json)
     {
         var request = IntegrationSession.Parse<ProjectionPoses>(json);

@@ -56,6 +56,7 @@ static partial class Checks
         NativeProjectionPoses();
         NativeHintPublications();
         DefaultTerrainFrames();
+        NativeLandingConstraints();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 

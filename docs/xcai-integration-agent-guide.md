@@ -87,6 +87,7 @@ policy or its remaining native-contract migrations.
 | Native generic mechanic entries | `Mechanics.V1.GetSnapshot` | Current generic publications only; missing components/future pulses are never evidence of safety |
 | Current native knockback/march projection | `Mechanics.V1.EvaluateMovement` | Actual actor pose only; native `DestinationUnsafe` retained; complete safety/recovery remains unknown |
 | Hypothetical native displacement geometry | `Mechanics.V1.ProjectPoses` | Independently require counterfactual-projection-geometry:1; at most four poses; unchanged SimpleKnockbacks providers or native march state; actual actor context retained; geometry never approves independent-hazard/recovery safety |
+| Native knockback landing constraint view | `native-knockback-landing-constraints:1`, `Mechanics.V1.EvaluateLandings` | Register before the next hint build; producer-linked single radial knockback preparation transforms retain their landing envelopes; clear current published constraints never proves physical coverage, preparation/recovery reachability or complete safety |
 | Temporary configuration | `Control.V1.GetSettings` / `ApplySetting` / `Renew` / `Release` | Allowlisted, expiring compare-and-restore leases; inspect expected value/revision |
 | Directional-action angle option | `Control.V1.WithDirectionalAngle` | Synchronous, audited action only; restore in `finally`; does not validate or confirm an action |
 | Owned transient strategy | `Strategies.V1.GetSnapshot` / `Apply`, `Control.V1.Renew` / `Release` | Exact active preset identity, track/revision/value; native modifier/user changes win; no saved-list mutation |
@@ -136,6 +137,7 @@ consumer's state. Never write back a saved value after losing a lease.
 - `IntegrationPacing.cs` and `IntegrationCoordinator.Pacing.cs`: native frame-bound route/deadline authorization and input gate; [compiled consumer](examples/BossModV1AutomaticPace.cs).
 - `IntegrationHintEvidence.cs`: pre-integration native goal presence and nullable actor aggro observation; dash policy is copied at the requested movement stage.
 - `SimpleBossModule.cs` and `Pathfinding/DefaultTerrainFrame.cs`: inherited default search-frame/terrain alignment; custom frame overrides remain native-owned.
+- `AIHints.ProjectionSources.cs` and `IntegrationLandingConstraints.cs`: bounded native collection provenance and read-only landing constraint separation; [compiled BCL reader](examples/BossModV1LandingConstraints.cs).
 - `IntegrationMechanics.cs`: bounded generic publications and coverage.
 - `IntegrationCounterfactualProjection.cs`: bounded hypothetical native geometry; [compiled BCL reader](examples/BossModV1ProjectionGeometry.cs). Pose-dependent source overrides and complete independent-hazard/recovery safety remain unsupported.
 - `IntegrationArena.cs`, `IntegrationRoutes.cs`: geometry and swept timed-route

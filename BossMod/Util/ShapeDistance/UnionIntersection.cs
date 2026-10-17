@@ -40,6 +40,8 @@ public sealed class SDUnion : ShapeDistance // min distance func
     private readonly ShapeDistance[] zones;
     private readonly int length;
 
+    internal ReadOnlySpan<ShapeDistance> Operands => zones.AsSpan(0, length);
+
     public SDUnion(ShapeDistance[] Zones)
     {
         zones = Zones;

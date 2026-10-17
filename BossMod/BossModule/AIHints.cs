@@ -230,6 +230,7 @@ public sealed partial class AIHints
         InteractWithTarget = null;
         ForbiddenZones.Clear();
         ClearCastSources();
+        ClearProjectionSources();
         GoalZones.Clear();
         GoalZonesEnabled = true;
         IntegrationGoals = null;

@@ -40,6 +40,7 @@ sealed class IPCProvider : IDisposable
         Register("Mechanics.V1.GetSnapshot", (string request) => integration.GetMechanics(request));
         Register("Mechanics.V1.EvaluateMovement", (string request) => integration.EvaluateMechanicMovement(request));
         Register("Mechanics.V1.ProjectPoses", (string request) => integration.ProjectMechanicPoses(request));
+        Register("Mechanics.V1.EvaluateLandings", (string request) => integration.EvaluateKnockbackLandings(request));
         Register("Modules.V1.GetSnapshot", (string request) => integration.GetModules(request));
         Register("Modules.V1.GetEnablement", (string request) => integration.GetModuleEnablement(request));
         Register("Modules.V1.ApplyEnablement", (string request) => integration.ApplyModuleEnablement(request));
