@@ -60,6 +60,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         {
             ["automatic-input-pacing"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
             ["cast-control-observation"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
+            ["native-default-terrain-frame"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
             ["mechanic-observation"] = 1, ["current-native-projection"] = 1,
@@ -378,8 +379,15 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
                 player == null ? null : module.ResolveArenaProjectionLayer(player)),
             pathfindingRegion = IntegrationArena.Describe(hints.PathfindMapBounds, hints.PathfindMapCenter, hints.PathfindMapArenaProjectionLayer),
             pathfindingRegionProvenance = "current-AIHints; not a substitute for encounter arena",
-            obstacleMap = new { present = hints.PathfindMapObstacles.Bitmap != null, provenance = "AIHintsBuilder.Obstacles",
-                generation = (long?)null, assetIdentity = (string?)null },
+            obstacleMap = new { present = hints.PathfindMapObstacles.Bitmap != null, provenance = hints.DefaultTerrainFrameAlignment?.Matches(hints) == true
+                    ? "SimpleBossModule.Obstacles; inherited-default-search-frame" : "native-hints-producer-not-attributed",
+                generation = (long?)null, assetIdentity = (string?)null,
+                defaultFrameAlignment = hints.DefaultTerrainFrameAlignment is { } frame && frame.Matches(hints) ? new
+                {
+                    status = "aligned", originalCenter = P(frame.OriginalCenter), center = P(frame.Center), obstacleOrigin = P(frame.ObstacleOrigin),
+                    frame.Resolution, window = new { frame.Region.Rect.Left, frame.Region.Rect.Top, frame.Region.Rect.Right, frame.Region.Rect.Bottom },
+                    scope = "inherited-SimpleBossModule-default-search-frame; not encounter geometry or physical coverage proof"
+                } : null },
             geometryOnly = true
         });
     });

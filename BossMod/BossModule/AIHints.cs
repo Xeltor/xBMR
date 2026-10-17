@@ -93,6 +93,7 @@ public sealed partial class AIHints
     public ArenaBounds PathfindMapBounds = DefaultBounds;
     public int? PathfindMapArenaProjectionLayer;
     public Bitmap.Region PathfindMapObstacles;
+    internal Pathfinding.DefaultTerrainFrame.Alignment? DefaultTerrainFrameAlignment;
     private ArenaBoundsCustom? _arenaProjectionLayerClipOwner;
     private WPos _arenaProjectionLayerClipCenter;
     private ShapeDistance?[]? _arenaProjectionLayerClips;
@@ -213,6 +214,7 @@ public sealed partial class AIHints
     // clear all stored data
     public void Clear()
     {
+        DefaultTerrainFrameAlignment = null;
         PathfindMapCenter = default;
         PathfindMapBounds = DefaultBounds;
         PathfindMapArenaProjectionLayer = null;

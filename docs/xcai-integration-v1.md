@@ -24,7 +24,7 @@ the xBMR implementation deliverable.
 | 5. Targets | Bounded policy/geometry/cast observation, native cast identities/deadline estimates and producer-recorded zone links, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, additional cast-linked producers and migration |
 | 6. Mechanics/projection | Bounded native publications, actual-pose observations and bounded counterfactual geometry for unchanged SimpleKnockbacks providers and GenericForcedMarch; native filtering/order/walls retained | Independent-hazard/recovery safety, custom pose-dependent source providers, full counterfactual safety/applicability and migration |
 | 7. Damage/effects | Full bounded damage list with same-observation party mapping/world time, copied recipient identities and explicit resolution completeness; bounded current-update action effects | Consumer migration and representative live overlap/party-change acceptance |
-| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, bounded native automatic-input pacing, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Historical saved-module repair with explicit user/revision safeguards; durable user-owned hallway policy across preset transitions; other validated movement/constraint contracts and justified native fixes |
+| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, bounded native automatic-input pacing, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention; inherited default terrain-frame alignment | Historical saved-module repair with explicit user/revision safeguards; durable user-owned hallway policy across preset transitions; other validated movement/constraint contracts and justified native fixes |
 
 No complete reflection-removal or live gameplay acceptance claim is made by this
 ledger. Unsupported fields remain null or explicitly unknown. In particular a
@@ -43,7 +43,7 @@ assembly reference, WPos adapter, pointer, reflected manager, or mutable map.
 the family it needs instead of inferring support from a plugin release number.
 Currently the advertised families are `frame-stages`, `goal-scoring`,
 `movement-observation`, `controller-input-provenance`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
-`arena-geometry`, `navigation-publication`, `navigation-raster`, and
+`arena-geometry`, `native-default-terrain-frame`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
 `mechanic-observation`, `current-native-projection`, `counterfactual-projection-geometry`,
 `native-goal-presence`, `dash-policy-observation`, `target-aggro-observation`,
@@ -446,8 +446,43 @@ reload; registration/unregistration does not replay previous action events.
 selected encounter's logical arena and current AIHints pathfinding region as
 separate objects. `encounterOwnsPositioning` distinguishes an inactive nearby
 module from an active phase. Open-world obstacle windows and FATE regions are not
-relabelled as encounter geometry. Obstacle presence is provided with explicitly
-unknown generation/asset identity until navigation publication is implemented.
+relabelled as encounter geometry. Obstacle generation and asset identity remain
+explicitly unknown; a navigation generation is a separate source identity.
+
+### Native inherited terrain-frame correction
+
+Require `native-default-terrain-frame:1` independently. This is native behavior,
+not a consumer write endpoint. `SimpleBossModule` holds its search origin until
+the player moves five yalms, while the generic module terrain window was built
+around the current moving arena center. The mismatch displaced terrain cells in
+world space. BMR now selects the held origin's matching terrain source, snaps
+that origin to the nearest source pixel lattice, and updates the center/window
+together. The original five-yalm hysteresis remains; there is no separately
+frozen FATE window or changed encounter arena/hazard/goal geometry.
+
+The correction applies only when both `UpdateModule` and
+`CalculateModuleAIHints` use the inherited `SimpleBossModule` implementation,
+including ordinary `OpenWorldFate` modules. Custom overrides, nondefault bounds,
+projection layers, missing/changed bitmap, incompatible resolution and invalid
+coordinates do not acquire this attribution. Existing user obstacle-map opt-outs
+remain authoritative in native source capture.
+
+`Arena.V1.GetSnapshot(contextJson)` has unchanged `Func<string,string>` transport.
+Its `obstacleMap.defaultFrameAlignment` is nullable. When the current center,
+bounds, layer, bitmap and window still match the native correction, it contains
+`status:"aligned"`, horizontal `[x,z]` `originalCenter`, `center`, `obstacleOrigin`,
+`resolution` in yalms per pixel, `window:{left,top,right,bottom}` (right/bottom
+exclusive source-bitmap cell coordinates), and a scope string. Provenance is
+`"SimpleBossModule.Obstacles; inherited-default-search-frame"`; other producers
+are explicitly unattributed. Later native geometry/window/bitmap changes and new
+hint builds invalidate the old attribution. This establishes coordinate alignment,
+not full physical-map coverage, obstacle asset/generation completeness, a safe
+route, or ingress permission. `geometryOnly:true` and nullable obstacle generation
+remain unchanged.
+
+Consumers can remove the reflected `BossModFateArenaFrame` center/region rewrite
+for the documented inherited default scope. Read the native observation for
+diagnostics; do not restore an older pair or add a second frozen search window.
 
 Descriptors contain circle radius, rectangular half dimensions/rotation, or
 custom polygon parts with exterior and hole contours. Custom contours are
@@ -1118,7 +1153,8 @@ remain outside this issue.
 | `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Consumer reports native current-update effect adoption; preserve drop/completeness handling and verify live behavior |
 | Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Consumer reports scoped control adoption; historical saved-state repair and durable hallway policy across preset transitions remain unsupported |
 | Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | Bounded native automatic-input pacing; no general movement setter | Consumer reports pending-stage native pacing adoption; stable destinations, cast-departure holds, duty ingress and actual input/live acceptance remain open |
-| Stack masks, redundant tank-facing, FATE pathfinding-frame guards and additional projected constraints | Native defects have not been established by this contract work | Gather evidence, preserve user opt-outs, then implement justified native behavior/capability or a narrowly validated lease; do not clone existing workarounds blindly |
+| `BossModFateArenaFrame` center/terrain-region writes | `native-default-terrain-frame:1` aligns the inherited SimpleBossModule default search window with its matching terrain lattice; `Arena.V1` reports current attribution | Remove reflected rewrites for this scope; custom overrides, missing/incompatible terrain, complete obstacle identity/coverage and live acceptance remain explicit limits |
+| Stack masks, redundant tank-facing and additional projected constraints | Native defects have not been established by this contract work | Gather evidence, preserve user opt-outs, then implement justified native behavior/capability or a narrowly validated lease; do not clone existing workarounds blindly |
 
 [`examples/BossModV1Consumer.cs`](examples/BossModV1Consumer.cs) is a compile-checked
 BCL-only example exercised against the real contract session in the regression
@@ -1278,3 +1314,25 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   inside the fresh native callback; this checkpoint adds lifecycle enforcement,
   not a new movement permission or gameplay acceptance claim. Residual provider,
   consumer and live acceptance requirements remain open.
+
+### Native terrain-frame checkpoint, 2026-10-17
+
+- Added `native-default-terrain-frame:1`, bringing discovery to 28 independently
+  versioned families. The inherited SimpleBossModule search center and matching
+  terrain window now advance together on the bitmap lattice. FATE consumers no
+  longer need to rewrite that pair for the supported inherited default scope.
+- `Arena.V1` publishes nullable current alignment attribution, source origin,
+  resolution and window. Custom overrides/geometry, unsupported terrain sources
+  and changed frames retain explicit limits. This is coordinate provenance, not
+  complete physical coverage or a route/ingress safety verdict.
+- Release compilation with the pinned SDK, API 15 references, source generation
+  and diagnostic analyzers passed with zero errors and six existing warnings.
+  All 19 suites passed against one pinned build artifact: 8,376 assertions or
+  checks, including 2,244 integration assertions. Thirty new assertions cover
+  the uncorrected drift control, fractional/negative lattice origins, five-yalm
+  hysteresis, world-space blocked-cell placement, immutable source copies, user
+  obstacle opt-out, custom native overrides, map/resolution/layer mismatch,
+  invalid inputs, actual native endpoint attribution and invalidation.
+- Concurrent encounter work was preserved separately. No installed binary,
+  reload, release, consumer migration or live terrain acceptance is implied.
+  Remaining provider/consumer requirements and gameplay acceptance stay open.

@@ -55,6 +55,7 @@ static partial class Checks
         CounterfactualProjections();
         NativeProjectionPoses();
         NativeHintPublications();
+        DefaultTerrainFrames();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 

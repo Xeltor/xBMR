@@ -79,6 +79,7 @@ policy or its remaining native-contract migrations.
 | Overlapping damage recipients | `Hints.V1.GetPredictedDamage` | Use all entries and the exact same-observation party mapping |
 | Current action effects | `World.V1.GetActionEffects` | Per-world-update, bounded observations; duplicates retained; inspect dropped count |
 | Shape/containment/clearance | `Arena.V1.GetSnapshot` / `QueryPoints` | Arena and pathfinding window differ; containment/inset is geometry, not a safe route |
+| Inherited FATE/default search terrain alignment | `native-default-terrain-frame:1`, `Arena.V1` `obstacleMap.defaultFrameAlignment` | Native center/window correction replaces reflected frame writes for inherited SimpleBossModule methods; nullable current provenance is not physical coverage, route or ingress proof |
 | Original navigation witness/identity | `Navigation.V1.GetSnapshot` | Search/build/publication identities are distinct; a fallback is not a verified goal route |
 | Immutable raster window | `Navigation.V1.GetLocalMap` | Copied, bounded cells; physical, arena, temporary and timed limits have separate meanings |
 | Native detour or nearest safe raster candidate | `Navigation.V1.StartSearch` / `PollSearch` | One running copied-data worker; fresh-context polling; require current route validation and destination satisfaction |
@@ -134,6 +135,7 @@ consumer's state. Never write back a saved value after losing a lease.
 - `IntegrationControllerDecision.cs`, `IntegrationCoordinator.Movement.cs`, and `IntegrationInputObservation.cs`: native outcome/assignment/read provenance; [compiled bounded reader](examples/BossModV1MovementProvenance.cs).
 - `IntegrationPacing.cs` and `IntegrationCoordinator.Pacing.cs`: native frame-bound route/deadline authorization and input gate; [compiled consumer](examples/BossModV1AutomaticPace.cs).
 - `IntegrationHintEvidence.cs`: pre-integration native goal presence and nullable actor aggro observation; dash policy is copied at the requested movement stage.
+- `SimpleBossModule.cs` and `Pathfinding/DefaultTerrainFrame.cs`: inherited default search-frame/terrain alignment; custom frame overrides remain native-owned.
 - `IntegrationMechanics.cs`: bounded generic publications and coverage.
 - `IntegrationCounterfactualProjection.cs`: bounded hypothetical native geometry; [compiled BCL reader](examples/BossModV1ProjectionGeometry.cs). Pose-dependent source overrides and complete independent-hazard/recovery safety remain unsupported.
 - `IntegrationArena.cs`, `IntegrationRoutes.cs`: geometry and swept timed-route
