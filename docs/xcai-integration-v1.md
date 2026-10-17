@@ -65,6 +65,19 @@ schema, wrong calling thread, or observation older than 250 ms yields
 Malformed and oversized requests are rejected. Requests are capped at 8,192
 characters and native score batches at 128 finite `[x,z]` pairs.
 
+At the start of the next native world update, before actor/module/hint mutation,
+BMR retires the previous context and copied latest publication. Until the next
+completed hint build begins a new `hints-ready` frame, queries and contributions
+are unavailable. A failed/interrupted hint build cannot leave the old context
+queryable against partially updated native objects. This does not unregister
+owners or renew their leases. Already captured immutable worker scorers retain
+their original source-frame lifetime (at most 250 ms); ordinary frame turnover
+does not shorten or refresh it. They cannot be resubmitted through the retired
+context or captured as a new frame's contribution. Manual handoff, scope change,
+clear, unregister and provider disposal invalidate them, including a scorer that
+was already running: it rechecks retirement before returning its value. Expiry
+and callback work limits still apply.
+
 World coordinates are FFXIV yalms. Horizontal vectors use `[x,z]` (`Vector2.X/Y`
 in scoring delegates); 3D directions use `[x,y,z]`. Rotations are radians with
 zero facing south, positive pi/2 east. Actor IDs and slot masks are hexadecimal
@@ -1243,3 +1256,25 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   saved-setting repair is implied by runtime leases. Independent-hazard/recovery
   safety, unsupported source providers, remaining consumer work and live
   gameplay acceptance remain open. Geometry is never complete safety approval.
+
+### Frame-retirement checkpoint, 2026-10-17
+
+- Native world-update entry retires the prior query context and copied latest
+  publication before actor/module/hint mutation. Interrupted hint builds cannot
+  leave an old context queryable against partially updated native state.
+- Immutable worker scorers retain their original bounded source lifetime across
+  ordinary frame turnover. No new observation refreshes it. Scorers already
+  running when clear, unregister, manual/scope change or disposal occurs recheck
+  retirement before returning, so their late preference is discarded.
+- Release compilation passed with zero errors and six existing obsolete-gauge
+  warnings. All 19 suites passed against the built assembly: 8,346 assertions or
+  checks, including 2,214 integration assertions. The 43 added assertions cover
+  interrupted/repeated updates, monotonic frame identity, owner renewal/expiry,
+  same-scope worker retention, original source expiry, reentry/wrong-thread
+  rejection, concurrent scorer retirement and actual native movement/target/goal
+  endpoint rejection during updates. The native event-source fixture is owned
+  offline state; no game hooks or live client state were used.
+- Existing IPC signatures/family versions stay compatible. Queries still belong
+  inside the fresh native callback; this checkpoint adds lifecycle enforcement,
+  not a new movement permission or gameplay acceptance claim. Residual provider,
+  consumer and live acceptance requirements remain open.

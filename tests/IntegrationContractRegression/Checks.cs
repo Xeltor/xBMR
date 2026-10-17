@@ -23,6 +23,8 @@ static partial class Checks
     public static void Run()
     {
         RegistrationAndStages();
+        WorldUpdateInvalidation();
+        RetiredInFlightScoring();
         ExpiryAndIsolation();
         ScoringFailures();
         Composition();
@@ -153,6 +155,98 @@ static partial class Checks
         captured = s.CaptureGoals("combat");
         s.Dispose();
         Check(captured.Sum(g => g(default)) == 0, "reload/unload invalidates retained worker delegates");
+    }
+
+    private static void WorldUpdateInvalidation()
+    {
+        long now = 100;
+        using var session = new IntegrationSession(() => now, 1000);
+        var token = Owner(session);
+        session.BeginFrame("same-scope", true);
+        session.Submit(new(session.CurrentContext, token, "combat"), _ => 6);
+        var previous = session.CurrentContext;
+        var scores = session.CaptureGoals("combat");
+        session.Publish("hints-ready", IntegrationSession.Serialize);
+        Check(session.LatestPublication != null && scores.Single()(default) == 6, "fresh frame exposes its copied publication and scoring surface");
+        session.BeginWorldUpdate();
+        Check(!session.Fresh && !session.Matches(previous) && !session.Matches(session.CurrentContext),
+            "starting native mutation retires both old and unavailable contexts before the next hint build");
+        Check(session.LatestPublication == null && !session.CanContribute && session.CaptureGoals("combat").Length == 0,
+            "partial native updates cannot publish an old coherent snapshot or capture new contributions");
+        Check(scores.Single()(default) == 6 && !session.Submit(new(previous, token, "combat"), _ => 9).Accepted,
+            "world update rejects old-context submissions while an immutable worker retains its bounded source-frame scoring");
+        Check(!session.Publish("movement-proposed", IntegrationSession.Serialize) && !session.Publish("movement-applied", IntegrationSession.Serialize),
+            "an interrupted native hint build cannot resume the retired stage sequence");
+        Check(session.IsOwnerActive(token) && session.Renew(Lease(session, token)).Accepted,
+            "frame retirement preserves independent owner registration and renewal");
+        session.BeginWorldUpdate();
+        Check(!session.Matches(previous), "repeated native update invalidation cannot revive a context");
+        session.BeginFrame("same-scope", true);
+        Check(session.FrameId == previous.FrameId + 1 && session.Matches(session.CurrentContext),
+            "only completed next hints create a new queryable frame with monotonically advancing identity");
+        session.Submit(new(session.CurrentContext, token, "combat"), _ => 4);
+        var next = session.CaptureGoals("combat");
+        Check(scores.Single()(default) == 6 && next.Single()(default) == 4,
+            "new contributions do not replace a retained worker's original immutable scoring surface");
+        session.BeginFrame("same-scope", true);
+        Check(next.Single()(default) == 4 && session.CaptureGoals("combat").Length == 0 && session.LatestPublication == null,
+            "new frames clear submissions/publications without shortening a retained immutable worker's source lifetime");
+        now += 250;
+        Check(scores.Single()(default) == 0 && next.Single()(default) == 0,
+            "new frame observations cannot renew retained workers beyond their original source deadline");
+        session.BeginFrame("same-scope", true);
+        Owner(session, "reentrant", _ =>
+        {
+            var current = session.CurrentContext;
+            session.BeginWorldUpdate(); session.BeginFrame("nested", true);
+            Check(session.Matches(current), "consumer callback cannot retire or replace the native frame through reentry");
+        });
+        session.Publish("hints-ready", IntegrationSession.Serialize);
+        var beforeWrongThread = session.CurrentContext;
+        Task.Run(session.BeginWorldUpdate).GetAwaiter().GetResult();
+        Check(session.Matches(beforeWrongThread), "another thread cannot invalidate the framework's current native frame");
+        session.BeginWorldUpdate();
+        now += 2001;
+        Check(!session.Renew(Lease(session, token)).Accepted, "retiring a frame never extends owner monotonic expiry");
+        session.Dispose(); session.BeginWorldUpdate();
+        Check(!session.Fresh && session.LatestPublication == null, "late invalidation after disposal cannot revive publication");
+    }
+
+    private static void RetiredInFlightScoring()
+    {
+        foreach (var retirement in new[] { "scope-change", "manual-handoff", "clear", "unregister", "dispose", "frame-expiry", "owner-expiry" })
+        {
+            long now = 100;
+            using var session = new IntegrationSession(() => Volatile.Read(ref now), 1000);
+            var token = Owner(session);
+            using var started = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            session.BeginFrame("scope", true);
+            session.Submit(new(session.CurrentContext, token, "combat"), _ =>
+            {
+                started.Set();
+                if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+                return 8;
+            });
+            var goal = session.CaptureGoals("combat").Single();
+            var running = Task.Run(() => goal(default));
+            try
+            {
+                Check(started.Wait(TimeSpan.FromSeconds(5)), "worker entered scoring before " + retirement);
+                switch (retirement)
+                {
+                    case "scope-change": session.BeginFrame("new-scope", true); break;
+                    case "manual-handoff": session.BeginFrame("scope", false); break;
+                    case "clear": session.Clear(Lease(session, token)); break;
+                    case "unregister": session.Unregister(Lease(session, token)); break;
+                    case "dispose": session.Dispose(); break;
+                    case "frame-expiry": Interlocked.Add(ref now, 250); break;
+                    case "owner-expiry": Interlocked.Add(ref now, 2001); break;
+                }
+            }
+            finally { release.Set(); }
+            Check(running.GetAwaiter().GetResult() == 0, "an in-flight scorer cannot return preference after " + retirement);
+        }
     }
 
     private static void ScoringFailures()

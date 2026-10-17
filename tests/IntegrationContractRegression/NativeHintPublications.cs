@@ -18,6 +18,8 @@ static partial class Checks
         void Set(object obj, string field, object? value) => obj.GetType().GetField(field, BindingFlags.Public | InternalInstance)!.SetValue(obj, value);
         object? Call(object obj, string name, params object?[] args) => obj.GetType().GetMethod(name, BindingFlags.Public | InternalInstance)!.Invoke(obj, args);
         using var session = (IDisposable)New("Integration.IntegrationSession", (Func<long>)(() => 1), 1000L);
+        Set(world, nameof(WorldState.Actors), new ActorState());
+        using var effects = (IDisposable)New("Integration.IntegrationActionEffects", world);
         var hints = new AIHints();
         var manager = (BossModuleManager)Blank("BossModuleManager"); Set(manager, nameof(BossModuleManager.WorldState), world);
         var movement = (MovementOverride)Blank("MovementOverride");
@@ -33,6 +35,7 @@ static partial class Checks
         {
             pointer.SetValue(amex, Pointer.Box(memory, pointer.FieldType));
             var coordinator = Blank("Integration.IntegrationCoordinator"); Set(coordinator, "Session", session);
+            Set(coordinator, "_effects", effects);
             foreach (var field in new (string Name, object Value)[] { ("bossmod", manager), ("zonemod", zone), ("hints", hints),
                 ("rotation", rotation), ("amex", amex), ("movement", movement), ("ai", ai) }) Set(coordinator, "<" + field.Name + ">P", field.Value);
             string Context() => IntegrationSession.Serialize(session.GetType().GetProperty("CurrentContext", InternalInstance)!.GetValue(session)!);
@@ -87,6 +90,24 @@ static partial class Checks
             }
             using (var notCaptured = Snapshot()) Check(notCaptured.RootElement.GetProperty("nativeHintGoalCount").ValueKind == JsonValueKind.Null,
                 "a frame without a native hint capture preserves unknown instead of inventing an empty list");
+            var retiringContext = Context();
+            Call(coordinator, "BeginWorldUpdate");
+            hints.GoalZones.Clear(); hints.ForbidDashes = true; actor.AggroPlayer = false;
+            foreach (var endpoint in new[] { "GetSnapshot", "GetTargets", "EvaluateNativeGoals" })
+            {
+                var request = endpoint == "EvaluateNativeGoals"
+                    ? "{\"context\":" + retiringContext + ",\"points\":[[0,0]]}" : retiringContext;
+                using var updating = JsonDocument.Parse((string)Call(coordinator, endpoint, request)!);
+                Check(!updating.RootElement.GetProperty("available").GetBoolean(),
+                    "actual " + endpoint + " rejects the prior context while native hints/actors are being updated");
+            }
+            using (var latest = JsonDocument.Parse((string)Call(coordinator, "GetLatestSnapshot")!))
+                Check(!latest.RootElement.GetProperty("available").GetBoolean(), "the native update boundary retires the copied latest publication too");
+            Call(coordinator, "HintsReady");
+            using (var completed = Snapshot())
+                Check(completed.RootElement.GetProperty("available").GetBoolean()
+                    && completed.RootElement.GetProperty("nativeHintGoalCount").GetInt32() == 0 && completed.RootElement.GetProperty("forbidDashes").GetBoolean(),
+                    "a completed hint build publishes fresh native evidence without reviving the previous context");
         }
         finally { NativeMemory.Free(memory); }
     }

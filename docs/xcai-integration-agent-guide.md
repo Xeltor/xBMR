@@ -50,7 +50,10 @@ from a published release and from live consumer/gameplay acceptance.
    physical/input observations have separate semantics. Do not call private
    frame methods or replace `UiBuilder.Draw`.
 6. Clear your goals or unregister on disable/unload. Stop using cached contexts
-   after their stage/frame changes or 250 ms. Reconnect after provider reload.
+   after their stage/frame changes or 250 ms. BMR retires the previous context
+   and latest publication before the next native world update mutates state;
+   queries remain unavailable until the next completed hint build. Reconnect
+   after provider reload.
 
 All endpoints have the `BossMod.` prefix. Structured requests/responses are JSON
 strings; no xBMR assembly reference is required. Query signatures are generally
@@ -98,10 +101,14 @@ safety APIs for those operations.
 
 ## Ownership and failures
 
-Owners expire within two seconds without renewal; goals expire each frame and
-at most 250 ms after their source frame. Callback/scorer failure revokes that
-owner and leaves native BMR processing running. In-process delegates cannot be
-preempted: scorers and callbacks must remain short and must never block.
+Owners expire within two seconds without renewal. Goal submissions are specific
+to one frame. Already captured immutable worker scorers retain their original
+source deadline, at most 250 ms, across ordinary frame turnover; a new frame
+cannot renew or resubmit them. Manual/scope changes, clear, unregister and
+disposal invalidate them, including a return from an already running scorer.
+Callback/scorer failure revokes that owner and leaves native BMR processing
+running. In-process delegates cannot be preempted: scorers and callbacks must
+remain short and must never block.
 
 Control leases have their own opaque IDs and resource revisions. Release each
 lease explicitly in `finally`/unload and unregister the owner. Native expiry

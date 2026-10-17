@@ -18,6 +18,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     private TargetIntent[] _authoredTargetIntent = [];
     internal void BeginWorldUpdate()
     {
+        Session.BeginWorldUpdate();
         _nativeHintEvidence = null;
         _effects.BeginUpdate();
     }

@@ -71,7 +71,7 @@ internal sealed class IntegrationSession : IDisposable
             return !_disposed && publication != null && _clock() - publication.FrameStarted < Milliseconds(MaxFrameAgeMs) ? publication.Json : null;
         }
     }
-    internal bool Fresh => !_disposed && FrameId > 0 && _clock() - _frameStarted < Milliseconds(MaxFrameAgeMs);
+    internal bool Fresh => !_disposed && FrameId > 0 && Stage != "unavailable" && _clock() - _frameStarted < Milliseconds(MaxFrameAgeMs);
     internal bool HasActiveOwners
     {
         get
@@ -190,7 +190,7 @@ internal sealed class IntegrationSession : IDisposable
             && request.OwnerToken != null && _owners.TryGetValue(request.OwnerToken, out owner) && Live(owner);
     }
 
-    internal bool Matches(Context? context) => OnThread && context != null && context == CurrentContext && Fresh && Stage != "unavailable";
+    internal bool Matches(Context? context) => OnThread && context != null && context == CurrentContext && Fresh;
 
     internal Result Submit(GoalRequest? request, Func<Vector2, float>? score)
     {
@@ -211,6 +211,20 @@ internal sealed class IntegrationSession : IDisposable
 
     private int _goalRevision;
 
+    // Native world/module/hint updates mutate the objects behind query endpoints. Retire
+    // the previous context before that mutation begins, even if the next hint build fails.
+    internal void BeginWorldUpdate()
+    {
+        lock (_gate)
+        {
+            if (!OnThread || _dispatching)
+                return;
+            Stage = "unavailable";
+            CanContribute = false;
+            Volatile.Write(ref _latest, null);
+        }
+    }
+
     // Called exactly once after BMR has generated encounter/zone hints, before manual actions and rotation.
     internal void BeginFrame(string scope, bool canContribute)
     {
@@ -226,10 +240,12 @@ internal sealed class IntegrationSession : IDisposable
             return;
         if (_scope != scope)
         {
-            // Leases remain registered, but no old worker may keep a preference across a context change.
-            ++_goalRevision;
+            // Immutable workers keep their original bounded source lifetime, but must
+            // never carry a preference across player/zone/preset changes.
+            Interlocked.Increment(ref _goalRevision);
             _scope = scope;
         }
+        Volatile.Write(ref _latest, null);
         ++FrameId;
         _frameStarted = _clock();
         Stage = "hints-ready";
@@ -237,7 +253,7 @@ internal sealed class IntegrationSession : IDisposable
         foreach (var owner in _owners.Values)
             owner.Goals.Clear();
         if (!canContribute)
-            ++_goalRevision;
+            Interlocked.Increment(ref _goalRevision);
         Prune();
     }
 
@@ -317,6 +333,11 @@ internal sealed class IntegrationSession : IDisposable
                 Revoke(goal.Owner);
                 return 0f;
             }
+            // A scorer can already be running when the native frame or owner is retired.
+            // Its eventual return must not republish a contribution that was cleared meanwhile.
+            if (revision != Volatile.Read(ref _goalRevision) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
+                || !Live(goal.Owner) || _clock() >= goal.Expires)
+                return 0f;
             return value;
         }
         catch { Revoke(goal.Owner); return 0f; }
