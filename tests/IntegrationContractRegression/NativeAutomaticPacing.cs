@@ -164,6 +164,78 @@ static partial class Checks
             Call(coordinator, "FinalizePace");
             Check(gate.GetType().GetProperty("Current", InternalInstance)!.GetValue(gate) == null,
                 "a later native/controller direction change revokes pending pacing before input application");
+            // The distinct hold contract may operate during combat, but native route,
+            // cast-pressure, authored constraints and input authority remain mandatory.
+            hints.ForcedMovement = new Vector3(2, 0, 0); player.InCombat = true;
+            string HoldRequest(int leaseMs = 100, long generation = 101) => IntegrationSession.Serialize(new
+            { context, ownerToken = owner, generation, leaseMs });
+            JsonDocument Hold(string? request = null) => JsonDocument.Parse((string)Call(coordinator, "RequestDepartureHold", request ?? HoldRequest())!);
+            bool Accepted(JsonDocument response) => response.RootElement.TryGetProperty("accepted", out var ok) && ok.GetBoolean();
+            void ArmHold()
+            {
+                Call(coordinator, "FinalizePace"); movement.DesiredDirection = hints.ForcedMovement;
+                Call(inputs, "Assign", instance, frame, movement.DesiredDirection); Call(coordinator, "ArmPace");
+                assignment = inputs.GetType().GetProperty("CurrentAssignment", InternalInstance)!.GetValue(inputs);
+            }
+            Refresh(); hints.AddForbiddenZone(new SDCircle(default, 0.2f), world.FutureTime(3));
+            var holdHints = hints.ForbiddenZones.ToArray(); var heldDirection = hints.ForcedMovement;
+            using (var accepted = Hold()) Check(Accepted(accepted) && accepted.RootElement.GetProperty("scale").GetSingle() == 0
+                && !accepted.RootElement.GetProperty("castPermissionGranted").GetBoolean(), "combat hold acknowledges pending zero-input permission without cast approval: " + accepted.RootElement.GetRawText());
+            Check((float)Property(Apply(), "Scale") == 1, "pending hold cannot suppress input before a native matching assignment");
+            Check(holdHints.SequenceEqual(hints.ForbiddenZones) && hints.ForcedMovement == heldDirection,
+                "departure hold never removes hazards or overwrites native forced direction");
+            ArmHold();
+            Check((float)Property(Apply(), "Scale") == 0 && (Vector2)Property(Apply(), "Output") == default,
+                "route-validated native hold suppresses only the exact automatic input assignment");
+            amex.MoveMightInterruptCast = true;
+            Check((float)Property(Apply(), "Scale") == 0, "a newly queued cast does not itself invalidate its safe departure hold");
+            amex.MoveMightInterruptCast = false;
+            var manual = Call(gate, "Apply", assignment, movement.DesiredDirection, Vector2.UnitY, Vector2.UnitX, Vector2.UnitX,
+                true, true, false, false, false)!;
+            Check((float)Property(manual, "Scale") == 1 && (Vector2)Property(manual, "Output") == Vector2.UnitX,
+                "manual input immediately revokes a hold without changing that input");
+            hints.ForbiddenZones.Clear();
+            foreach (var invalid in new[] { HoldRequest(0), HoldRequest(101), HoldRequest(generation: 99),
+                HoldRequest().Replace("\"leaseMs\":100", "\"leaseMs\":100,\"scale\":0"),
+                HoldRequest().Replace("movement-proposed", "hints-ready") })
+            {
+                Refresh(); using var rejected = Hold(invalid);
+                Check(!Accepted(rejected), "hold rejects invalid lease/generation/stage or arbitrary scale fields");
+            }
+            foreach (var flag in new[] { "ForceCancelCastMechanic", "ForceCancelCastOther", "HoldCasts", "WantJump" })
+            {
+                Refresh(); var field = typeof(AIHints).GetField(flag)!; field.SetValue(hints, true);
+                using (var rejected = Hold()) Check(!Accepted(rejected), "native cast/special movement pressure prevents hold: " + flag);
+                field.SetValue(hints, false);
+            }
+            Refresh(); hints.NoMovementAllowsManualInput = true;
+            hints.ImminentSpecialMode = (AIHints.SpecialMode.NoMovement, world.CurrentTime, world.FutureTime(5));
+            using (var paused = Hold()) Check(!Accepted(paused), "native automatic pause rejects departure holds");
+            hints.NoMovementAllowsManualInput = false; hints.ImminentSpecialMode = default;
+            hints.MaxCastTime = 0; Refresh();
+            using (var urgentCast = Hold()) Check(!Accepted(urgentCast), "native cast-departure deadline cannot be relaxed by a hold");
+            hints.MaxCastTime = float.MaxValue; Refresh();
+            hints.AddForbiddenZone(new SDCircle(default, 0.2f), world.FutureTime(0.1));
+            using (var urgentHazard = Hold()) Check(!Accepted(urgentHazard), "imminent warning at the held footprint forbids zero progress");
+            hints.ForbiddenZones.Clear(); Refresh();
+            hints.TemporaryObstacles.Add(new SDIntersection([new SDCircle(new(20, 0), 1)]));
+            using (var unknown = Hold()) Check(!Accepted(unknown), "unknown obstacle distance semantics never permit holding");
+            hints.TemporaryObstacles.Clear(); Refresh();
+            using (var accepted = Hold()) Check(Accepted(accepted), "fresh combat route reacquires a bounded hold");
+            hints.ForceCancelCastMechanic = true; Call(coordinator, "FinalizePace");
+            Check(gate.GetType().GetProperty("Current", InternalInstance)!.GetValue(gate) == null,
+                "a later callback's native cast-cancel requirement revokes a pending hold");
+            hints.ForceCancelCastMechanic = false; Refresh();
+            using (var accepted = Hold()) Check(Accepted(accepted), "new safe route prepares hold cleanup fixture");
+            ArmHold();
+            Set(world, nameof(WorldState.Actors), actors);
+            using var holdEffects = (IDisposable)New("Integration.IntegrationActionEffects", world);
+            Set(coordinator, "_effects", holdEffects);
+            Call(coordinator, "BeginWorldUpdate");
+            Check((float)Property(Apply(), "Scale") == 1, "native frame retirement restores input before any new world/hint mutation");
+            using var capabilities = JsonDocument.Parse((string)Call(coordinator, "Capabilities")!);
+            Check(capabilities.RootElement.GetProperty("families").GetProperty("cast-departure-hold").GetInt32() == 1,
+                "departure holds are discoverable independently of travel pacing and general movement preferences");
         }
         finally { normalType.GetField("Instance")!.SetValue(null, previousNormal); }
     }

@@ -14,12 +14,13 @@ internal sealed class IntegrationPacing(Func<long>? clock = null)
     private long _frameEpoch;
     internal readonly record struct Epoch(long Frame, long Owner);
     internal sealed class Ticket(string id, string owner, string instance, long frame, long generation, Vector3 direction,
-        float scale, long expires, Func<bool> alive)
+        float scale, long expires, Func<bool> alive, bool departureHold = false)
     {
         internal readonly string Id = id, Owner = owner, Instance = instance;
         internal readonly long Frame = frame, NavigationGeneration = generation, Expires = expires;
         internal readonly Vector3 Direction = direction;
         internal readonly float Scale = scale;
+        internal readonly bool DepartureHold = departureHold;
         internal readonly Func<bool> Alive = alive;
         internal IntegrationInputObservation.Assignment? Assignment;
         internal int State; // 0 pending, 3 arming, 1 native assignment armed, 2 revoked
@@ -42,7 +43,7 @@ internal sealed class IntegrationPacing(Func<long>? clock = null)
 
     internal bool Queue(Ticket ticket, Epoch? expected = null)
     {
-        if (!float.IsFinite(ticket.Scale) || ticket.Scale is < MinScale or > 1 || ticket.Expires <= _clock()
+        if (!float.IsFinite(ticket.Scale) || (ticket.DepartureHold ? ticket.Scale != 0 : ticket.Scale is < MinScale or > 1) || ticket.Expires <= _clock()
             || !float.IsFinite(ticket.Direction.X) || !float.IsFinite(ticket.Direction.Y) || !float.IsFinite(ticket.Direction.Z)
             || ticket.Direction == default) return false;
         lock (_changes)

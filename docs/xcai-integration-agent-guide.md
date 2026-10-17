@@ -174,3 +174,5 @@ related family is advertised. Continuous native stage delivery, once-per-frame
 execution, owner cleanup/manual handoff and native movement authority need
 consumer acceptance. Build, contract, replay, reload and live gameplay remain
 separate proof levels.
+
+For native departure holds require `cast-departure-hold:1`; use `Movement.V1.RequestDepartureHold/ClearDepartureHold` and the [compiled BCL example](examples/BossModV1DepartureHold.cs). See the specification for route validation, pending/application evidence and bounds.

@@ -42,7 +42,7 @@ assembly reference, WPos adapter, pointer, reflected manager, or mutable map.
 `families`, `limits`, and an explicit `unsupported` list. A consumer must check
 the family it needs instead of inferring support from a plugin release number.
 Currently the advertised families are `frame-stages`, `goal-scoring`,
-`movement-observation`, `controller-input-provenance`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
+`movement-observation`, `controller-input-provenance`, `automatic-input-pacing`, `cast-departure-hold`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
 `arena-geometry`, `native-default-terrain-frame`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
 `mechanic-observation`, `current-native-projection`, `counterfactual-projection-geometry`, `native-knockback-landing-constraints`,
@@ -953,16 +953,91 @@ use native publication/query identities; a completed map is now separate from
 the active worker context. No compatibility claim is made for private-field
 reflection or for its old completion heuristic.
 
-Preset selection leases, cast-departure holds/
-ingress/destination preferences and contributed projected constraints remain
+Preset selection leases, ingress/destination preferences and contributed
+projected constraints remain
 explicitly unsupported. The general `control-leases` umbrella is not advertised.
+
+## Bounded native cast-departure holds
+
+Require **`cast-departure-hold:1`** independently. This is a supported replacement
+for suppressing normal-navigation `ForcedMovement` while an escape route still
+permits waiting. The operation owns neither cast selection nor cast permission.
+Native `MaxCastTime`, cancellation, encounter assignments and manual control stay
+authoritative. Existing native cast holding needs no consumer override.
+
+`BossMod.Movement.V1.RequestDepartureHold: Func<string,string>` accepts only an
+exact fresh native `movement-proposed` callback context and a live owner:
+
+```json
+{"context":{"schemaVersion":1,"instanceGeneration":"provider","frameId":42,"stage":"movement-proposed"},"ownerToken":"registered","generation":123,"leaseMs":100}
+```
+
+`generation` is the current native navigation publication used by
+`nativeControllerDecision`. The lease is 1–100 ms, starts at that controller
+observation and cannot exceed the navigation source's original 250 ms lifetime.
+No direction, destination, raw scale, cast duration or renewal is accepted.
+There are four combined pacing/hold attempts and one accepted input adjustment
+per frame across all owners. The first owner cannot be replaced by another.
+
+BMR requires its unadjusted complete maximum-goal witness and revalidates the
+entire route against current physical coverage, temporary obstacles and timed
+warnings, including the actual footprint and source/current minimum model speed.
+Validation assumes **zero progress for the whole lease**, live observation age,
+native activation cushion and 0.25 s extra margin. Native remaining route leeway
+must also retain the lease, observation age and 0.1 s reserve. Both are required;
+no cast finish/damage timestamp is treated as an exact server deadline.
+
+Unlike optional travel pacing, holds may be requested during combat, while a
+cast is queued/live, and when damage is predicted. These facts grant no casting
+or mitigation permission: native cast-cancel/hold flags or insufficient
+`MaxCastTime` reject. Manual input, dead/destroyed/mounted/cutscene players,
+follow ownership/path, pending knockbacks, flight, special modes, forbidden
+facing, interaction/jump, automatic pause, authored forced movement, changed
+controller direction, incomplete/adjusted/teleporter routes, stale source,
+unknown distance bounds or insufficient deadlines reject. The native bounded
+route evaluator applies; no navigation worker is waited on or rebuilt.
+
+Acceptance returns `accepted:true`, `context`, `proofId`,
+`status:"pending-native-application"`, `kind:"departure-hold"`, `scale:0`,
+`sourceNavigationGeneration`, `maxLeaseMs:100`, `worstCasePauseSeconds`,
+`timingModel:"zero-progress-for-entire-lease-then-native-model-speed"` and
+`castPermissionGranted:false`. It is only a pending proof. After all callbacks,
+BMR revalidates and arms against the exact native instance/frame/direction
+assignment. The native input branch can then output zero only for that unchanged
+automatic assignment. Raw manual, follow-path, misdirection, blocked input or a
+replacement assignment immediately revoke the proof and preserve native input.
+No authored hint/direction/goal, player speed, saved setting or cast flag changes.
+
+A new native world update retires the proof before actor/hint mutation. Lease/
+owner/scope expiry, cleanup and provider disposal restore ordinary native input
+without another consumer callback. A newly queued cast alone does not revoke a
+hold; native blocking/cancellation still wins. Each later frame needs a new
+validation; there is no hold-renew API. `Movement.V1.GetSnapshot` publishes
+nullable `automaticDepartureHold` with proof/source generation, requested lease,
+status and state (0 pending, 3 arming, 1 armed, 2 revoked). `movement-applied`
+means native assignment, not proof of input suppression. A later matching
+`inputObservation.pacingProofId` with `automaticPaceScale:0` and zero output is
+sampled native input evidence, never physical/gameplay acceptance.
+
+`Movement.V1.ClearDepartureHold: Func<string,string>` accepts
+`{schemaVersion:1,instanceGeneration,ownerToken}` outside a stage callback, as
+unload cleanup. It shares the owner-scoped input-adjustment gate with
+`ClearPace`: either clears that owner's pending/armed hold or pace, never another
+owner's. Failed cleanup remains explicit; unregister/expiry still revoke it.
+
+The [BCL-only example](examples/BossModV1DepartureHold.cs) accepts the request and
+clear delegates. `TryRequest(context, ownerToken, navigationGeneration, leaseMs)`
+tracks a pending proof only; `Clear()` is explicit cleanup. Rebind after reload.
+This family does not implement stable destinations or duty ingress and does not
+establish consumer migration or live cast-sensitive gameplay acceptance.
 
 ## Bounded native automatic-input pacing
 
 `automatic-input-pacing:1` is independent of configuration leases and the still
 unsupported general movement-preferences family. It supports short, out-of-combat
-travel pacing through the native NormalMovement controller. Stable destinations,
-cast-departure holds, ingress and general movement setters remain unsupported.
+travel pacing through the native NormalMovement controller. The separate departure
+hold capability below supports bounded validated holds. Stable destinations,
+ingress and general movement setters remain unsupported.
 
 `Movement.V1.RequestPace: Func<string,string>` accepts only a fresh native
 **`movement-proposed`** callback context and a separately renewed integration
@@ -1231,7 +1306,7 @@ remain outside this issue.
 | `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer reports native recipient adoption; live overlap/party-change acceptance remains open |
 | `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Consumer reports native current-update effect adoption; preserve drop/completeness handling and verify live behavior |
 | Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Consumer reports scoped control adoption; historical saved-state repair and durable hallway policy across preset transitions remain unsupported |
-| Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | Bounded native automatic-input pacing; no general movement setter | Consumer reports pending-stage native pacing adoption; stable destinations, cast-departure holds, duty ingress and actual input/live acceptance remain open |
+| Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | Bounded native automatic-input pacing and independently advertised route-validated departure holds; no general movement setter | Consumer reports pacing adoption; departure-hold adoption, stable destinations, duty ingress and actual input/live acceptance remain open |
 | `BossModFateArenaFrame` center/terrain-region writes | `native-default-terrain-frame:1` aligns the inherited SimpleBossModule default search window with its matching terrain lattice; `Arena.V1` reports current attribution | Remove reflected rewrites for this scope; custom overrides, missing/incompatible terrain, complete obstacle identity/coverage and live acceptance remain explicit limits |
 | Stack masks, redundant tank-facing and additional projected constraints | Native defects have not been established by this contract work | Gather evidence, preserve user opt-outs, then implement justified native behavior/capability or a narrowly validated lease; do not clone existing workarounds blindly |
 
@@ -1439,3 +1514,21 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   lifecycle/batch bounds. Compilation passed with zero errors and six existing
   obsolete-gauge warnings. This is offline contract evidence, separate from
   runtime reload and representative live gameplay acceptance.
+
+
+### Native departure-hold checkpoint, 2026-10-17
+
+- Added independently advertised `cast-departure-hold:1` and versioned
+  request/clear endpoints. Reuses complete native route/deadline validation with
+  a zero-progress model, preserving urgent native movement, cast cancellation,
+  assignments, physical coverage and manual/special input ownership. The
+  existing travel-pacing scope remains out of combat. Both native input leases
+  now retire before the next world update mutates actors or hints.
+- Release compilation passed with zero errors and six existing obsolete-gauge
+  warnings. All 19 suites passed against one pinned artifact: 8,453 checks,
+  including 2,321 integration assertions. The 32 additional assertions cover
+  actual combat request/finalization/assignment/input behavior, warning/deadline
+  and unknown-obstacle rejection, late cancellation, manual takeover, expiry,
+  frame retirement and the compiled BCL consumer. These tests execute no live
+  game hooks/actions. Consumer adoption and live cast-sensitive gameplay remain
+  separate acceptance work.

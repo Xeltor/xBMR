@@ -99,6 +99,18 @@ static partial class Checks
         ticket = Ticket(); Check(gate.Queue(ticket) && gate.Arm(ticket, assignment), "concurrent-clear fixture armed");
         Task.Run(() => gate.ClearOwner("owner")).GetAwaiter().GetResult();
         Check(Apply().Scale == 1 && gate.Current == null, "consumer unload cleanup may cancel from another thread");
+        foreach (var holdScale in new[] { 0f, 0.5f })
+        {
+            var hold = new IntegrationPacing.Ticket("hold", "owner", "provider", 1, 17, direction, holdScale, now + 100, () => true, true);
+            if (holdScale != 0) Check(!gate.Queue(hold), "a departure-hold proof cannot smuggle a different pace scale");
+            else
+            {
+                Check(gate.Queue(hold) && gate.Arm(hold, assignment), "the distinct provider hold proof arms against an exact native assignment");
+                Check(Apply().Output == default && Apply().Scale == 0, "departure proof outputs zero automatic input until its monotonic deadline");
+                now += 100;
+                Check(Apply().Scale == 1 && gate.Current == null, "a departure hold expires without a new framework frame");
+            }
+        }
         using var context = JsonDocument.Parse("{\"schemaVersion\":1,\"instanceGeneration\":\"provider\",\"frameId\":1,\"stage\":\"movement-proposed\"}");
         var requests = 0; var mayClear = false;
         var consumer = new BossModV1AutomaticPace(request =>
@@ -115,6 +127,19 @@ static partial class Checks
                 "consumer unload cleanup is scoped to its provider instance");
             return JsonSerializer.Serialize(new { accepted = mayClear });
         });
+        var holdRequests = 0;
+        var holdConsumer = new BossModV1DepartureHold(payload =>
+        {
+            ++holdRequests; using var parsed = JsonDocument.Parse(payload);
+            Check(!parsed.RootElement.TryGetProperty("scale", out _) && parsed.RootElement.GetProperty("generation").GetInt64() == 17,
+                "compiled hold consumer submits no raw input scale or direction");
+            return "{\"accepted\":true,\"kind\":\"departure-hold\",\"scale\":0,\"sourceNavigationGeneration\":17,\"castPermissionGranted\":false,\"proofId\":\"pending-hold\"}";
+        }, _ => "{\"accepted\":true}");
+        Check(!holdConsumer.TryRequest(context.RootElement, "owner", 17, 101) && holdRequests == 0,
+            "compiled hold consumer bounds its lease before IPC");
+        Check(holdConsumer.TryRequest(context.RootElement, "owner", 17) && holdConsumer.ProofId == "pending-hold",
+            "compiled hold consumer preserves pending proof without claiming application");
+        Check(holdConsumer.Clear() && holdConsumer.ProofId == null, "compiled hold cleanup relinquishes its owner-scoped input adjustment");
         Check(!consumer.TryRequest(context.RootElement, "owner", 17, 1.1f) && requests == 0, "consumer rejects speed increases before IPC");
         Check(consumer.TryRequest(context.RootElement, "owner", 17, 0.5f) && consumer.ProofId == "pending-proof",
             "consumer tracks acknowledgement as a pending proof rather than applied physical movement");

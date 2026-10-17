@@ -31,6 +31,7 @@
     <Compile Include="../../docs/examples/BossModV1StrategyLease.cs" Link="BossModV1StrategyLease.cs" />
     <Compile Include="../../docs/examples/BossModV1ModuleLease.cs" Link="BossModV1ModuleLease.cs" />
     <Compile Include="../../docs/examples/BossModV1CastControl.cs" Link="BossModV1CastControl.cs" />
+    <Compile Include="../../docs/examples/BossModV1DepartureHold.cs" Link="BossModV1DepartureHold.cs" />
     <Compile Include="../../docs/examples/BossModV1AutomaticPace.cs" Link="BossModV1AutomaticPace.cs" />
     <Compile Include="../../docs/examples/BossModV1MovementProvenance.cs" Link="BossModV1MovementProvenance.cs" />
     <Compile Include="../../docs/examples/BossModV1ProjectionGeometry.cs" Link="BossModV1ProjectionGeometry.cs" />

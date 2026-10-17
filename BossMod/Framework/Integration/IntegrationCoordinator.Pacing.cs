@@ -6,15 +6,16 @@ namespace BossMod.Integration;
 internal sealed partial class IntegrationCoordinator
 {
     internal sealed record PaceRequest(IntegrationSession.Context Context, string OwnerToken, long Generation, float Scale, int LeaseMs);
+    internal sealed record DepartureHoldRequest(IntegrationSession.Context Context, string OwnerToken, long Generation, int LeaseMs);
     private sealed record PendingPace(PaceRequest Request, IntegrationMovementDecision Decision, IntegrationPacing.Ticket Ticket, string Scope);
     private PendingPace? _pendingPace;
     private int _paceAttempts;
     private string? _paceResult;
 
-    private bool PacingOwnerLive(Func<bool> ownerAlive, string scope)
+    private bool PacingOwnerLive(Func<bool> ownerAlive, string scope, bool departureHold)
     {
         var observation = System.Threading.Volatile.Read(ref _controlObservation);
-        return ownerAlive() && !System.Threading.Volatile.Read(ref amex.MoveMightInterruptCast)
+        return ownerAlive() && (departureHold || !System.Threading.Volatile.Read(ref amex.MoveMightInterruptCast))
             && observation is { Allowed: true } && observation.Scope == scope
             && (Stopwatch.GetTimestamp() - observation.Timestamp) / (double)Stopwatch.Frequency < 0.25;
     }
@@ -26,19 +27,23 @@ internal sealed partial class IntegrationCoordinator
     }
 
     private string? ValidatePace(PaceRequest request, IntegrationMovementDecision decision)
+        => ValidateMovementPause(request, decision, false);
+
+    private string? ValidateMovementPause(PaceRequest request, IntegrationMovementDecision decision, bool departureHold)
     {
         var player = World.Party.Player();
-        if (!Session.CanContribute || !Session.IsOwnerActive(request.OwnerToken) || !ControlsAllowed() || player is not { InCombat: false }
-            || ai.Beh != null || player.CastInfo is { EventHappened: false } || amex.MoveMightInterruptCast
+        if (!Session.CanContribute || !Session.IsOwnerActive(request.OwnerToken) || !ControlsAllowed() || player is not { IsDestroyed: false }
+            || ai.Beh != null || (!departureHold && (player.InCombat || player.CastInfo is { EventHappened: false } || amex.MoveMightInterruptCast))
             || player.PendingKnockbacks.Count != 0 || World.Client.Flying || movement.FollowPathActive()
             || hints.ImminentSpecialMode.mode != AIHints.SpecialMode.Normal || hints.ForbiddenDirections.Count != 0
-            || hints.PredictedDamage.Count != 0 || hints.ForceCancelCastMechanic || hints.ForceCancelCastOther || hints.HoldCasts
+            || (!departureHold && hints.PredictedDamage.Count != 0) || hints.ForceCancelCastMechanic || hints.ForceCancelCastOther || hints.HoldCasts
             || ai.Controller.ForceCancelCastMechanicAI || ai.Controller.ForceCancelCastOtherAI
             || hints.InteractWithTarget != null || hints.WantJump || _encounterMovement != null || !hints.GoalZonesEnabled)
             return "native-control-cast-combat-or-mechanic-pressure";
-        for (var slot = 0; slot < PartyState.MaxAllies; ++slot)
-            if (World.Party[slot]?.InCombat == true) return "party-in-combat";
-        if (hints.PotentialTargets.Count > AIHints.NumEnemies || hints.PotentialTargets.Any(t => t.Priority >= 0 && t.Actor.InCombat))
+        if (!departureHold)
+            for (var slot = 0; slot < PartyState.MaxAllies; ++slot)
+                if (World.Party[slot]?.InCombat == true) return "party-in-combat";
+        if (hints.PotentialTargets.Count > AIHints.NumEnemies || (!departureHold && hints.PotentialTargets.Any(t => t.Priority >= 0 && t.Actor.InCombat)))
             return "native-target-engagement";
         var now = Stopwatch.GetTimestamp();
         var frameAge = (now - World.LiveFrameObservedTimestamp) / (double)Stopwatch.Frequency;
@@ -78,10 +83,20 @@ internal sealed partial class IntegrationCoordinator
 
     internal string RequestPace(string json)
     {
-        var request = IntegrationSession.Parse<PaceRequest>(json);
+        return RequestMovementPause(IntegrationSession.Parse<PaceRequest>(json), false);
+    }
+
+    internal string RequestDepartureHold(string json)
+    {
+        var request = IntegrationSession.Parse<DepartureHoldRequest>(json);
+        return RequestMovementPause(request == null ? null : new(request.Context, request.OwnerToken, request.Generation, 0, request.LeaseMs), true);
+    }
+
+    private string RequestMovementPause(PaceRequest? request, bool departureHold)
+    {
         if (request == null || !Session.Matches(request.Context) || !Session.CanContribute || request.Context.Stage != "movement-proposed"
             || string.IsNullOrEmpty(request.OwnerToken) || !Session.IsOwnerActive(request.OwnerToken)
-            || !float.IsFinite(request.Scale) || request.Scale is < IntegrationPacing.MinScale or > 1
+            || !float.IsFinite(request.Scale) || (departureHold ? request.Scale != 0 : request.Scale is < IntegrationPacing.MinScale or > 1)
             || request.LeaseMs is < 1 or > IntegrationPacing.MaxLeaseMs || ++_paceAttempts > 4)
             return Unavailable("invalid-or-bounded-out-pace-request");
         if (_pendingPace != null || hints.IntegrationMovementDecision is not { } decision) return Unavailable("no-native-decision-or-pace-already-submitted");
@@ -89,7 +104,7 @@ internal sealed partial class IntegrationCoordinator
         if (epoch == null) return Unavailable("pace-owner-work-limit");
         try
         {
-            var rejection = ValidatePace(request, decision);
+            var rejection = ValidateMovementPause(request, decision, departureHold);
             if (rejection != null) return Unavailable(rejection);
             var scope = ControlScope();
             var alive = Session.CaptureOwnerLiveness(request.OwnerToken);
@@ -97,13 +112,13 @@ internal sealed partial class IntegrationCoordinator
             var expires = Math.Min(decision.CapturedTimestamp + (long)(request.LeaseMs / 1000d * Stopwatch.Frequency),
                 decision.Navigation.Source.CapturedTimestamp + Stopwatch.Frequency / 4);
             var ticket = new IntegrationPacing.Ticket(Guid.NewGuid().ToString("N"), request.OwnerToken, Session.InstanceGeneration,
-                Session.FrameId, request.Generation, decision.Direction, request.Scale, expires, () => PacingOwnerLive(alive, scope));
+                Session.FrameId, request.Generation, decision.Direction, request.Scale, expires, () => PacingOwnerLive(alive, scope, departureHold), departureHold);
             if (!movement.IntegrationPacing.Queue(ticket, epoch)) return Unavailable("pace-expired-cleared-or-already-owned");
             _pendingPace = new(request, decision, ticket, scope); _paceResult = "pending-native-application";
             return IntegrationSession.Serialize(new { accepted = true, context = request.Context, proofId = ticket.Id, status = _paceResult,
-                scale = request.Scale, maxLeaseMs = IntegrationPacing.MaxLeaseMs, sourceNavigationGeneration = request.Generation,
+                kind = departureHold ? "departure-hold" : "automatic-pace", scale = request.Scale, maxLeaseMs = IntegrationPacing.MaxLeaseMs, sourceNavigationGeneration = request.Generation,
                 worstCasePauseSeconds = request.LeaseMs / 1000f, timingModel = "zero-progress-for-entire-lease-then-native-model-speed",
-                analogSpeedRatioVerified = false });
+                analogSpeedRatioVerified = false, castPermissionGranted = false });
         }
         catch (Exception error)
         {
@@ -116,7 +131,7 @@ internal sealed partial class IntegrationCoordinator
     {
         if (_pendingPace is not { } pending) return;
         string? rejection;
-        try { rejection = pending.Scope != ControlScope() ? "changed-scope" : ValidatePace(pending.Request, pending.Decision); }
+        try { rejection = pending.Scope != ControlScope() ? "changed-scope" : ValidateMovementPause(pending.Request, pending.Decision, pending.Ticket.DepartureHold); }
         catch { rejection = "pace-revalidation-unavailable"; }
         if (rejection != null) { movement.IntegrationPacing.Cancel(pending.Ticket); _paceResult = rejection; }
     }

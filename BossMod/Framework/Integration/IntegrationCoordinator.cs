@@ -19,6 +19,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     internal void BeginWorldUpdate()
     {
         Session.BeginWorldUpdate();
+        movement.IntegrationPacing?.Clear();
         hints.ProjectionSourcesRequested = Session.HasActiveOwners;
         hints.ProjectionSourcesContext = null;
         _nativeHintEvidence = null;
@@ -61,7 +62,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         instanceGeneration = Session.InstanceGeneration,
         families = new Dictionary<string, int>
         {
-            ["automatic-input-pacing"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
+            ["automatic-input-pacing"] = 1, ["cast-departure-hold"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
             ["cast-control-observation"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
             ["native-default-terrain-frame"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
@@ -160,11 +161,19 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
                 origin = P(decision.Origin), destination = P(decision.Destination), direction = V(decision.Direction),
                 matchesCurrentHints = hints.EffectiveForcedMovement == decision.Direction
             } : null,
-            automaticPacing = _pendingPace is { } pending ? new { proofId = pending.Ticket.Id, scale = pending.Ticket.Scale,
+            automaticPacing = _pendingPace is { Ticket.DepartureHold: false } pending ? new { proofId = pending.Ticket.Id, scale = pending.Ticket.Scale,
                 status = System.Threading.Volatile.Read(ref pending.Ticket.State) == 2 ? "revoked" : _paceResult,
                 reason = _paceResult,
                 frameId = pending.Ticket.Frame, sourceNavigationGeneration = pending.Ticket.NavigationGeneration } : null,
             controllerLeewaySeconds = Finite(ai.Controller.NaviLeewaySeconds),
+            automaticDepartureHold = _pendingPace is { Ticket.DepartureHold: true } hold ? new
+            {
+                proofId = hold.Ticket.Id, sourceNavigationGeneration = hold.Ticket.NavigationGeneration,
+                requestedLeaseMs = hold.Request.LeaseMs,
+                status = System.Threading.Volatile.Read(ref hold.Ticket.State) == 2 ? "revoked" : _paceResult,
+                state = System.Threading.Volatile.Read(ref hold.Ticket.State),
+                meaning = "bounded zero automatic input on the exact native assignment; no cast or gameplay approval"
+            } : null,
             forceMovementInSeconds = Finite(ai.ForceMovementIn),
             routeTravelSeconds = navigation == null ? null : Finite(navigation.TimeToGoal),
             canInterruptCast = ai.Controller.AllowInterruptingCastByMovement,
