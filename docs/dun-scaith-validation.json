@@ -835,7 +835,7 @@
   "candidate_snapshot": {
     "assembly_sha256": "1dd191496453053518a64fc2883de35ded82566384f20db4650f9e2ef13e89eb",
     "pdb_sha256": "a05477c1e21d5ca3eae44f63ce53274de1f24d901af2bb4b2592b73baeacfeaa",
-    "snapshot_directory": "/tmp/dun-scaith-evidence-20261014/candidate-round15",
+    "snapshot_directory": "candidate-round15",
     "build_success": true,
     "copy_consistent": true,
     "validation_uses_immutable_copy": true
@@ -843,7 +843,7 @@
   "normal_output_matches_validated_candidate": false,
   "normal_output_update_pending": false,
   "shared_output_refresh": {
-    "compiler_command_receipt": "/tmp/dun-scaith-evidence-20261014/round15-build.log",
+    "compiler_command_receipt": "round15-build.log",
     "validation_uses_immutable_build": true
   },
   "source_manifest_file_count": 49,

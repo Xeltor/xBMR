@@ -11,7 +11,7 @@ This bounded inventory selects hostile NPC/helper cast starts and actions from e
 | A35Diabolos | 10 |
 | A36DiabolosHollow | 22 |
 
-Original source SHA256: `55e6a6363ba7cc262658903c46e164d786cb543e2d1a6a3f89cb6474e1dcf0cf`. Private full numeric inventory: `/tmp/dun-scaith-evidence-20261014/all-boss-action-inventory-round14.json`, SHA256 `ae7a04ac8271ff85969f69d9856cc574b8b3a2a09df612aecbd045e6d55fcf3d`. The source-reference classifier is only a search aid: actor-object handlers and paired visual/helper actions can be supported without referring to every action ID. Autoattack exclusions are explicit and do not validate their cone/target behavior.
+Original source SHA256: `55e6a6363ba7cc262658903c46e164d786cb543e2d1a6a3f89cb6474e1dcf0cf`. Private full numeric inventory: `all-boss-action-inventory-round14.json`, SHA256 `ae7a04ac8271ff85969f69d9856cc574b8b3a2a09df612aecbd045e6d55fcf3d`. The source-reference classifier is only a search aid: actor-object handlers and paired visual/helper actions can be supported without referring to every action ID. Autoattack exclusions are explicit and do not validate their cone/target behavior.
 
 This pass exposed the omitted Unhand cast, duplicate visual Omen damage predictions, missing gate instructions and absent bit-donut warning. They are corrected in the current candidate and validated separately. Phase1 Void Call now has actual-cast urgency and earliest-eligible-summon target preferences, validated against both recorded pairs. Instant damage actions without a reliable earlier cue, unobserved variants and physical boundaries remain separate unresolved requirements.
 

@@ -15,7 +15,7 @@
     "digest_encoding": "UTF-8 compact sorted-key JSON of path-to-file-SHA256 map"
   },
   "assembly_sha256": "c3a8516cd81353c258600be9e8d6ee159236369decb4a43be561fa777fd87399",
-  "output_path": "/home/xeltor/Projects/xBMR/BossMod/bin/Release/BossModReborn.dll",
+  "output_path": "BossMod/bin/Release/BossModReborn.dll",
   "sdk": "10.0.401",
   "dalamud": "API15 development assemblies",
   "build": {

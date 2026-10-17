@@ -152,7 +152,7 @@ or a native parse of the same original is not a holdout.
    destruction and replacement, check all eight future deadlines and union
    feasibility, retain normal-completion warnings through actual effects, and
    reject stale-generation callbacks. Private reproducible receipts are
-   `/tmp/dun-scaith-evidence-20261014/ferdiad-audit/audit-receipt.json` and
+   `audit-receipt.json` and
    `blackfire-safe-space.json`, derived from the byte-identical complete original
    with native parser MVID828c299e-47d5-4a38-88d5-44db3611e480,1,890,796 entries.
 
@@ -247,7 +247,7 @@ The current archive inventory was checked again and retains only game version
 2026.09.15.0000.0000 for Action, mesh, parameter and graph evidence. This extraction
 instead uses the installed recording-matching game2026.10.06.0000.0000. Private
 facts and provenance are in
-`/tmp/dun-scaith-evidence-20261014/proto-bit-audit/research-receipt.json`, with the
+`research-receipt.json`, with the
 complete bounded mesh/parameter/graph inventories alongside it. Different-fight
 Action8283 in Ala Mhigo is deliberately not used to establish7582's world radii.
 
