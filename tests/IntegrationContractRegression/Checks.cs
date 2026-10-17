@@ -50,6 +50,9 @@ static partial class Checks
         NativeAutomaticPacing();
         NativeControllerProvenance();
         MovementProvenanceConsumer();
+        CounterfactualProjections();
+        NativeProjectionPoses();
+        NativeHintPublications();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 

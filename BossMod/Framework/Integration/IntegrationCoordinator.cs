@@ -13,9 +13,14 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     private WorldState World => bossmod.WorldState;
     private Vector3? _encounterMovement;
     private DateTimeOffset _observedUtc;
+    private IntegrationHintEvidence? _nativeHintEvidence;
     private sealed record TargetIntent(AIHints.Enemy Entry, WPos? Position, Angle? Rotation, string Source);
     private TargetIntent[] _authoredTargetIntent = [];
-    internal void BeginWorldUpdate() => _effects.BeginUpdate();
+    internal void BeginWorldUpdate()
+    {
+        _nativeHintEvidence = null;
+        _effects.BeginUpdate();
+    }
 
     internal void HintsReady()
     {
@@ -29,6 +34,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         _observedUtc = DateTimeOffset.UtcNow;
         Session.BeginFrame(ControlScope(),
             player is { IsDead: false } && !movement.IsMoveRequested() && !hints.AutomaticMovementPaused);
+        _nativeHintEvidence = new(Session.CurrentContext, hints.GoalZones.Count);
         hints.IntegrationGoals = new(Session, hints.GoalZones.ToArray());
         Session.Publish("hints-ready", Snapshot);
     }
@@ -56,6 +62,8 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
             ["mechanic-observation"] = 1, ["current-native-projection"] = 1,
+            ["counterfactual-projection-geometry"] = 1,
+            ["native-goal-presence"] = 1, ["dash-policy-observation"] = 1, ["target-aggro-observation"] = 1,
             ["module-catalog"] = 1, ["module-enablement-leases"] = 1, ["transient-strategy-leases"] = 1, ["configuration-leases"] = 1, ["directional-angle-scopes"] = 1, ["follow-control"] = 1
         },
         limits = new { owners = IntegrationSession.MaxOwners, goalsPerOwner = IntegrationSession.MaxGoalsPerOwner,
@@ -63,6 +71,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             rasterCells = NavigationRaster.MaxCells, rasterWindowCells = NavigationRaster.MaxWindowCells,
             searchJobs = 4, runningSearches = 1, searchCells = IntegrationSearch.MaxCells,
             automaticPaceLeaseMs = IntegrationPacing.MaxLeaseMs, automaticPaceMinScale = IntegrationPacing.MinScale,
+            counterfactualPoses = IntegrationCounterfactualProjection.MaxPoses,
             routes = IntegrationRoutes.MaxRoutes, routePoints = IntegrationRoutes.MaxPoints, routeEvaluations = 8192, routeBudgetMs = 4 },
         unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "validated-movement-preferences", "projected-constraints" }
     });
@@ -168,6 +177,11 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             specialMode = hints.ImminentSpecialMode.mode.ToString(),
             specialModeActivationTicks = T(hints.ImminentSpecialMode.activation),
             goalZonesEnabled = hints.GoalZonesEnabled,
+            nativeHintGoalCount = _nativeHintEvidence?.CountFor(context),
+            hasNativeHintGoals = _nativeHintEvidence?.HasGoalsFor(context),
+            nativeHintGoalScope = IntegrationHintEvidence.GoalScope,
+            nativeHintGoalObservedStage = "hints-ready",
+            forbidDashes = hints.ForbidDashes,
             forbiddenZones = hints.ForbiddenZones.Count,
             forbiddenDirections = hints.ForbiddenDirections.Count,
             temporaryObstacles = hints.TemporaryObstacles.Count,
@@ -203,6 +217,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             desiredRotationProvenance = TargetIntentSource(t, rotation: true), desiredPositionProvenance = TargetIntentSource(t, rotation: false),
             targetRequirement = t.ExplicitTargetRequirement, requirementMeaning = "null=producer-has-not-specified; true=required; false=explicitly-not-required",
             targetId = t.Actor.TargetID.ToString("X"), t.Actor.FateID, t.ShouldBeInterrupted, t.ShouldBeStunned,
+            aggroPlayer = IntegrationHintEvidence.AggroPlayer(t.Actor),
             cast = IntegrationCastControl.ObserveCast(t.Actor.CastInfo, World.CurrentTime)
         }).ToArray()
     }));

@@ -17,14 +17,14 @@ the xBMR implementation deliverable.
 
 | Requirement | Current implementation | Remaining acceptance |
 | --- | --- | --- |
-| 1. Capabilities, stages, goals | Versioned discovery, expiring owners, three BMR-owned stages, scoring surfaces, native score queries, priority composition | Exercise through a real IPC consumer; migrate XCAI's draw wrapper and goal adapters; performance validation |
+| 1. Capabilities, stages, goals | Versioned discovery, expiring owners, three BMR-owned stages, scoring surfaces, native score queries, priority composition; XCAI reports production native frame/goal adoption | Real runtime IPC/performance acceptance and remaining consumer work; reported source adoption is distinct from live delivery |
 | 2. Coherent movement | Stage-bound observation; native NormalMovement/follow controller outcomes; distinct search, controller, native override-assignment and input-read identities, including interaction/pause suppression | XCAI adoption, later-hook visibility and representative live correction/input acceptance; provenance is not route safety |
 | 3. Navigation/raster/timed routes | Copied raster windows, raw warning limits, native fallback classification, complete current walk-route validation; bounded asynchronous native detour/nearest-safe-raster candidates | Continuous nearest-safe/ingress semantics, more distance/projection support, production migration and live route acceptance |
 | 4. Rich arena | Logical containment, signed clearance, boundary and inset candidates; circle/rotated rectangle/custom contours and holes; explicit current projection layer | Route-validated ingress, complete obstacle provenance/generation and consumer migration |
 | 5. Targets | Bounded policy/geometry/cast observation, native cast identities/deadline estimates and producer-recorded zone links, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, additional cast-linked producers and migration |
-| 6. Mechanics/projection | Bounded native generic publications, explicit coverage/later-pulse gaps, actual-pose native knockback/march observation preserving DestinationUnsafe, filtered source identity and activation | Counterfactual/independent-hazard/recovery safety, richer applicability and migration |
+| 6. Mechanics/projection | Bounded native publications, actual-pose observations and bounded counterfactual geometry for unchanged SimpleKnockbacks providers and GenericForcedMarch; native filtering/order/walls retained | Independent-hazard/recovery safety, custom pose-dependent source providers, full counterfactual safety/applicability and migration |
 | 7. Damage/effects | Full bounded damage list with same-observation party mapping/world time, copied recipient identities and explicit resolution completeness; bounded current-update action effects | Consumer migration and representative live overlap/party-change acceptance |
-| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, bounded native automatic-input pacing, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Preset-selection leases, validated movement preferences, additional constraints and other justified native corrections; consumer/live module-toggle acceptance |
+| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, bounded native automatic-input pacing, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Historical saved-module repair with explicit user/revision safeguards; durable user-owned hallway policy across preset transitions; other validated movement/constraint contracts and justified native fixes |
 
 No complete reflection-removal or live gameplay acceptance claim is made by this
 ledger. Unsupported fields remain null or explicitly unknown. In particular a
@@ -45,7 +45,8 @@ Currently the advertised families are `frame-stages`, `goal-scoring`,
 `movement-observation`, `controller-input-provenance`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
 `arena-geometry`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
-`mechanic-observation`, `current-native-projection`,
+`mechanic-observation`, `current-native-projection`, `counterfactual-projection-geometry`,
+`native-goal-presence`, `dash-policy-observation`, `target-aggro-observation`,
 `configuration-leases`, `transient-strategy-leases`, `module-catalog`, `module-enablement-leases`,
 `directional-angle-scopes`, and `follow-control`, each
 version 1.
@@ -284,6 +285,39 @@ chose that transform. `targetRequirement` is null until a native producer sets
 `ShouldBeTargeted`; true/false preserve an explicit requirement/no-requirement.
 False alone does not mean forbidden: priority/eligibility remain authoritative.
 Cast remaining time is not a proven server interrupt deadline.
+
+### Native goal presence, dash policy and target aggro
+
+These observations close the source-contract gaps reported in
+[the consumer publication request](https://github.com/Xeltor/xBMR/issues/1#issuecomment-6233307190).
+Require each family independently:
+
+- `native-goal-presence:1`: movement fields `nativeHintGoalCount`,
+  `hasNativeHintGoals`, `nativeHintGoalScope`, and
+  `nativeHintGoalObservedStage`. Count/presence are nullable if a matching native
+  capture is unavailable. Capture happens at `hints-ready`, before integration
+  scorers and native rotation/follow additions. The same captured count survives
+  later stages of that frame, independent of `goalZonesEnabled`. Scope is
+  `native-hints-before-integration-and-rotation`: encounter, zone or automatic
+  hint-builder goals, including any native diagnostic goals at that boundary.
+  It does not attribute each goal to a specific component or claim all goals
+  are mandatory assignments. Zero-valued scorers still count. Never infer an
+  empty list from evaluated scores or from an enabled flag.
+- `dash-policy-observation:1`: movement `forbidDashes` copies the current native
+  `AIHints.ForbidDashes` boolean at the requested stage. True forbids the
+  dependent dash optimization. False only means that this flag does not forbid
+  it; native action/cast/manual/route/assignment checks and supported dash-safety
+  queries remain necessary. An absent field/family is unknown, never permission.
+- `target-aggro-observation:1`: each bounded `Hints.V1.GetTargets` entry has
+  nullable `aggroPlayer`, copied from `Actor.AggroPlayer`. It describes the native
+  world model's player enemy-list/enmity observation, independently of
+  `targetId`. A retained destroyed actor returns null; missing targets, absent
+  fields/families and unavailable/truncated publications remain unknown. It
+  does not fabricate an extra freshness or completeness guarantee for the game
+  UI's observation source. Require true for positive membership evidence.
+
+Use the existing movement/target endpoints and exact context; their signatures
+are unchanged. Treat `available:false` and missing/null evidence as unavailable.
 
 ### Native cast identity and linked point observations
 
@@ -647,6 +681,76 @@ activation is model timing, not proof of the server snapshot or last-safe move.
 complete safety have not been evaluated. Even an empty movement list or false
 `nativeDestinationUnsafe` cannot approve a mobility action or immunity choice.
 
+### Native counterfactual projection geometry
+
+Require `counterfactual-projection-geometry:1` independently. The new
+`Mechanics.V1.ProjectPoses: Func<string,string>` accepts:
+
+```json
+{"context":{"schemaVersion":1,"instanceGeneration":"provider","frameId":42,"stage":"hints-ready"},"componentId":"<current component identity>","poses":[{"position":[100,100],"facing":0},{"position":[102,100],"facing":1.5707964}]}
+```
+
+Use the exact fresh native callback context at any of the three stages.
+`Mechanics.V1.GetSnapshot` lists `counterfactualGeometrySupported` for each
+component; the opaque component identity must still exist in the active module.
+There are 1–4 poses, planar `[x,z]` positions within 256 yalms of the actual
+actor and coordinate magnitude at most 1,000,000; facing is finite radians in
+`[-2*pi,2*pi]`. Missing/dead player, inactive/replaced component, invalid schema,
+thread/frame/instance mismatch, unsupported sources, invalid output or exhausted
+4 ms cooperative query budget returns `available:false`. Partial batches are
+never returned as complete results.
+
+Supported source selection is the unchanged native `SimpleKnockbacks.ActiveKnockbacks`
+implementation, including subclasses which inherit it. A subclass overriding
+that method is explicitly unsupported: its source selection may depend on the
+actor pose or identity. `GenericForcedMarch` uses its native pending/active
+state. Knockback inputs are capped at 32 sources; march inputs at 32 pending
+legs plus an optional active remainder. Native `MaxCasts`, activation limits,
+immunity and IgnoreImmunes, source shape/layer participation, minimum pull
+distance, safe walls, solid-wall clipping, heading overrides and sequence order
+remain authoritative. Geometry shares the existing native calculation path;
+neither actor pose nor live hints are cloned or changed.
+
+Only horizontal position/facing are hypothetical. Actor identity, height,
+projection layer, statuses, hitbox and immunity are the actual actor's current
+native context. This does not simulate a layer transition, acquiring an immunity,
+reaching a preparation position, or changing a server-controlled active march.
+
+Each result echoes its `position`/`facing` and contains ordered `movements` with
+`from`, `to`, nullable projected facing, activation/end ticks, native source or
+pending index, and layer/restriction. A source filtered by immunity/shape/layer
+does not shift another source's activation/index. Unscheduled times are null;
+an active march is a remaining segment from current BMR world time. Use the
+same-context movement snapshot's world clock when interpreting ticks. Knockback
+end time remains unknown. No server snapshot or safe departure time is inferred.
+
+`nativeDestinationUnsafe` calls the component's native rule for each landing.
+`nativeDestinationContext` distinguishes `native-base-arena-rule` from
+`native-override-with-actual-actor-context`. A custom override receives the real
+actor and hypothetical landing; it does not receive a fabricated starting pose
+or facing. Its false result is not complete safety at the hypothetical pose.
+
+Per-pose `status` is `projected` or `no-published-displacement`. The latter can
+mean immunity, applicability, publication limits or no current native movement;
+it is not an empty complete mechanic forecast. Overall `status` remains
+`unknown`, with `independentHazardsEvaluated:false` and
+`recoveryReachabilityEvaluated:false`. Native projection constraints are never
+removed, and no independent hazards are filtered. Geometry alone cannot approve
+walking, mobility, landing/recovery safety or an immunity choice. The older
+`EvaluateMovement` endpoint keeps its actual-pose-only behavior.
+
+The [compiled BCL reader](examples/BossModV1ProjectionGeometry.cs) validates
+transport/context and returns geometry observations, including native rule scope:
+
+```csharp
+var geometry = new IntegrationExample.BossModV1ProjectionGeometry(
+    pi.GetIpcSubscriber<string, string>("BossMod.Mechanics.V1.ProjectPoses").InvokeFunc);
+// Inside a fresh native callback, after family/component discovery:
+var candidates = geometry.TryProject(context, componentId,
+    new[] { new Vector2(100, 100), new Vector2(102, 100) }, new[] { 0f, 1.5707964f });
+// Null means unavailable. Non-null supplies native geometry, never safety approval.
+```
+
 ## Owner-safe settings and follow controls
 
 | Endpoint | IPC signature | Payload |
@@ -958,29 +1062,49 @@ hazards during owner failure without silently changing the user's saved choice.
 Use loaded/active/retention observations rather than assuming release unloads
 a module immediately. The [compile-checked module lease example](examples/BossModV1ModuleLease.cs)
 shows exact state comparison, explicit opt-in for enables, renewal and checked
-release. Production hallway-toggle adoption and live behavior remain unverified.
+release. Reported source adoption and live hallway behavior are separate evidence.
+
+The [consumer's ownership findings](https://github.com/Xeltor/xBMR/issues/1#issuecomment-6233455765)
+identify two additional boundaries. An old consumer-owned saved restoration list
+is not proof of continued ownership of historical persistent module changes.
+Runtime leases do not permanently repair that saved state. Any future explicit
+repair needs current native module identity, current value/revision and actual
+user intent; this implementation does not replay historical setters.
+
+Module leases also inherit the active preset identity in `ControlScope`. A
+preset change revokes them. After such a transition, acquisition of a new
+disable still fails during combat/active native coverage. This is temporary
+ownership semantics, not parity with a durable saved hallway opt-out. A separate
+native user-owned policy or explicit preference flow remains required; do not
+relax active-phase safety or force an unload to reproduce the old behavior.
 
 ## Migration and validation still required
 
-The XCAI consumer repository remains unchanged at this stage. Replacing a goal
-setter alone does not remove its draw/frame wrapper. Its movement safety,
-route/raster, custom arena, target/tank/cast, mechanic forecast/projection,
-damage/effect, follow/module/settings, movement pacing/hold and native-workaround
-families remain tracked by the delivery ledger. RSR-specific reflection is
-outside this issue.
+This provider task does not edit XCAI. The
+[consumer checkpoint](https://github.com/Xeltor/xBMR/issues/1#issuecomment-6233626398)
+reports production native frame/goal delivery and adoption of supported target,
+damage, cast, effect, positioning, arena/raster/route, directional, follow, module
+and pacing contracts, without reflected fallbacks in replaced paths. It reports
+Debug/Release builds, 388 deterministic policy scenarios and 111 independent
+BCL lifecycle/publication checks. This is reported source/synthetic evidence,
+not independent runtime or live gameplay acceptance. Remaining mechanic exits,
+stack guidance, arrival refinement, knockback/march, cooperative movement and
+native asynchronous-search adoption remain tracked by that consumer. New provider
+observations below do not prove those consumers adopted them. RSR contracts
+remain outside this issue.
 
 | Existing XCAI dependency | Supported replacement now | Residual work / current migration state |
 | --- | --- | --- |
-| `BossModGoalZoneHook` draw replacement, reflected frame updates, private services, `WPos`/goal delegate adapters | Registration, three stage callbacks and BCL scoring delegate | Production consumer remains on legacy wrapper; preserve all safety features until its other dependencies have supported replacements |
-| `BossModMovementIntentReader`, duty/encounter classification and movement diagnostics | Stage snapshots, authored versus proposed/applied direction, selected versus active module; actual async search/build/publication identity | Exact final applied controller/path/follow ownership and physical input publication identity remain incomplete |
-| `BossModReflectionSafety`, `BossModRegroupingNavigation`, `BossModRouteObservation`, raster/knockback recovery navigation | Copied map/route publication and bounded current complete walk-route validation; existing dash/position safety endpoints continue | Continuous nearest-safe/ingress semantics and additional projections remain required; production map/task/semaphore reflection not removed yet |
-| `BossModCustomArenaClearance`, edge/ingress readers and shape adapters | `Arena.V1` geometry descriptors, containment/clearance/boundary/inset candidates | Route-safe ingress and obstacle generations remain unsupported; production reader not yet migrated |
-| `BossModOffensiveTargetHints`, `BossModTankHints`, `BossModCastControlHints`, AoE/FATE target-policy reads | `Hints.V1.GetTargets`, `Hints.V1.GetCastControl`, native cast identity/producer links, hint-boundary transform provenance and nullable explicit requirement | Component-specific default/authored reasons and additional cast-linked producers remain incomplete; native estimates do not prove server interrupt cutoffs; no consumer removal claim |
-| `BossModUpcomingAoeReader`, stack/separation/activity, landing/knockback/forced-march/immunity and learned-safety clones | `Mechanics.V1` bounded generic publications and actual-pose native projections | Whole-encounter coverage, counterfactual/independent-hazard/recovery evaluations still required before migrating dependent optimizations |
-| `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer migration and live overlap/party-change acceptance; offline overlap/identity tests pass |
-| `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Poll from the frame callback and handle dropped/incomplete updates; production subscription not yet replaced |
-| Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Preset-selection leases remain unsupported; honor module acquisition/retention/user-intent semantics during production adoption |
-| Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | Bounded native automatic-input pacing; no general movement setter | Stable destinations, cast-departure holds and duty ingress still require native validated contracts; production pacing hook migration/live input acceptance remain open |
+| `BossModGoalZoneHook` draw replacement, reflected frame updates, private services, `WPos`/goal delegate adapters | Registration, three stage callbacks and BCL scoring delegate | Consumer reports native wrapper replacement; runtime continuous delivery, native safety behavior and remaining consumer migrations still need acceptance |
+| `BossModMovementIntentReader`, duty/encounter classification and movement diagnostics | Stage snapshots, authored versus proposed/applied direction, selected versus active module; actual async search/build/publication identity | Native controller/assignment/read identity is now exposed; adoption of new provenance, later-hook visibility and live correlation remain open |
+| `BossModReflectionSafety`, `BossModRegroupingNavigation`, `BossModRouteObservation`, raster/knockback recovery navigation | Copied map/route publication and bounded current complete walk-route validation; existing dash/position safety endpoints continue | Consumer reports native raster/route adoption; asynchronous-search adoption, continuous nearest-safe/ingress and additional projection safety remain open |
+| `BossModCustomArenaClearance`, edge/ingress readers and shape adapters | `Arena.V1` geometry descriptors, containment/clearance/boundary/inset candidates | Consumer reports authored geometry adoption; route-safe ingress, complete obstacle provenance and live acceptance remain open |
+| `BossModOffensiveTargetHints`, `BossModTankHints`, `BossModCastControlHints`, AoE/FATE target-policy reads | `Hints.V1.GetTargets`, `Hints.V1.GetCastControl`, native cast identity/producer links, hint-boundary transform provenance and nullable explicit requirement | Consumer reports target/cast adoption; new goal/dash/aggro publication use, more exact producer semantics and live acceptance remain open |
+| `BossModUpcomingAoeReader`, stack/separation/activity, landing/knockback/forced-march/immunity and learned-safety clones | `Mechanics.V1` publications, actual-pose projection and bounded native counterfactual geometry | Whole-encounter coverage, custom pose-dependent sources, independent-hazard/recovery safety and remaining mechanic consumers stay open |
+| `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer reports native recipient adoption; live overlap/party-change acceptance remains open |
+| `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Consumer reports native current-update effect adoption; preserve drop/completeness handling and verify live behavior |
+| Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Consumer reports scoped control adoption; historical saved-state repair and durable hallway policy across preset transitions remain unsupported |
+| Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | Bounded native automatic-input pacing; no general movement setter | Consumer reports pending-stage native pacing adoption; stable destinations, cast-departure holds, duty ingress and actual input/live acceptance remain open |
 | Stack masks, redundant tank-facing, FATE pathfinding-frame guards and additional projected constraints | Native defects have not been established by this contract work | Gather evidence, preserve user opt-outs, then implement justified native behavior/capability or a narrowly validated lease; do not clone existing workarounds blindly |
 
 [`examples/BossModV1Consumer.cs`](examples/BossModV1Consumer.cs) is a compile-checked
@@ -1096,3 +1220,26 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   exercised in game. Later third-party hooks, physical displacement/arrival,
   production XCAI migration and representative gameplay remain unverified.
   The issue stays open for residual provider and consumer requirements.
+
+### Counterfactual geometry and publication-gap checkpoint, 2026-10-17
+
+- Added `counterfactual-projection-geometry:1`, `native-goal-presence:1`,
+  `dash-policy-observation:1`, and `target-aggro-observation:1`, bringing the
+  provider to 27 independently versioned families. The three native observations
+  address the consumer's reported publication gaps without inferring evidence
+  from scores, enablement or target IDs.
+- Full Release compilation with the pinned SDK, API 15 references, source
+  generation and diagnostic analyzers passed with zero errors and six existing
+  obsolete-gauge warnings.
+- All 19 suites passed against the exact built assembly: 8,303 assertions or
+  checks, including 2,171 integration assertions. Coverage includes legacy/native
+  projection equivalence across knockback kinds, pull limits, immunity, shapes,
+  wall/safe-wall cases, pending/active march and heading overrides; native query
+  context, source identity/reset, limits, failures and compiled BCL transport;
+  actual native goal/dash/aggro endpoints, zero-valued goals, later-stage prefix
+  stability, disabled goals, independent target/aggro state and destroyed actors.
+- XCAI's reported source adoption and saved-module ownership findings are now
+  recorded in the delivery ledger. No durable hallway policy or historical
+  saved-setting repair is implied by runtime leases. Independent-hazard/recovery
+  safety, unsupported source providers, remaining consumer work and live
+  gameplay acceptance remain open. Geometry is never complete safety approval.

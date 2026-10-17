@@ -70,6 +70,7 @@ policy or its remaining native-contract migrations.
 | --- | --- | --- |
 | Direction, deadlines, cast pressure, follow/encounter state | `Movement.V1.GetSnapshot` | Stage-bound; retained navigation can be older than hints; final physical input is not implied |
 | Native controller to override to input identity | `controller-input-provenance:1` movement fields | Search, controller, assignment and read have separate identities; retain bounded applied identities to join later input; no route/arrival proof |
+| Native hint goal presence, dash restriction and enmity membership | `native-goal-presence:1`, `dash-policy-observation:1`, `target-aggro-observation:1` | Captured native prefix count is independent of scores/enabled state; forbidDashes is a restriction; nullable aggroPlayer differs from targetId; missing evidence stays unknown |
 | Target eligibility, tank intent, cast identity | `Hints.V1.GetTargets` | Native policy is authoritative; provenance and missing source/deadline correlations remain explicit |
 | Native cast identity, policy and linked point threats | `Hints.V1.GetCastControl` | Exact producer-recorded cast/actor links; nullable native function values; no timestamp-based attribution or negative safety inference |
 | Overlapping damage recipients | `Hints.V1.GetPredictedDamage` | Use all entries and the exact same-observation party mapping |
@@ -81,6 +82,7 @@ policy or its remaining native-contract migrations.
 | Complete explicit walk route | `Navigation.V1.EvaluateRoutes` | Only `clear` under its stated model is positive evidence; supply onward escape from future warnings |
 | Native generic mechanic entries | `Mechanics.V1.GetSnapshot` | Current generic publications only; missing components/future pulses are never evidence of safety |
 | Current native knockback/march projection | `Mechanics.V1.EvaluateMovement` | Actual actor pose only; native `DestinationUnsafe` retained; complete safety/recovery remains unknown |
+| Hypothetical native displacement geometry | `Mechanics.V1.ProjectPoses` | Independently require counterfactual-projection-geometry:1; at most four poses; unchanged SimpleKnockbacks providers or native march state; actual actor context retained; geometry never approves independent-hazard/recovery safety |
 | Temporary configuration | `Control.V1.GetSettings` / `ApplySetting` / `Renew` / `Release` | Allowlisted, expiring compare-and-restore leases; inspect expected value/revision |
 | Directional-action angle option | `Control.V1.WithDirectionalAngle` | Synchronous, audited action only; restore in `finally`; does not validate or confirm an action |
 | Owned transient strategy | `Strategies.V1.GetSnapshot` / `Apply`, `Control.V1.Renew` / `Release` | Exact active preset identity, track/revision/value; native modifier/user changes win; no saved-list mutation |
@@ -124,7 +126,9 @@ consumer's state. Never write back a saved value after losing a lease.
 - `IntegrationCastControl.cs` and `AIHints.CastSources.cs`: current cast identity, native deadline estimates and producer-recorded cast/zone links. The [BCL consumer](examples/BossModV1CastControl.cs) joins exact identities for positive point-threat evidence.
 - `IntegrationControllerDecision.cs`, `IntegrationCoordinator.Movement.cs`, and `IntegrationInputObservation.cs`: native outcome/assignment/read provenance; [compiled bounded reader](examples/BossModV1MovementProvenance.cs).
 - `IntegrationPacing.cs` and `IntegrationCoordinator.Pacing.cs`: native frame-bound route/deadline authorization and input gate; [compiled consumer](examples/BossModV1AutomaticPace.cs).
+- `IntegrationHintEvidence.cs`: pre-integration native goal presence and nullable actor aggro observation; dash policy is copied at the requested movement stage.
 - `IntegrationMechanics.cs`: bounded generic publications and coverage.
+- `IntegrationCounterfactualProjection.cs`: bounded hypothetical native geometry; [compiled BCL reader](examples/BossModV1ProjectionGeometry.cs). Pose-dependent source overrides and complete independent-hazard/recovery safety remain unsupported.
 - `IntegrationArena.cs`, `IntegrationRoutes.cs`: geometry and swept timed-route
   queries. An unsupported distance bound must continue to return unknown.
 - `IntegrationLeases.cs`, `IntegrationSetting.cs`,

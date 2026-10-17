@@ -173,6 +173,7 @@ internal static class IntegrationMechanics
                         pendingComplete = state.PendingMoves.Count <= 32 });
             }
             coverage.Add(new { componentId = id, component = component.GetType().FullName, genericPublicationSupported = supported,
+                counterfactualGeometrySupported = component is GenericForcedMarch || component is GenericKnockback { SupportsCounterfactualProjection: true },
                 publishedEntries = entries.Count - before });
         }
         return new { available = true, context, actorId = actor.InstanceID.ToString("X"), entries, components = coverage,

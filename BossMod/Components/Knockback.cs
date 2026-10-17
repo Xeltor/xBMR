@@ -197,8 +197,23 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
         return result;
     }
 
+    // A SimpleKnockbacks publication is independent of the queried actor pose.
+    // Derived source overrides must opt in through a separate native contract;
+    // inheriting this support must never silently approve pose-dependent sources.
+    public bool SupportsCounterfactualProjection => this is SimpleKnockbacks
+        && GetType().GetMethod(nameof(ActiveKnockbacks), [typeof(int), typeof(Actor)])?.DeclaringType == typeof(SimpleKnockbacks);
+
+    public List<MovementProjection>? ProjectFromPosition(int slot, Actor actor, WPos position)
+    {
+        if (!SupportsCounterfactualProjection || slot < 0 || slot >= PartyState.MaxAllies
+            || !float.IsFinite(position.X) || !float.IsFinite(position.Z) || ActiveKnockbacks(slot, actor).Length > 32) return null;
+        var result = new List<MovementProjection>();
+        CalculateMovements(slot, actor, null, result, position);
+        return result;
+    }
+
     private List<(WPos from, WPos to)> CalculateMovements(int slot, Actor actor, List<(int? layer, bool? restrict)>? projectionLayers,
-        List<MovementProjection>? projections = null)
+        List<MovementProjection>? projections = null, WPos? startPosition = null)
     {
         if (MaxCasts <= 0)
         {
@@ -206,7 +221,7 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
         }
 
         var movements = new List<(WPos, WPos)>();
-        var from = actor.Position;
+        var from = startPosition ?? actor.Position;
         var count = 0;
         var activeKnockbacks = ActiveKnockbacks(slot, actor);
         var len = activeKnockbacks.Length;

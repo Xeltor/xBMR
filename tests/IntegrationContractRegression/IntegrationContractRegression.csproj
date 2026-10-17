@@ -22,6 +22,8 @@
     <Compile Include="../../BossMod/Framework/Integration/IntegrationPacing.cs" Link="IntegrationPacing.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationLeases.cs" Link="IntegrationLeases.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationMechanics.cs" Link="IntegrationMechanics.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationCounterfactualProjection.cs" Link="IntegrationCounterfactualProjection.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationHintEvidence.cs" Link="IntegrationHintEvidence.cs" />
     <Compile Include="../../BossMod/Pathfinding/NavigationMapSource.cs" Link="NavigationMapSource.cs" />
     <Compile Include="../../BossMod/Pathfinding/NavigationPublication.cs" Link="NavigationPublication.cs" />
     <Compile Include="../../docs/examples/BossModV1Consumer.cs" Link="BossModV1Consumer.cs" />
@@ -31,6 +33,7 @@
     <Compile Include="../../docs/examples/BossModV1CastControl.cs" Link="BossModV1CastControl.cs" />
     <Compile Include="../../docs/examples/BossModV1AutomaticPace.cs" Link="BossModV1AutomaticPace.cs" />
     <Compile Include="../../docs/examples/BossModV1MovementProvenance.cs" Link="BossModV1MovementProvenance.cs" />
+    <Compile Include="../../docs/examples/BossModV1ProjectionGeometry.cs" Link="BossModV1ProjectionGeometry.cs" />
     <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
   </ItemGroup>
 </Project>

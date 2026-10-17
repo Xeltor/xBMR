@@ -88,9 +88,19 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
         return result;
     }
 
+    public List<MovementProjection>? ProjectFromPose(Actor player, WPos position, Angle facing)
+    {
+        if (!float.IsFinite(position.X) || !float.IsFinite(position.Z) || !float.IsFinite(facing.Rad)
+            || (State.GetValueOrDefault(player.InstanceID)?.PendingMoves.Count ?? 0) > 32) return null;
+        var result = new List<MovementProjection>();
+        ForcedMovements(player, result, position, facing);
+        return result;
+    }
+
     public List<(WPos from, WPos to, Angle dir)> ForcedMovements(Actor player) => ForcedMovements(player, null);
 
-    private List<(WPos from, WPos to, Angle dir)> ForcedMovements(Actor player, List<MovementProjection>? projections)
+    private List<(WPos from, WPos to, Angle dir)> ForcedMovements(Actor player, List<MovementProjection>? projections,
+        WPos? startPosition = null, Angle? startFacing = null)
     {
         var state = State.GetValueOrDefault(player.InstanceID);
         if (state == null || !ArenaProjectionLayerParticipantApplies(player, ArenaProjectionLayer, RestrictToArenaProjectionLayer))
@@ -98,15 +108,16 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
             return [];
         }
 
-        var from = player.Position;
-        var dir = !OverrideDirection ? player.Rotation : default;
+        var from = startPosition ?? player.Position;
+        var facing = startFacing ?? player.Rotation;
+        var dir = !OverrideDirection ? facing : default;
         var movements = new List<(WPos, WPos, Angle)>();
 
         if (state.ForcedEnd > WorldState.CurrentTime)
         {
             // note: as soon as player starts marching, he turns to desired direction
             // TODO: would be nice to use non-interpolated rotation here...
-            dir = player.Rotation;
+            dir = facing;
             var movementDistance = MovementSpeed * (float)(state.ForcedEnd - WorldState.CurrentTime).TotalSeconds;
             var wdir = dir.ToDirection();
 

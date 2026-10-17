@@ -10,6 +10,48 @@ internal sealed partial class IntegrationCoordinator
             : Unavailable("no-active-module-or-player"));
 
     internal sealed record ProjectionRequest(IntegrationSession.Context Context, string ComponentId, float[] Position, float Facing);
+    internal sealed record ProjectionPoses(IntegrationSession.Context Context, string ComponentId, IntegrationCounterfactualProjection.Pose[] Poses);
+
+    internal string ProjectMechanicPoses(string json)
+    {
+        var request = IntegrationSession.Parse<ProjectionPoses>(json);
+        if (request == null || !Session.Matches(request.Context) || World.Party.Player() is not { IsDead: false } actor
+            || bossmod.ActiveModule is not { } module || module.StateMachine.ActivePhase == null
+            || string.IsNullOrEmpty(request.ComponentId) || request.Poses is not { Length: >= 1 and <= IntegrationCounterfactualProjection.MaxPoses })
+            return Unavailable("invalid-counterfactual-projection-context");
+        var slot = World.Party.FindSlot(actor.InstanceID);
+        if (slot < 0) return Unavailable("actor-not-in-native-party");
+        try
+        {
+            var component = module.Components.Take(IntegrationMechanics.MaxComponents)
+                .FirstOrDefault(c => IntegrationMechanics.ComponentId(c) == request.ComponentId);
+            if (component == null || !IntegrationCounterfactualProjection.Supports(component))
+                return Unavailable("unsupported-or-expired-projection-component");
+            var budget = new IntegrationRoutes.Budget();
+            var results = new List<IntegrationCounterfactualProjection.Result>();
+            foreach (var pose in request.Poses)
+            {
+                if (pose == null) return Unavailable("invalid-projection-pose");
+                var result = IntegrationCounterfactualProjection.Project(component, actor, slot, pose, budget);
+                if (result == null) return Unavailable("unsupported-invalid-or-bounded-out-projection");
+                results.Add(result);
+            }
+            return IntegrationSession.Serialize(new
+            {
+                available = true, context = request.Context, request.ComponentId, actorId = actor.InstanceID.ToString("X"), poses = results,
+                status = "unknown", reason = "native-counterfactual-geometry-only", counterfactualSupported = true,
+                sourceScope = "current-native-visible-projection; not complete encounter or future pulse coverage",
+                independentHazardsEvaluated = false, recoveryReachabilityEvaluated = false,
+                actorContext = "actual actor identity, height, layer, statuses and immunity; hypothetical horizontal position/facing only",
+                meaning = "native geometry and actual-actor-context DestinationUnsafe observations; never a complete safety approval"
+            });
+        }
+        catch (Exception error)
+        {
+            Service.LogVerbose($"[Integration] Counterfactual projection failed: {error.GetType().Name}: {error.Message}");
+            return Unavailable("native-counterfactual-projection-unavailable");
+        }
+    }
 
     // This initial family observes native projections at the actual actor pose only. It cannot
     // manufacture a counterfactual actor or drop independent native constraints to declare safety.
