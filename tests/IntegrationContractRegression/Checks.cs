@@ -48,6 +48,8 @@ static partial class Checks
         CastControlPublications();
         AutomaticPacing();
         NativeAutomaticPacing();
+        NativeControllerProvenance();
+        MovementProvenanceConsumer();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 

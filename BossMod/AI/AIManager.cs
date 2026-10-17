@@ -64,7 +64,7 @@ sealed class AIManager : IDisposable
             Controller.Clear();
         }
 
-        Controller.Update(player, Autorot.Hints, WorldState.CurrentTime);
+        Controller.Update(player, Autorot.Hints, WorldState.CurrentTime, Beh?.PublishedNavigation, Beh != null);
     }
 
     public void SwitchToIdle()

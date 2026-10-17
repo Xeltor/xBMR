@@ -171,10 +171,17 @@ public sealed class NormalMovement : RotationModule
 
     private void UpdateMovement(StrategyValues strategy, Actor? primaryTarget, bool castInProgress, float castRemaining)
     {
+        void Observe(string reason, WPos? destination = null, bool wroteMovement = false, bool fromSearch = false)
+            => Hints.ObserveController(World, Player, "bmr-normal-movement", destination?.ToVec3(Player.PosRot.Y),
+                wroteMovement ? Hints.ForcedMovement : null, wroteMovement, reason, fromSearch ? PublishedNavigation : null);
+
         // lots of assumptions made in this module are broken by being in flight (or diving)
         // e.g. being inside an obstacle is fine, AOEs may not reach the player depending on vertical distance, etc
         if (World.Client.Flying)
+        {
+            Observe("flight-unsupported");
             return;
+        }
 
         // if the player on a ranged job pulls a dungeon boss from outside (e.g. Mistwake B1), pathfinder won't force it to move inside the arena, since their position isn't in the pathfinding map
         // TODO: what should the generic solution be? do we need multiple sets of bounds?
@@ -184,6 +191,7 @@ public sealed class NormalMovement : RotationModule
         if (Bossmods.ActiveModule is { Info.Category: BossModuleInfo.Category.Dungeon or BossModuleInfo.Category.VariantCriterion, StateMachine.ActivePhase: not null } module && !module.Arena.InBounds(Player.Position))
         {
             Hints.ForcedMovement = Player.DirectionTo(module.Arena.Center).ToVec3();
+            Observe("native-ingress-without-route-proof", module.Arena.Center, wroteMovement: true);
             return;
         }
 
@@ -199,17 +207,24 @@ public sealed class NormalMovement : RotationModule
         if (allowSpecialModes)
         {
             if (Player.PendingKnockbacks.Count > 0)
+            {
+                Observe("pending-knockback");
                 return; // do not move if there are any unresolved knockbacks - the positions are taken at resolve time, so we might fuck things up
+            }
 
             if (Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && Hints.ImminentSpecialMode.activation <= World.FutureTime(1d))
             {
                 //Service.Log("[CancelCast] ForceCancelCastMechanic set true due to Pyretic Special Mode");
                 Hints.ForceCancelCastMechanic = true; // this is only useful if autopyretic tweak is disabled
+                Observe("pyretic-hold");
                 return; // pyretic is imminent, do not move
             }
 
             if (Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.NoMovement && Hints.ImminentSpecialMode.activation <= World.FutureTime(1d))
+            {
+                Observe("special-mode-hold");
                 return;
+            }
 
             if (Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Freezing && Hints.ImminentSpecialMode.activation <= World.FutureTime(0.5d) && Player.PosRot == Player.PrevPosRot)
                 Hints.WantJump = true;
@@ -294,6 +309,7 @@ public sealed class NormalMovement : RotationModule
             if (Hints.SpinDirection == null && navi.Destination is { } wp)
             {
                 Hints.SpinDirection = Player.DirectionTo(wp).ToAngle();
+                Observe("spin-control", wp, fromSearch: destinationStrategy == DestinationStrategy.Pathfind);
                 return;
             }
         }
@@ -302,11 +318,15 @@ public sealed class NormalMovement : RotationModule
         {
             TimeToMove = null;
             _delayMovementIsDodge = null;
+            Observe("no-destination", fromSearch: destinationStrategy == DestinationStrategy.Pathfind);
             return; // nothing to do
         }
 
         if (World.CurrentTime < TimeToMove)
+        {
+            Observe("native-movement-delay", navi.Destination, fromSearch: destinationStrategy == DestinationStrategy.Pathfind);
             return; // delaying movement
+        }
 
         var rangeOpt = strategy.Option(Track.Range);
         var rangeStrategy = rangeOpt.As<RangeStrategy>();
@@ -363,11 +383,13 @@ public sealed class NormalMovement : RotationModule
             // we're already very close to destination
             // TODO: what should we do if forced-movement is already set to something?.. not sure who could set it, some other module?..
             Hints.ForcedMovement = default;
+            Observe("within-destination-tolerance", navi.Destination, wroteMovement: true, fromSearch: destinationStrategy == DestinationStrategy.Pathfind);
             return;
         }
 
         // we want to move somewhere, check whether we're allowed to
-        if (allowSpecialModes && Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && Hints.ImminentSpecialMode.activation <= World.CurrentTime)
+        var misdirectionActive = allowSpecialModes && Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && Hints.ImminentSpecialMode.activation <= World.CurrentTime;
+        if (misdirectionActive)
         {
             // special case for misdirection
             // assume it's always fine to drop casts during misdirection (add new option to the specialmode track if it's ever not the case, i guess...)
@@ -422,6 +444,7 @@ public sealed class NormalMovement : RotationModule
         };
         Hints.MaxCastTime = Math.Max(0, Math.Min(Hints.MaxCastTime, maxCastTime));
         Hints.ForceCancelCastOther |= castStrategy == CastStrategy.DropMove;
+        var leewayCastDeparture = false;
         if (castStrategy is CastStrategy.Leeway && castInProgress)
         {
             var effectiveCastRemaining = Math.Max(0f, castRemaining - 0.5f);
@@ -430,6 +453,7 @@ public sealed class NormalMovement : RotationModule
                 Hints.ForceCancelCastOther = true;
                 // no leeway, cast might have been initiated by user, keep moving
                 Hints.ForcedMovement = dir.ToVec3();
+                leewayCastDeparture = true;
             }
         }
         if (destinationStrategy == DestinationStrategy.Pathfind && PublishedNavigation is { } publication
@@ -437,6 +461,10 @@ public sealed class NormalMovement : RotationModule
             Hints.IntegrationMovementDecision = new(integration.Context.InstanceGeneration, integration.Context.FrameId,
                 "bmr-normal-movement", Player.InstanceID, World.CurrentTime, System.Diagnostics.Stopwatch.GetTimestamp(),
                 Player.Position, navi.Destination.Value, direction, publication);
+        Observe(leewayCastDeparture ? "native-leeway-cast-departure"
+            : misdirectionActive ? "native-misdirection-decision"
+            : castInProgress && castStrategy is not (CastStrategy.DropMove or CastStrategy.DropInstants) ? "native-cast-decision" : "native-destination-decision",
+            navi.Destination, wroteMovement: true, fromSearch: destinationStrategy == DestinationStrategy.Pathfind);
     }
 
     private float CalculateUnobstructedPathLength(Angle dir)

@@ -41,7 +41,7 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
         }
     }
 
-    public void Update(Actor? player, AIHints hints, DateTime now)
+    public void Update(Actor? player, AIHints hints, DateTime now, Pathfinding.NavigationPublication? navigation = null, bool followActive = false)
     {
         if (player == null || player.IsDead || ws.Party.Members[PartyState.PlayerSlot].InCutscene)
         {
@@ -84,6 +84,14 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
         if (hints.ForcedMovement == null && desiredPosition != null)
         {
             hints.ForcedMovement = desiredPosition.Value - player.PosRot.XYZ();
+            if (followActive)
+                hints.ObserveController(ws, player, "bmr-follow", desiredPosition, hints.ForcedMovement,
+                    true, "native-follow-destination", navigation);
         }
+        else if (followActive)
+            hints.ObserveController(ws, player, "bmr-follow", NaviTargetPos?.ToVec3(NaviTargetVertical ?? player.PosRot.Y),
+                null, false, hints.ForcedMovement != null ? "other-movement-wins"
+                    : moveRequested ? "manual-input" : forbidMovement ? "native-cast-hold"
+                    : NaviTargetPos == null ? "no-controller-destination" : "within-destination-tolerance", navigation);
     }
 }

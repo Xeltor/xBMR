@@ -18,7 +18,7 @@ the xBMR implementation deliverable.
 | Requirement | Current implementation | Remaining acceptance |
 | --- | --- | --- |
 | 1. Capabilities, stages, goals | Versioned discovery, expiring owners, three BMR-owned stages, scoring surfaces, native score queries, priority composition | Exercise through a real IPC consumer; migrate XCAI's draw wrapper and goal adapters; performance validation |
-| 2. Coherent movement | Stage-bound observation, authored versus final direction, cast pressure/manual/follow state; real search/capture/build/publication identities and native witness route | Exact final controller/input generations after native range/cast/follow corrections; XCAI migration |
+| 2. Coherent movement | Stage-bound observation; native NormalMovement/follow controller outcomes; distinct search, controller, native override-assignment and input-read identities, including interaction/pause suppression | XCAI adoption, later-hook visibility and representative live correction/input acceptance; provenance is not route safety |
 | 3. Navigation/raster/timed routes | Copied raster windows, raw warning limits, native fallback classification, complete current walk-route validation; bounded asynchronous native detour/nearest-safe-raster candidates | Continuous nearest-safe/ingress semantics, more distance/projection support, production migration and live route acceptance |
 | 4. Rich arena | Logical containment, signed clearance, boundary and inset candidates; circle/rotated rectangle/custom contours and holes; explicit current projection layer | Route-validated ingress, complete obstacle provenance/generation and consumer migration |
 | 5. Targets | Bounded policy/geometry/cast observation, native cast identities/deadline estimates and producer-recorded zone links, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, additional cast-linked producers and migration |
@@ -42,7 +42,7 @@ assembly reference, WPos adapter, pointer, reflected manager, or mutable map.
 `families`, `limits`, and an explicit `unsupported` list. A consumer must check
 the family it needs instead of inferring support from a plugin release number.
 Currently the advertised families are `frame-stages`, `goal-scoring`,
-`movement-observation`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
+`movement-observation`, `controller-input-provenance`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
 `arena-geometry`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
 `mechanic-observation`, `current-native-projection`,
@@ -203,12 +203,74 @@ input observations have their own generation, time and assignment correlation as
 `lastInputRead` is null before a native walk input result has been observed.
 Subsequently it copies `generation`, `observedUtc`, monotonic `ageSeconds`,
 `kind`, user/actual/output `[x,z]` vectors, follow-path and misdirection flags.
-`matchingAssignment` contains instance/frame/direction only when that read's
-assigned direction equals the preceding native assignment. A newer assignment
-cannot rewrite the old sample. This is value correlation, not exclusive proof of
-which plugin wrote the direction or confirmation that the character moved.
+`automatic` reports that native walk-input code produced an automatic direction;
+it does not describe physical movement. `matchingAssignment` carries the exact
+native assignment's identity only when captured at the beginning of that input
+read, still current at observation, and direction-matched. A same-value
+reassignment has a new identity and cannot relabel the read. A newer assignment
+cannot rewrite an old sample. This is native provider provenance, not visibility
+into later third-party hooks or confirmation that the character moved.
 Spinning early returns and flying do not fabricate new walk samples; inspect age
 and kind. Existing scalar movement endpoints preserve their semantics.
+
+### Controller, override and input provenance
+
+Require `controller-input-provenance:1` independently. This adds fields to the
+existing movement snapshot; query signatures and stage/thread rules are unchanged.
+
+`controllerDecision` is null without a current native outcome. Otherwise it
+contains `id`, provider instance/frame, actor identity, world time, monotonic age,
+`owner` (`bmr-normal-movement` or `bmr-follow`), `origin`, `destination`,
+`direction`, `wroteMovement`, and `reason`. Controller coordinates/directions are
+3D `[x,y,z]`. A native no-output/cast/manual/delay result remains distinct from
+arrival and from a writer that supplied an identical direction. Reasons describe
+native branch outcomes, rather than measured server timing.
+
+NormalMovement observes after native range/cast/misdirection corrections and
+records early holds, delay, arrival, spin, explicit destination and the existing
+unvalidated ingress branch separately. Follow observes after its live cast/manual
+correction; pre-existing authored/other movement retains priority. A suppressed
+follow outcome has `wroteMovement:false` and cannot claim the other writer's output.
+No controller routing or movement decision is changed by this observation.
+
+`navigationGeneration`, `navigationFrameId`, `navigationInstance`, and
+`navigationDestination` describe its optional source search. The latter is a
+planar `[x,z]` waypoint, without an invented height. Source search may be absent,
+older, or different from the corrected destination. `matchesCurrentHints` and
+`matchesEffectiveMovement` compare current values; `routeSafetyVerified` remains
+false. This data cannot authorize following the source witness after correction.
+Use a fresh complete route query for route safety.
+
+At `movement-applied`, `overrideAssignment` reports provider instance/frame,
+monotonically increasing per-instance `generation`, assigned direction, `reason`,
+and nullable `controllerDecisionId`, `controllerOwner`, and
+`controllerNavigationGeneration`. BMR stamps its actual native writes, including
+`native-hints`, `native-movement-pause` and `native-interaction-suppression`.
+Controller source is attached only when the same-frame actor/output matches a
+writing controller. A changed or missing write at the application boundary is
+`unattributed-application-boundary`, without borrowed controller provenance.
+
+An input read can occur after the applied callback. Retain a bounded set of
+applied identities and join `lastInputRead.matchingAssignment` by provider,
+assignment generation, assignment frame and controller ID/owner. Its input
+generation and age belong to the actual read; never substitute the current
+callback's frame. Pacing also requires the exact armed assignment object,
+including across same-frame same-direction reassignments. Manual/special input
+and later hooks are separate from the assignment chain.
+
+The [compiled BCL reader](examples/BossModV1MovementProvenance.cs) remembers at
+most eight assignments, clears on provider reload, rejects stale/manual or
+unmatched input, and deduplicates observed input generations:
+
+```csharp
+var provenance = new IntegrationExample.BossModV1MovementProvenance();
+// After independently requiring the family, feed every native stage snapshot:
+var observed = provenance.Observe(snapshotJson.RootElement);
+// Non-null means a correlated native automatic walk-input sample.
+// It does not approve a route, prove displacement, or authorize an action.
+```
+
+### Target observations
 
 The target observation is bounded by the 100-target native table. It correlates
 position/rotation/hitbox, priority/eligibility, pending death, DOT policy, tank
@@ -1014,3 +1076,23 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   calibrated analog movement speed, production XCAI hook removal and live
   gameplay acceptance remain unverified. A pending or armed proof is not an
   observation of applied input. The delivery ledger and issue remain open.
+
+### Controller/input provenance checkpoint, 2026-10-17
+
+- Added the twenty-third independent family, `controller-input-provenance:1`.
+  Native controller, source search, actual override assignment and input read
+  retain distinct identities; corrected destinations do not inherit route safety.
+- Full Release compilation with the pinned SDK, compatible API 15 references,
+  source generation and diagnostic analyzers passed: zero errors and six
+  existing obsolete-gauge warnings.
+- All 19 suites passed against the exact built assembly: 7,932 assertions or
+  checks, including 1,800 integration assertions. Native follow fixtures cover
+  live cast/manual correction, other-writer precedence, missing and older search
+  sources, interaction/pause suppression, changed application values and frame
+  cleanup. Contract and compiled-consumer fixtures cover assignment/read races,
+  same-value reassignment, immutable retained observations, exact pacing arming,
+  incompatible schema, stale/manual samples, bounded retention and reload.
+- Native input hooks and full NormalMovement range/cast sequences were not
+  exercised in game. Later third-party hooks, physical displacement/arrival,
+  production XCAI migration and representative gameplay remain unverified.
+  The issue stays open for residual provider and consumer requirements.

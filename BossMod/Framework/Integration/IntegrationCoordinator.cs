@@ -40,7 +40,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     }
     internal void MovementApplied()
     {
-        movement.IntegrationInput.Assign(Session.InstanceGeneration, Session.FrameId, movement.DesiredDirection);
+        ObserveApplicationBoundary();
         ArmPace();
         Session.Publish("movement-applied", Snapshot);
     }
@@ -51,7 +51,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         instanceGeneration = Session.InstanceGeneration,
         families = new Dictionary<string, int>
         {
-            ["automatic-input-pacing"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
+            ["automatic-input-pacing"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
             ["cast-control-observation"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
@@ -97,10 +97,9 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             userDirection = new[] { sample.UserDirection.X, sample.UserDirection.Y },
             actualDirection = new[] { sample.ActualDirection.X, sample.ActualDirection.Y },
             outputDirection = new[] { sample.OutputDirection.X, sample.OutputDirection.Y },
-            sample.FollowPath, sample.Misdirection, sample.AutomaticPaceScale, sample.PacingProofId,
-            matchingAssignment = sample.MatchingAssignment is { } a
-                ? new { a.InstanceGeneration, a.FrameId, direction = V(a.Direction) } : null,
-            meaning = "last completed native walk input observation; assignment correlation checks the assigned direction value only"
+            sample.FollowPath, sample.Misdirection, sample.AutomaticPaceScale, sample.PacingProofId, sample.Automatic,
+            matchingAssignment = AssignmentObservation(sample.MatchingAssignment),
+            meaning = "last completed native walk input observation; native assignment identity captured before this read must remain unchanged and direction-matched"
         };
     }
 
@@ -132,6 +131,8 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             appliedOverrideDirection = context.Stage == "movement-applied" ? V(movement.DesiredDirection) : null,
             applicationMeaning = "override-assigned; physical movement is a separate last-input-read observation",
             lastInputRead = InputObservation(),
+            overrideAssignment = context.Stage == "movement-applied" ? AssignmentObservation(movement.IntegrationInput.CurrentAssignment) : null,
+            controllerDecision = ControllerObservation(),
             moveRequested = movement.IsMoveRequested(),
             isMoving = movement.IsMoving(),
             movementBlocked = movement.MovementBlocked,

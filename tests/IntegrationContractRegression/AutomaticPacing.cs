@@ -51,6 +51,8 @@ static partial class Checks
         Check(gate.Queue(ticket), "a bounded provider proof can be pending");
         Check(Apply().Scale == 1, "pending proof cannot pace input before native assignment");
         Check(gate.Arm(ticket, assignment), "exact native assignment arms the pace");
+        Check(!gate.Arm(ticket, assignment with { Generation = assignment.Generation + 1 }) && ReferenceEquals(ticket.Assignment, assignment),
+            "repeated arming cannot replace the identity of an already armed assignment");
         var paced = Apply();
         Check(paced.Scale == 0.5f && paced.Output == Vector2.UnitY * 0.5f && paced.ProofId == "proof",
             "pace changes only the magnitude of already-produced automatic input");
@@ -79,6 +81,9 @@ static partial class Checks
         Check(Apply(actual: Vector2.UnitY * 0.5f, output: Vector2.UnitY * 0.5f).Scale == 1 && gate.Current == null, "nonunit input cannot be paced");
         ticket = Ticket(); Check(gate.Queue(ticket) && gate.Arm(ticket, assignment), "new assignment fixture armed");
         Check(Apply(assigned: assignment with { FrameId = 2 }).Scale == 1 && gate.Current == null, "a new assignment cannot inherit an old pace");
+        ticket = Ticket(); Check(gate.Queue(ticket) && gate.Arm(ticket, assignment), "same-value reassignment fixture armed");
+        Check(Apply(assigned: assignment with { Generation = assignment.Generation + 1 }).Scale == 1 && gate.Current == null,
+            "same-frame same-direction reassignment cannot inherit an older armed input proof");
         ticket = Ticket(); Check(gate.Queue(ticket) && gate.Arm(ticket, assignment), "expiry fixture armed");
         now += 100;
         Check(Apply().Scale == 1 && gate.Current == null, "monotonic lease expiry restores native input without a new draw/frame");

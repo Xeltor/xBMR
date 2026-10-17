@@ -384,6 +384,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
     private unsafe void ExecuteHints()
     {
         _movementOverride.DesiredDirection = _hints.EffectiveForcedMovement;
+        _integration.OverrideAssigned("native-hints");
         _movementOverride.MisdirectionThreshold = _hints.MisdirectionThreshold;
         _movementOverride.DesiredSpinDirection = _hints.SpinDirection;
 
@@ -409,6 +410,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
             {
                 // many eventobj interactions "immediately" start some cast animation (delayed by server roundtrip), and if we keep trying to move toward the target after sending the interact request, it will be canceled and force us to start over
                 _movementOverride.DesiredDirection = default;
+                _integration.OverrideAssigned("native-interaction-suppression");
 
                 if (_amex.EffectiveAnimationLock == 0 && _ws.CurrentTime >= _throttleInteract)
                 {

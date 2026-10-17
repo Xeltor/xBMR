@@ -21,7 +21,8 @@ internal sealed class IntegrationPacing(Func<long>? clock = null)
         internal readonly Vector3 Direction = direction;
         internal readonly float Scale = scale;
         internal readonly Func<bool> Alive = alive;
-        internal int State; // 0 pending, 1 native assignment armed, 2 revoked
+        internal IntegrationInputObservation.Assignment? Assignment;
+        internal int State; // 0 pending, 3 arming, 1 native assignment armed, 2 revoked
     }
     private Ticket? _ticket;
     internal Ticket? Current => Volatile.Read(ref _ticket);
@@ -84,7 +85,9 @@ internal sealed class IntegrationPacing(Func<long>? clock = null)
     internal bool Arm(Ticket ticket, IntegrationInputObservation.Assignment assignment)
     {
         if (!Matches(ticket, assignment, assignment.Direction) || !Live(ticket)) { Cancel(ticket); return false; }
-        return Interlocked.CompareExchange(ref ticket.State, 1, 0) == 0;
+        if (Interlocked.CompareExchange(ref ticket.State, 3, 0) != 0) return false;
+        Volatile.Write(ref ticket.Assignment, assignment);
+        return Interlocked.CompareExchange(ref ticket.State, 1, 3) == 3;
     }
 
     private bool Live(Ticket ticket)
@@ -116,7 +119,7 @@ internal sealed class IntegrationPacing(Func<long>? clock = null)
             return new(output, 1, null);
         }
         if (Volatile.Read(ref ticket.State) != 1) return new(output, 1, null);
-        if (!Matches(ticket, assignment, direction)
+        if (!ReferenceEquals(Volatile.Read(ref ticket.Assignment), assignment) || !Matches(ticket, assignment, direction)
             || !float.IsFinite(output.X) || !float.IsFinite(output.Y) || !float.IsFinite(actual.X) || !float.IsFinite(actual.Y)
             || Math.Abs(output.LengthSquared() - 1) >= 0.002f || Vector2.DistanceSquared(output, actual) >= 0.0001f)
         {
