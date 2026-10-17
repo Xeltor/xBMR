@@ -20,11 +20,13 @@ static partial class Checks
         Check(Align(new(float.NaN, 0), default, 0.5f) == null && Align(default, default, 0) == null
             && Align(default, default, float.PositiveInfinity) == null && Align(default, default, 0.00001f) == null,
             "invalid or unbounded FATE windows cannot alter hints");
+        var allowed = (System.Collections.Generic.HashSet<string>)type.GetField("HallwaySavedIdentities", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+        Check(allowed.Count == 11, "saved writes are restricted to the original eleven audited hallway identities");
         var sessionType = typeof(AIHints).Assembly.GetType("BossMod.Integration.IntegrationSession", true)!;
         using var session = (IDisposable)Activator.CreateInstance(sessionType, BindingFlags.Public | InternalInstance, null, [null, 0L], null)!;
         var coordinator = RuntimeHelpers.GetUninitializedObject(type);
         type.GetField("Session", InternalInstance)!.SetValue(coordinator, session);
-        foreach (var endpoint in new[] { "ApplyFateFrame", "ApplyDutyIngress" })
+        foreach (var endpoint in new[] { "ApplyFateFrame", "ApplyDutyIngress", "GetHallwaySavedEnabled", "SetHallwaySavedEnabled" })
         {
             foreach (var json in new[] { "{broken", "{\"context\":{\"schemaVersion\":1,\"instanceGeneration\":\"stale\",\"frameId\":1,\"stage\":\"hints-ready\"},\"ownerToken\":\"stale\"}" })
             {

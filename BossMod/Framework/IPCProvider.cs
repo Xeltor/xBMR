@@ -74,6 +74,8 @@ sealed class IPCProvider : IDisposable
         Register("Registry.V1.GetSnapshot", (string request) => integration.GetStaticRegistry(request));
         Register("Replay.V1.DecodeEvidence", (string request, Func<string, System.Threading.Tasks.Task> receive, System.Threading.CancellationToken cancellation) => integration.DecodeEvidence(request, receive, cancellation));
         Register("Modules.V1.GetSnapshot", (string request) => integration.GetModules(request));
+        Register("Modules.V1.GetHallwaySavedEnabled", (string request) => integration.GetHallwaySavedEnabled(request));
+        Register("Modules.V1.SetHallwaySavedEnabled", (string request) => integration.SetHallwaySavedEnabled(request));
         Register("Modules.V1.GetEnablement", (string request) => integration.GetModuleEnablement(request));
         Register("Modules.V1.ApplyEnablement", (string request) => integration.ApplyModuleEnablement(request));
         Register("Strategies.V1.GetSnapshot", (string request) => integration.GetStrategy(request));

@@ -106,6 +106,7 @@ internal sealed partial class IntegrationSession : IDisposable
 
     internal static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Json);
     private long Milliseconds(int value) => (long)(value / 1000d * _frequency);
+    internal bool IsFrameworkThread => OnThread;
     private bool OnThread => Environment.CurrentManagedThreadId == _thread && !_disposed;
     private bool Live(Owner owner) => Volatile.Read(ref owner.Revoked) == 0 && _clock() < Interlocked.Read(ref owner.Expires);
     private Result Reply(bool accepted, string reason, string? token = null) => new(accepted, reason, InstanceGeneration, token);

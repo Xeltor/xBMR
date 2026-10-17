@@ -68,7 +68,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         families = new Dictionary<string, int>
         {
             ["automatic-input-pacing"] = 1, ["cast-departure-hold"] = 1, ["native-arrival-input-hold"] = 1, ["native-follow-arrival-input-hold"] = 1, ["native-physical-input-brake"] = 1, ["native-follow-physical-input-brake"] = 1, ["native-physical-step-observation"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["native-goal-no-loss"] = 1, ["native-goal-matrix"] = 1, ["movement-observation"] = 1,
-            ["cast-control-observation"] = 1, ["native-constraint-distances"] = 1, ["native-aoe-forecast-distances"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1, ["owned-fate-frame"] = 1, ["owned-duty-ingress"] = 1,
+            ["cast-control-observation"] = 1, ["native-constraint-distances"] = 1, ["native-aoe-forecast-distances"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1, ["owned-fate-frame"] = 1, ["owned-duty-ingress"] = 1, ["hallway-saved-enablement"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
             ["mechanic-observation"] = 1, ["native-stack-participation"] = 1, ["current-native-projection"] = 1,
