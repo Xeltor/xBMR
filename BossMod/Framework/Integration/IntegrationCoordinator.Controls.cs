@@ -180,6 +180,7 @@ internal sealed partial class IntegrationCoordinator
     {
         Service.Framework.Update -= UpdateControls;
         System.Threading.Volatile.Write(ref _controlObservation, null);
+        movement.IntegrationPacing.Clear();
         _leases?.Dispose();
     }
 }

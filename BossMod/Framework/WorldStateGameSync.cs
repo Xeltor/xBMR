@@ -216,6 +216,7 @@ sealed class WorldStateGameSync : IDisposable
     public unsafe void Update(TimeSpan prevFramePerf)
     {
         var fwk = Framework.Instance();
+        _ws.LiveFrameObservedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
         _ws.Execute(new WorldState.OpFrameStart
         (
             new(

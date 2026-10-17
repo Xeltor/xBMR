@@ -84,6 +84,7 @@ policy or its remaining native-contract migrations.
 | Directional-action angle option | `Control.V1.WithDirectionalAngle` | Synchronous, audited action only; restore in `finally`; does not validate or confirm an action |
 | Owned transient strategy | `Strategies.V1.GetSnapshot` / `Apply`, `Control.V1.Renew` / `Release` | Exact active preset identity, track/revision/value; native modifier/user changes win; no saved-list mutation |
 | Module identity/state and temporary enablement | `Modules.V1.GetSnapshot`, `GetEnablement` / `ApplyEnablement` | Exact stable identity and expected value/revision; runtime layers never edit the saved list; active native coverage survives temporary-enable expiry; later user intent wins |
+| Out-of-combat native input pacing | `Movement.V1.RequestPace` / `ClearPace` | Request only at movement-proposed; exact native decision/witness, at most 100 ms; pending acknowledgement is not applied input; observe matching proof in lastInputRead |
 | Existing follow compatibility repair | `Follow.V1.GetSnapshot` / `Stop` | Exact observed revision, `hints-ready`, live owner and explicit repair reason; saved preferences remain intact |
 
 Every consumer must handle both `available:false` observations and
@@ -120,6 +121,7 @@ consumer's state. Never write back a saved value after losing a lease.
   independently advertised capabilities.
 - `IntegrationGoalSet.cs`: encounter/combat/mechanic/presentation composition.
 - `IntegrationCastControl.cs` and `AIHints.CastSources.cs`: current cast identity, native deadline estimates and producer-recorded cast/zone links. The [BCL consumer](examples/BossModV1CastControl.cs) joins exact identities for positive point-threat evidence.
+- `IntegrationPacing.cs` and `IntegrationCoordinator.Pacing.cs`: native frame-bound route/deadline authorization and input gate; [compiled consumer](examples/BossModV1AutomaticPace.cs).
 - `IntegrationMechanics.cs`: bounded generic publications and coverage.
 - `IntegrationArena.cs`, `IntegrationRoutes.cs`: geometry and swept timed-route
   queries. An unsupported distance bound must continue to return unknown.

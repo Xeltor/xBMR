@@ -9,18 +9,19 @@ internal sealed class IntegrationInputObservation
     internal sealed record Assignment(string InstanceGeneration, long FrameId, Vector3? Direction);
     internal sealed record Sample(long Generation, DateTimeOffset ObservedUtc, long ObservedTimestamp, string Kind,
         Vector2 UserDirection, Vector2 ActualDirection, Vector2 OutputDirection, bool FollowPath, bool Misdirection,
-        Assignment? MatchingAssignment);
+        Assignment? MatchingAssignment, float AutomaticPaceScale, string? PacingProofId);
     private Assignment? _assignment;
     private Sample? _latest;
     private long _generation;
     internal Sample? Latest => Volatile.Read(ref _latest);
+    internal Assignment? CurrentAssignment => Volatile.Read(ref _assignment);
     internal void Assign(string instance, long frame, Vector3? direction) => Volatile.Write(ref _assignment, new(instance, frame, direction));
-    internal void Observe(string kind, Vector3? currentDirection, Vector2 user, Vector2 actual, Vector2 output, bool follow, bool misdirection)
+    internal void Observe(string kind, Vector3? currentDirection, Vector2 user, Vector2 actual, Vector2 output, bool follow, bool misdirection, float paceScale = 1, string? pacingProofId = null)
     {
         var assignment = Volatile.Read(ref _assignment);
         if (assignment?.Direction != currentDirection)
             assignment = null;
         Volatile.Write(ref _latest, new(Interlocked.Increment(ref _generation), DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(),
-            kind, user, actual, output, follow, misdirection, assignment));
+            kind, user, actual, output, follow, misdirection, assignment, paceScale, pacingProofId));
     }
 }

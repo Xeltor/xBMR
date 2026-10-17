@@ -115,6 +115,7 @@ public sealed partial class AIHints
 
     // low-level forced movement - if set, character will move in specified direction (ignoring casts, uptime, forbidden zones, etc), or stay in place if set to default
     public Vector3? ForcedMovement;
+    internal Integration.IntegrationMovementDecision? IntegrationMovementDecision;
 
     // which direction should we point during the Spinning status in Alzadaal's Legacy? (yes, this is a bespoke movement gimmick for one dungeon boss)
     public Angle? SpinDirection;
@@ -209,6 +210,7 @@ public sealed partial class AIHints
         ForcedTarget = null;
         ForcedFocusTarget = null;
         ForcedMovement = null;
+        IntegrationMovementDecision = null;
         SpinDirection = null;
         InteractWithTarget = null;
         ForbiddenZones.Clear();

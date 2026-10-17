@@ -112,6 +112,17 @@ internal sealed class IntegrationSession : IDisposable
             return !_disposed && token != null && _owners.TryGetValue(token, out var owner) && Live(owner);
     }
 
+    // Capture on the framework thread; sampling the result needs no dictionary lock and
+    // invokes no consumer callback. Input hooks must never wait for lifecycle operations.
+    internal Func<bool>? CaptureOwnerLiveness(string token)
+    {
+        lock (_gate)
+        {
+            if (_disposed || !_owners.TryGetValue(token, out var owner) || !Live(owner)) return null;
+            return () => !_disposed && Live(owner);
+        }
+    }
+
     internal Result Register(Registration? request, Action<string>? callback)
     {
         lock (_gate) return RegisterCore(request, callback);

@@ -17,6 +17,7 @@
     <Compile Include="../../BossMod/Framework/Integration/IntegrationArena.cs" Link="IntegrationArena.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationRoutes.cs" Link="IntegrationRoutes.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationInputObservation.cs" Link="IntegrationInputObservation.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationPacing.cs" Link="IntegrationPacing.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationLeases.cs" Link="IntegrationLeases.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationMechanics.cs" Link="IntegrationMechanics.cs" />
     <Compile Include="../../BossMod/Pathfinding/NavigationMapSource.cs" Link="NavigationMapSource.cs" />
@@ -26,6 +27,7 @@
     <Compile Include="../../docs/examples/BossModV1StrategyLease.cs" Link="BossModV1StrategyLease.cs" />
     <Compile Include="../../docs/examples/BossModV1ModuleLease.cs" Link="BossModV1ModuleLease.cs" />
     <Compile Include="../../docs/examples/BossModV1CastControl.cs" Link="BossModV1CastControl.cs" />
+    <Compile Include="../../docs/examples/BossModV1AutomaticPace.cs" Link="BossModV1AutomaticPace.cs" />
     <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
   </ItemGroup>
 </Project>

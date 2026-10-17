@@ -9,6 +9,7 @@ public sealed class WorldState
     public ulong QPF;
     public string GameVersion;
     public FrameState Frame;
+    internal long LiveFrameObservedTimestamp;
     public ushort CurrentZone;
     public ushort CurrentCFCID;
     public bool IsPvPArea;

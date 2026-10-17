@@ -19,6 +19,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
 
     internal void HintsReady()
     {
+        BeginPacingFrame();
         var player = World.Party.Player();
         _encounterMovement = hints.ForcedMovement;
         var targetIntentSource = bossmod.ActiveModule?.StateMachine.ActivePhase != null ? "encounter-hints"
@@ -32,10 +33,15 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         Session.Publish("hints-ready", Snapshot);
     }
 
-    internal void MovementProposed() => Session.Publish("movement-proposed", Snapshot);
+    internal void MovementProposed()
+    {
+        Session.Publish("movement-proposed", Snapshot);
+        FinalizePace();
+    }
     internal void MovementApplied()
     {
         movement.IntegrationInput.Assign(Session.InstanceGeneration, Session.FrameId, movement.DesiredDirection);
+        ArmPace();
         Session.Publish("movement-applied", Snapshot);
     }
 
@@ -45,7 +51,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         instanceGeneration = Session.InstanceGeneration,
         families = new Dictionary<string, int>
         {
-            ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
+            ["automatic-input-pacing"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
             ["cast-control-observation"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
@@ -56,6 +62,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             leaseMs = IntegrationSession.MaxLeaseMs, frameAgeMs = IntegrationSession.MaxFrameAgeMs, queryPoints = IntegrationSession.MaxQueryPoints,
             rasterCells = NavigationRaster.MaxCells, rasterWindowCells = NavigationRaster.MaxWindowCells,
             searchJobs = 4, runningSearches = 1, searchCells = IntegrationSearch.MaxCells,
+            automaticPaceLeaseMs = IntegrationPacing.MaxLeaseMs, automaticPaceMinScale = IntegrationPacing.MinScale,
             routes = IntegrationRoutes.MaxRoutes, routePoints = IntegrationRoutes.MaxPoints, routeEvaluations = 8192, routeBudgetMs = 4 },
         unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "validated-movement-preferences", "projected-constraints" }
     });
@@ -90,7 +97,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             userDirection = new[] { sample.UserDirection.X, sample.UserDirection.Y },
             actualDirection = new[] { sample.ActualDirection.X, sample.ActualDirection.Y },
             outputDirection = new[] { sample.OutputDirection.X, sample.OutputDirection.Y },
-            sample.FollowPath, sample.Misdirection,
+            sample.FollowPath, sample.Misdirection, sample.AutomaticPaceScale, sample.PacingProofId,
             matchingAssignment = sample.MatchingAssignment is { } a
                 ? new { a.InstanceGeneration, a.FrameId, direction = V(a.Direction) } : null,
             meaning = "last completed native walk input observation; assignment correlation checks the assigned direction value only"
@@ -130,6 +137,16 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             movementBlocked = movement.MovementBlocked,
             automaticMovementPaused = hints.AutomaticMovementPaused,
             controllerTarget = P(ai.Controller.NaviTargetPos),
+            nativeControllerDecision = hints.IntegrationMovementDecision is { } decision ? new
+            {
+                decision.Owner, decision.FrameId, decision.InstanceGeneration, sourceNavigationGeneration = decision.Navigation.Source.Generation,
+                origin = P(decision.Origin), destination = P(decision.Destination), direction = V(decision.Direction),
+                matchesCurrentHints = hints.EffectiveForcedMovement == decision.Direction
+            } : null,
+            automaticPacing = _pendingPace is { } pending ? new { proofId = pending.Ticket.Id, scale = pending.Ticket.Scale,
+                status = System.Threading.Volatile.Read(ref pending.Ticket.State) == 2 ? "revoked" : _paceResult,
+                reason = _paceResult,
+                frameId = pending.Ticket.Frame, sourceNavigationGeneration = pending.Ticket.NavigationGeneration } : null,
             controllerLeewaySeconds = Finite(ai.Controller.NaviLeewaySeconds),
             forceMovementInSeconds = Finite(ai.ForceMovementIn),
             routeTravelSeconds = navigation == null ? null : Finite(navigation.TimeToGoal),

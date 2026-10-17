@@ -46,6 +46,8 @@ static partial class Checks
         ModuleEnablementOwnership();
         ModuleLeaseConsumer();
         CastControlPublications();
+        AutomaticPacing();
+        NativeAutomaticPacing();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }
 

@@ -30,6 +30,7 @@ public sealed unsafe class MovementOverride : IDisposable
 {
     public Vector3? DesiredDirection;
     internal readonly Integration.IntegrationInputObservation IntegrationInput = new();
+    internal readonly Integration.IntegrationPacing IntegrationPacing = new();
     public Angle MisdirectionThreshold;
     public Angle? DesiredSpinDirection;
 
@@ -98,6 +99,7 @@ public sealed unsafe class MovementOverride : IDisposable
 
     public void Dispose()
     {
+        IntegrationPacing.Clear();
         _dalamud.RelinquishData("vnav.PathIsRunning");
         Service.GameConfig.UiControlChanged -= OnConfigChanged;
         MovementBlocked = false;
@@ -142,7 +144,8 @@ public sealed unsafe class MovementOverride : IDisposable
         }
 
         // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
-        var movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2(self) && !FollowPathActive();
+        var followPath = FollowPathActive();
+        var movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2(self) && !followPath;
         var misdirectionMode = PlayerHasMisdirection();
         if (!movementAllowed && misdirectionMode)
         {
@@ -165,9 +168,11 @@ public sealed unsafe class MovementOverride : IDisposable
         // note: currently we follow desired direction, only if user does not have any input _or_ if manual movement is blocked
         // this allows AI mode to move even if movement is blocked (TODO: is this the right behavior? AI mode should try to avoid moving while casting anyway...)
         var allowAuto = movementAllowed ? !MovementBlocked : misdirectionMode;
+        var automatic = false;
         if (allowAuto && ActualMove == default && DirectionToDestination(false) is var relDir && relDir != null)
         {
             ActualMove = relDir.Value.h.ToDirection();
+            automatic = true;
         }
 
         // misdirection override logic
@@ -187,10 +192,18 @@ public sealed unsafe class MovementOverride : IDisposable
             : _forcedControlState == null ? ActualMove // misdirection mode, but we're not trying to help user
             : _forcedControlState.Value ? ActualMove // misdirection mode, not moving yet, but want to start - can return anything really
             : default; // misdirection mode, not moving yet and don't want to
+        var pace = IntegrationPacing.Apply(IntegrationInput.CurrentAssignment, DesiredDirection, new(UserMove.X, UserMove.Z),
+            new(ActualMove.X, ActualMove.Z), new(output.X, output.Z), automatic, movementAllowed, MovementBlocked, followPath,
+            misdirectionMode || self->Spinning == 1);
+        if (pace.ProofId != null)
+        {
+            output = new(pace.Output.X, pace.Output.Y);
+            ActualMove = output;
+        }
         *sumLeft = output.X;
         *sumForward = output.Z;
         IntegrationInput.Observe("walk-input-result", DesiredDirection, new(UserMove.X, UserMove.Z),
-            new(ActualMove.X, ActualMove.Z), new(output.X, output.Z), !movementAllowed && FollowPathActive(), misdirectionMode);
+            new(ActualMove.X, ActualMove.Z), new(output.X, output.Z), followPath, misdirectionMode, pace.Scale, pace.ProofId);
     }
 
     private void RMIFlyDetour(void* self, PlayerMoveControllerFlyInput* result)

@@ -24,7 +24,7 @@ the xBMR implementation deliverable.
 | 5. Targets | Bounded policy/geometry/cast observation, native cast identities/deadline estimates and producer-recorded zone links, captured hint-producer transform provenance, nullable explicit target requirement | More detailed authored/default semantics, additional cast-linked producers and migration |
 | 6. Mechanics/projection | Bounded native generic publications, explicit coverage/later-pulse gaps, actual-pose native knockback/march observation preserving DestinationUnsafe, filtered source identity and activation | Counterfactual/independent-hazard/recovery safety, richer applicability and migration |
 | 7. Damage/effects | Full bounded damage list with same-observation party mapping/world time, copied recipient identities and explicit resolution completeness; bounded current-update action effects | Consumer migration and representative live overlap/party-change acceptance |
-| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Preset-selection leases, validated movement preferences, additional constraints and other justified native corrections; consumer/live module-toggle acceptance |
+| 8. Ownership controls/native corrections | Allowlisted settings, transient-strategy and module-enablement leases, bounded native automatic-input pacing, synchronous directional scopes, conditional native follow stop; module catalog and native eligibility/active retention | Preset-selection leases, validated movement preferences, additional constraints and other justified native corrections; consumer/live module-toggle acceptance |
 
 No complete reflection-removal or live gameplay acceptance claim is made by this
 ledger. Unsupported fields remain null or explicitly unknown. In particular a
@@ -42,7 +42,7 @@ assembly reference, WPos adapter, pointer, reflected manager, or mutable map.
 `families`, `limits`, and an explicit `unsupported` list. A consumer must check
 the family it needs instead of inferring support from a plugin release number.
 Currently the advertised families are `frame-stages`, `goal-scoring`,
-`movement-observation`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
+`movement-observation`, `automatic-input-pacing`, `target-policy`, `cast-control-observation`, `predicted-damage`, `action-effects`,
 `arena-geometry`, `navigation-publication`, `navigation-raster`, and
 `walk-route-validation`, `native-route-search`, `nearest-safe-raster-search`,
 `mechanic-observation`, `current-native-projection`,
@@ -660,9 +660,101 @@ use native publication/query identities; a completed map is now separate from
 the active worker context. No compatibility claim is made for private-field
 reflection or for its old completion heuristic.
 
-Preset selection leases, validated pacing/cast holds/
+Preset selection leases, cast-departure holds/
 ingress/destination preferences and contributed projected constraints remain
 explicitly unsupported. The general `control-leases` umbrella is not advertised.
+
+## Bounded native automatic-input pacing
+
+`automatic-input-pacing:1` is independent of configuration leases and the still
+unsupported general movement-preferences family. It supports short, out-of-combat
+travel pacing through the native NormalMovement controller. Stable destinations,
+cast-departure holds, ingress and general movement setters remain unsupported.
+
+`Movement.V1.RequestPace: Func<string,string>` accepts only a fresh native
+**`movement-proposed`** callback context and a separately renewed integration
+owner:
+
+```json
+{"context":{"schemaVersion":1,"instanceGeneration":"<provider>","frameId":42,"stage":"movement-proposed"},"ownerToken":"<registered>","generation":123,"scale":0.6,"leaseMs":100}
+```
+
+`generation` is the observed native navigation generation; `scale` is finite in
+0.35–1 and `leaseMs` is 1–100. At most four validation attempts and one accepted
+request are allowed per frame. Another owner cannot replace the accepted proof.
+A valid request returns `accepted:true`, `proofId`, `status:"pending-native-application"`,
+scale, source generation and its timing model. Rejection is unavailable with a
+reason. Acceptance is not confirmation that input was scaled or the player moved.
+
+NormalMovement records `nativeControllerDecision` after its final range/cast
+corrections, including the integration instance/frame, origin, actual controller
+destination/direction and source navigation generation. `matchesCurrentHints`
+means this recorded direction still matches the current native hints; it is not
+an inferred identity from an older raster. Requests reject missing/different
+controllers, follow ownership, adjusted destinations not matching the native
+witness, manual input, combat in the local player or a known party member,
+engaged native targets, queued/live casts, native cast pressure, pending
+knockbacks, flight/mount/cutscene/pause, interaction/jump, authored forced movement,
+forbidden facing and special modes.
+
+The original complete native witness, safe maximum-goal result, source actor/
+territory/content/generation, current origin/geometry/layer and physical coverage
+must still be valid. Native relaxed-warning/fallback/incomplete/teleporter routes
+cannot authorize pacing. The complete walk route is revalidated against current
+physical, temporary and timed warning constraints, using the real hitbox and the
+lower of source/current native model speed. It conservatively assumes **zero
+progress for the entire lease**, plus the age of the live world observation,
+then native movement resumes. Native deadline reserve, the native activation
+cushion and an additional 0.25 s margin must permit this. It does not assume
+analog magnitude is a calibrated speed ratio. World/source observations older
+than 250 ms fail unavailable, and replay-only worlds do not fabricate a live
+observation timestamp. The usual bounded route evaluator applies; no map rebuild
+or worker wait is introduced.
+
+After all proposed-stage callbacks, BMR revalidates the proof. It arms only after
+`ExecuteHints` assigned the exact expected direction in the matching native
+instance/frame. At actual walk input, the native automatic branch additionally
+requires that same assignment and unmodified unit output, no raw manual input,
+follow-path, misdirection, block or other native input ownership. Only the
+magnitude of already-produced native input is reduced; no direction, destination,
+player speed setting or configuration is rewritten. Owner/scope expiry, a newly
+queued cast, a changed assignment, a new frame, cleanup and provider disposal
+revoke pacing. Provider liveness uses an already-captured owner probe with no
+lifecycle dictionary lock or consumer callback on the input path.
+
+Proof lifetime starts at the native controller observation, is at most 100 ms,
+and cannot outlive the original navigation source's 250 ms lifetime. Re-reading,
+renewing the integration owner or repeatedly sampling input cannot extend it.
+Submit afresh each proposed stage; there is no `Control.V1.Renew` for pacing.
+Even repeated requests must pass current route/deadline validation each frame.
+
+`Movement.V1.ClearPace: Func<string,string>` accepts the lifecycle payload
+`{schemaVersion:1,instanceGeneration,ownerToken}` without a stage context. It may
+run on the unload thread, is idempotent when absent, and cannot clear another
+owner's proof. A clear racing with native finalization cannot resurrect a ticket.
+No saved value or previous follow/controller state is restored.
+
+The movement observation's `automaticPacing` identifies the requested proof and
+pending/armed/revoked state. `movement-applied` still describes override assignment.
+Actual native input evidence is separate in `lastInputRead.automaticPaceScale`
+and `pacingProofId`, together with its own input generation and matching assignment.
+An earlier input sample is never relabeled as the new frame's application.
+Other plugins' later input hooks and actual physical speed/arrival need separate
+live acceptance.
+
+The compiled [BCL consumer](examples/BossModV1AutomaticPace.cs) requests and clears
+an owned frame proof. Discovery and owner renewal remain the caller's normal
+integration lifecycle:
+
+```csharp
+var pacing = new IntegrationExample.BossModV1AutomaticPace(
+    pi.GetIpcSubscriber<string, string>("BossMod.Movement.V1.RequestPace").InvokeFunc,
+    pi.GetIpcSubscriber<string, string>("BossMod.Movement.V1.ClearPace").InvokeFunc);
+// In movement-proposed, using that snapshot's navigationGeneration:
+pacing.TryRequest(context, ownerToken, navigationGeneration, 0.6f);
+// Observe native arming and matching input proof; clear before owner unregister/unload.
+pacing.Clear();
+```
 
 ## Owned transient strategies
 
@@ -826,7 +918,7 @@ outside this issue.
 | `BossModSupportDamageReader`, `BossModMitigationDeadlineReader` | Full same-generation predicted-damage list, copied recipient IDs, party mapping and completeness | Consumer migration and live overlap/party-change acceptance; offline overlap/identity tests pass |
 | `BossModGroundActionObserver` / reflected `ActorState.CastEvent` subscription | `World.V1.GetActionEffects` | Poll from the frame callback and handle dropped/incomplete updates; production subscription not yet replaced |
 | Follow stop, hallway module enablement, transient configuration/strategy ownership and temporary directional angle settings | Conditional `Follow.V1.Stop`, `Control.V1` settings/scopes, `Strategies.V1` ownership, and `Modules.V1` catalog/enablement leases; legacy IPC stays compatible | Preset-selection leases remain unsupported; honor module acquisition/retention/user-intent semantics during production adoption |
-| Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | No movement-write endpoint introduced | BMR-validated preference/control contracts and native ownership decisions still required |
+| Writes to `ForcedMovement`, `_rmiWalkHook`/`ActualMove` pacing, cast-departure hold, duty ingress and equivalent destination stabilization | Bounded native automatic-input pacing; no general movement setter | Stable destinations, cast-departure holds and duty ingress still require native validated contracts; production pacing hook migration/live input acceptance remain open |
 | Stack masks, redundant tank-facing, FATE pathfinding-frame guards and additional projected constraints | Native defects have not been established by this contract work | Gather evidence, preserve user opt-outs, then implement justified native behavior/capability or a narrowly validated lease; do not clone existing workarounds blindly |
 
 [`examples/BossModV1Consumer.cs`](examples/BossModV1Consumer.cs) is a compile-checked
@@ -903,3 +995,22 @@ dotnet tests/IntegrationContractRegression/bin/Release/net10.0/IntegrationContra
   action legality, complete encounter threat coverage, production XCAI migration
   or representative live gameplay acceptance. The issue remains open for the
   residual provider and consumer requirements in the delivery ledger.
+
+### Automatic-input pacing checkpoint, 2026-10-17
+
+- Added `automatic-input-pacing:1` as the twenty-second independently advertised
+  family, plus native final-controller provenance. General destination changes,
+  cast-departure holds and duty ingress remain unsupported.
+- Full Release compilation with the pinned SDK, compatible API 15 references,
+  source generation and diagnostic analyzers passed with zero errors and six
+  existing obsolete-gauge warnings.
+- All 19 regression suites passed against that exact assembly: 7,893 assertions
+  or checks, including 1,761 integration assertions. New coverage exercises the
+  native request/finalization/assignment endpoints, route/deadline rejection,
+  later constraint changes, owner loss, queued casts, death observation, manual
+  and special-input precedence, short monotonic expiry, cancellation races and
+  the compiled consumer. Input liveness does not wait for lifecycle locks.
+- These are source/build and offline fixture results. Actual game input scaling,
+  calibrated analog movement speed, production XCAI hook removal and live
+  gameplay acceptance remain unverified. A pending or armed proof is not an
+  observation of applied input. The delivery ledger and issue remain open.

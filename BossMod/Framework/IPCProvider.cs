@@ -20,6 +20,8 @@ sealed class IPCProvider : IDisposable
         Register("Goals.V1.Submit", (string request, Func<Vector2, float> score) => Integration.IntegrationSession.Serialize(integration.Session.Submit(Integration.IntegrationSession.Parse<Integration.IntegrationSession.GoalRequest>(request), score)));
         Register("Goals.V1.Clear", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Clear(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
         Register("Goals.V1.EvaluateNative", (string request) => integration.EvaluateNativeGoals(request));
+        Register("Movement.V1.RequestPace", (string request) => integration.RequestPace(request));
+        Register("Movement.V1.ClearPace", (string request) => integration.ClearPace(request));
         Register("Movement.V1.GetSnapshot", (string request) => integration.GetSnapshot(request));
         Register("Movement.V1.Latest", integration.GetLatestSnapshot);
         Register("Hints.V1.GetCastControl", (string request) => integration.GetCastControl(request));

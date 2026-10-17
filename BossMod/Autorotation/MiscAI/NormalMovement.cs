@@ -432,6 +432,11 @@ public sealed class NormalMovement : RotationModule
                 Hints.ForcedMovement = dir.ToVec3();
             }
         }
+        if (destinationStrategy == DestinationStrategy.Pathfind && PublishedNavigation is { } publication
+            && Hints.IntegrationGoals is { } integration && Hints.ForcedMovement is { } direction && direction != default)
+            Hints.IntegrationMovementDecision = new(integration.Context.InstanceGeneration, integration.Context.FrameId,
+                "bmr-normal-movement", Player.InstanceID, World.CurrentTime, System.Diagnostics.Stopwatch.GetTimestamp(),
+                Player.Position, navi.Destination.Value, direction, publication);
     }
 
     private float CalculateUnobstructedPathLength(Angle dir)
