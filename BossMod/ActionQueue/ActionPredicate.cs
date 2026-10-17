@@ -123,6 +123,8 @@ public static class ActionPredicate
             return false;
         }
         var center = hints.PathfindMapCenter;
+        foreach (var constraint in hints.IntegrationConstraints?.Capture() ?? [])
+            if (constraint.Contains(to)) return false;
         if (!hints.PathfindMapBounds.Contains(to - center))
         {
             return false;

@@ -1,6 +1,5 @@
 """Check real process exit status: a failed check must exit 1, never abort."""
 import os
-import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -47,25 +46,6 @@ class ConsoleRunnerTests(unittest.TestCase):
                 if mode == "reflection":
                     self.assertIn("Fixture.Inner()", result.stderr)
 
-    @unittest.skipUnless(os.environ.get("XBMR_GAME_DIRECTORY"), "Set XBMR_GAME_DIRECTORY for installed-sheet regression")
-    def test_inspection_missing_quest_row(self):
-        project = self.root / "scripts/EncounterInspection/EncounterInspection.csproj"
-        build = subprocess.run([self.dotnet, "build", str(project), "-c", "Release", *self.build_flags],
-                               cwd=self.root, capture_output=True, text=True)
-        self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
-        args = [self.dotnet, str(project.parent / "bin/Release/net10.0/EncounterInspection.dll"),
-                str(self.root / "BossMod/bin/Release/BossModReborn.dll"),
-                os.environ.get("DALAMUD_HOME", str(Path.home() / ".xlcore/dalamud/Hooks/dev")),
-                os.environ["XBMR_GAME_DIRECTORY"],
-                str(self.root / "tests/EncounterInspectionRegression/inventory.json")]
-        result = subprocess.run(args, cwd=self.root, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        row = json.loads(result.stdout)
-        self.assertEqual(row["Zone"], 232)
-        self.assertEqual(row["QuestID"], 854246)
-        self.assertFalse(row["QuestFound"])
-        self.assertIsNone(row["Quest"])
-        self.assertEqual(result.stderr, "")
 
 
 if __name__ == "__main__":

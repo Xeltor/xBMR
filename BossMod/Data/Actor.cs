@@ -183,6 +183,14 @@ public enum Visibility
 
 public sealed class Actor(ulong instanceID, uint oid, int spawnIndex, uint layoutID, string name, uint nameID, ActorType type, Class classID, int level, Vector4 posRot, float hitboxRadius = 1f, ActorHPMP hpmp = default, bool targetable = true, bool ally = false, ulong ownerID = default, uint fateID = default, int renderflags = 0)
 {
+    // Native read-only hypothetical pose. Reference data is observed, never changed by projection.
+    internal Actor CopyForProjection(WPos position, Angle facing)
+    {
+        var copy = (Actor)MemberwiseClone();
+        copy.PosRot = new(position.X, PosRot.Y, position.Z, facing.Rad);
+        return copy;
+    }
+
     public ulong InstanceID = instanceID; // 'uuid'
     public uint OID = oid;
     public int SpawnIndex = spawnIndex; // [0-200) = character (even for normal, odd for dependents like mounts), [200-246) = client-side, [246, 286) = event object, [286, 426) = ???, [426-526) = ???, [526,596) = ???

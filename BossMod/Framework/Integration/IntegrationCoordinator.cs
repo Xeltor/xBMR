@@ -19,6 +19,8 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     internal void BeginWorldUpdate()
     {
         Session.BeginWorldUpdate();
+        RetireDistanceSources();
+        hints.StackCarrierSeparationPolicy = _stackCorrection;
         movement.IntegrationPacing?.Clear();
         hints.ProjectionSourcesRequested = Session.HasActiveOwners;
         hints.ProjectionSourcesContext = null;
@@ -38,14 +40,17 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         _observedUtc = DateTimeOffset.UtcNow;
         Session.BeginFrame(ControlScope(),
             player is { IsDead: false } && !movement.IsMoveRequested() && !hints.AutomaticMovementPaused);
+        RetireDistanceSources();
         _nativeHintEvidence = new(Session.CurrentContext, hints.GoalZones.Count);
         hints.ProjectionSourcesContext = hints.ProjectionSourcesValid ? Session.CurrentContext : null;
         hints.IntegrationGoals = new(Session, hints.GoalZones.ToArray());
+        if (_safetyJobs != null) lock (_safetyGate) PruneSafetySnapshots();
         Session.Publish("hints-ready", Snapshot);
     }
 
     internal void MovementProposed()
     {
+        _ = hints.IntegrationConstraints?.Capture();
         Session.Publish("movement-proposed", Snapshot);
         FinalizePace();
     }
@@ -62,26 +67,28 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
         instanceGeneration = Session.InstanceGeneration,
         families = new Dictionary<string, int>
         {
-            ["automatic-input-pacing"] = 1, ["cast-departure-hold"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["movement-observation"] = 1,
-            ["cast-control-observation"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1,
-            ["native-default-terrain-frame"] = 1,
+            ["automatic-input-pacing"] = 1, ["cast-departure-hold"] = 1, ["native-arrival-input-hold"] = 1, ["native-follow-arrival-input-hold"] = 1, ["native-physical-input-brake"] = 1, ["native-follow-physical-input-brake"] = 1, ["native-physical-step-observation"] = 1, ["controller-input-provenance"] = 1, ["frame-stages"] = 1, ["goal-scoring"] = 1, ["native-goal-no-loss"] = 1, ["native-goal-matrix"] = 1, ["movement-observation"] = 1,
+            ["cast-control-observation"] = 1, ["native-constraint-distances"] = 1, ["native-aoe-forecast-distances"] = 1, ["target-policy"] = 1, ["predicted-damage"] = 1, ["action-effects"] = 1, ["arena-geometry"] = 1, ["owned-fate-frame"] = 1, ["owned-duty-ingress"] = 1,
             ["native-route-search"] = 1, ["nearest-safe-raster-search"] = 1,
             ["navigation-publication"] = 1, ["navigation-raster"] = 1, ["walk-route-validation"] = 1,
-            ["mechanic-observation"] = 1, ["current-native-projection"] = 1,
+            ["mechanic-observation"] = 1, ["native-stack-participation"] = 1, ["current-native-projection"] = 1,
             ["counterfactual-projection-geometry"] = 1,
             ["native-knockback-landing-constraints"] = 1,
             ["native-goal-presence"] = 1, ["dash-policy-observation"] = 1, ["target-aggro-observation"] = 1,
-            ["module-catalog"] = 1, ["module-enablement-leases"] = 1, ["transient-strategy-leases"] = 1, ["configuration-leases"] = 1, ["directional-angle-scopes"] = 1, ["follow-control"] = 1
+            ["module-catalog"] = 1, ["static-module-registry"] = 1, ["native-recording-evidence"] = 1, ["native-forced-march-safety"] = 1, ["native-forced-march-heading"] = 1, ["native-stack-carrier-separation"] = 1, ["native-actor-pose-knockback"] = 1, ["native-strict-safety-snapshots"] = 1, ["native-safety-route-witnesses"] = 1, ["owned-projected-constraints"] = 1, ["snapshot-explicit-segment-validation"] = 1, ["module-enablement-leases"] = 1, ["transient-strategy-leases"] = 1, ["configuration-leases"] = 1, ["directional-angle-scopes"] = 1, ["follow-control"] = 1
         },
         limits = new { owners = IntegrationSession.MaxOwners, goalsPerOwner = IntegrationSession.MaxGoalsPerOwner,
             leaseMs = IntegrationSession.MaxLeaseMs, frameAgeMs = IntegrationSession.MaxFrameAgeMs, queryPoints = IntegrationSession.MaxQueryPoints,
             rasterCells = NavigationRaster.MaxCells, rasterWindowCells = NavigationRaster.MaxWindowCells,
             searchJobs = 4, runningSearches = 1, searchCells = IntegrationSearch.MaxCells,
             automaticPaceLeaseMs = IntegrationPacing.MaxLeaseMs, automaticPaceMinScale = IntegrationPacing.MinScale,
-            counterfactualPoses = IntegrationCounterfactualProjection.MaxPoses,
+            noLossLeaves = IntegrationSession.MaxNoLossLeaves, noLossBaselines = IntegrationSession.MaxNoLossBaselines,
+            nativeGoals = IntegrationNativeGoals.MaxGoals, nativeGoalPoints = IntegrationNativeGoals.MaxPoints,
+            counterfactualPoses = IntegrationCounterfactualProjection.MaxPoses, nativeKnockbackPoses = 32, nativeKnockbackPoseCalls = 8,
+            nativeKnockbackSourceRecords = 128, nativeKnockbackWalls = 512, nativeKnockbackResponseCharacters = 262144,
             projectionConstraintZones = 128, projectionConstraintTreeNodes = 128, projectionConstraintTreeDepth = 8,
             routes = IntegrationRoutes.MaxRoutes, routePoints = IntegrationRoutes.MaxPoints, routeEvaluations = 8192, routeBudgetMs = 4 },
-        unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "validated-movement-preferences", "projected-constraints" }
+        unsupported = new[] { "continuous-nearest-safe-search", "arena-route-ingress", "mechanic-projection", "validated-movement-preferences", "owned-constraint-native-projection-approval" }
     });
 
     internal string GetSnapshot(string request) => WithContext(request, Snapshot);
@@ -155,9 +162,12 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             movementBlocked = movement.MovementBlocked,
             automaticMovementPaused = hints.AutomaticMovementPaused,
             controllerTarget = P(ai.Controller.NaviTargetPos),
+            nativeGoalNoLoss = hints.IntegrationGoals?.NoLossObservation,
+            stackCarrierSeparation = new { currentBuildEnabled = hints.StackCarrierSeparationActive, nextBuildEnabled = _stackCorrection?.Enabled == true },
             nativeControllerDecision = hints.IntegrationMovementDecision is { } decision ? new
             {
-                decision.Owner, decision.FrameId, decision.InstanceGeneration, sourceNavigationGeneration = decision.Navigation.Source.Generation,
+                decision.Owner, decision.FrameId, decision.InstanceGeneration, decision.ControllerDecisionId,
+                followMasterId = decision.FollowMasterId?.ToString("X"), followMasterPosition = V(decision.FollowMasterPosition), sourceNavigationGeneration = decision.Navigation.Source.Generation,
                 origin = P(decision.Origin), destination = P(decision.Destination), direction = V(decision.Direction),
                 matchesCurrentHints = hints.EffectiveForcedMovement == decision.Direction
             } : null,
@@ -169,7 +179,7 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             automaticDepartureHold = _pendingPace is { Ticket.DepartureHold: true } hold ? new
             {
                 proofId = hold.Ticket.Id, sourceNavigationGeneration = hold.Ticket.NavigationGeneration,
-                requestedLeaseMs = hold.Request.LeaseMs,
+                requestedLeaseMs = hold.Request.LeaseMs, kind = hold.Kind.Length == 0 ? "departure-hold" : hold.Kind,
                 status = System.Threading.Volatile.Read(ref hold.Ticket.State) == 2 ? "revoked" : _paceResult,
                 state = System.Threading.Volatile.Read(ref hold.Ticket.State),
                 meaning = "bounded zero automatic input on the exact native assignment; no cast or gameplay approval"
@@ -222,6 +232,8 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
     internal string GetTargets(string request) => WithContext(request, context => IntegrationSession.Serialize(new
     {
         available = true, context,
+        defaultDesiredRotation = "unset-unless-natively-requested",
+        automaticSelfFacingCopied = false,
         forcedTargetId = hints.ForcedTarget?.InstanceID.ToString("X"),
         highestPriority = hints.HighestPotentialTargetPriority,
         complete = hints.PotentialTargets.Count <= AIHints.NumEnemies,
@@ -363,8 +375,8 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
             return Unavailable("physical-map-copy-limit");
         var budget = new IntegrationRoutes.Budget();
         var currentMap = hints.CapturePathfindMapSource();
-        var source = new IntegrationRoutes.Source(p.Raster, currentMap.Obstacles, hints.TemporaryObstacles.ToArray(),
-            hints.ForbiddenZones.Select(w => (w.shapeDistance, w.activation, w.Source)).ToArray(), World.CurrentTime,
+        var source = new IntegrationRoutes.Source(p.Raster, currentMap.Obstacles, hints.CaptureIntegrationObstacles(),
+            hints.CaptureIntegrationWarnings().Select(w => (w.shapeDistance, w.activation, w.Source)).ToArray(), World.CurrentTime,
             hints.PathfindMapBounds.AllowObstacleMap);
         var model = new IntegrationRoutes.Model(radius, speed, query.DepartureDelaySeconds, query.AdditionalTimeMarginSeconds);
         var results = query.Routes.Select(route => IntegrationRoutes.Evaluate(source, route.Select(v => new WPos(v[0], v[1])).ToArray(), model, budget)).ToArray();
@@ -393,15 +405,9 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
                 player == null ? null : module.ResolveArenaProjectionLayer(player)),
             pathfindingRegion = IntegrationArena.Describe(hints.PathfindMapBounds, hints.PathfindMapCenter, hints.PathfindMapArenaProjectionLayer),
             pathfindingRegionProvenance = "current-AIHints; not a substitute for encounter arena",
-            obstacleMap = new { present = hints.PathfindMapObstacles.Bitmap != null, provenance = hints.DefaultTerrainFrameAlignment?.Matches(hints) == true
-                    ? "SimpleBossModule.Obstacles; inherited-default-search-frame" : "native-hints-producer-not-attributed",
-                generation = (long?)null, assetIdentity = (string?)null,
-                defaultFrameAlignment = hints.DefaultTerrainFrameAlignment is { } frame && frame.Matches(hints) ? new
-                {
-                    status = "aligned", originalCenter = P(frame.OriginalCenter), center = P(frame.Center), obstacleOrigin = P(frame.ObstacleOrigin),
-                    frame.Resolution, window = new { frame.Region.Rect.Left, frame.Region.Rect.Top, frame.Region.Rect.Right, frame.Region.Rect.Bottom },
-                    scope = "inherited-SimpleBossModule-default-search-frame; not encounter geometry or physical coverage proof"
-                } : null },
+            obstacleMap = new { present = hints.PathfindMapObstacles.Bitmap != null,
+                provenance = "native-hints-producer-not-attributed", generation = (long?)null,
+                assetIdentity = (string?)null, defaultFrameAlignment = (object?)null },
             geometryOnly = true
         });
     });
@@ -444,6 +450,9 @@ internal sealed partial class IntegrationCoordinator(BossModuleManager bossmod, 
 
     public void Dispose()
     {
+        _decodeShutdown.Cancel();
+        DisposeSafetySnapshots();
+        RetireDistanceSources(all: true);
         DisposeSearches();
         DisposeControls();
         Session.Dispose();

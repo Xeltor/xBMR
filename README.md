@@ -3,15 +3,11 @@
 Xel's fork of [BossMod Reborn](https://github.com/FFXIV-CombatReborn/BossmodReborn),
 based on [BossMod by awgil](https://github.com/awgil/ffxiv_bossmod).
 It includes the upstream radar, mechanic hints, replay viewer, cooldown planner,
-autorotation and optional AI features. The fork preserves upstream compatibility and keeps validated encounter corrections
-in their existing modules. See [the encounter migration audit](docs/xcai-encounter-migration.md)
-for the source changes, retired workarounds and remaining validation.
-The subsequent [Shinryu floor corrections](docs/shinryu-floor-corrections.md)
-document the bounded Twilight repair and its replay evidence.
-See the [7.5.6.35.8 release notes](docs/release-7.5.6.35.8.md) for the complete
-encounter changes and validation limits.
+autorotation and optional AI features. The fork preserves upstream compatibility
+and keeps encounter corrections in their existing modules.
 
-Agent integration documentation: [versioned XCAI IPC guide](docs/xcai-integration-agent-guide.md).
+IPC contracts, consumer usage and validation evidence are tracked in
+[issue #1](https://github.com/Xeltor/xBMR/issues/1).
 
 ## Install
 
@@ -51,8 +47,7 @@ version sorts above the corrected version. Existing settings keep the same path.
 Modules leave WIP when encounter coverage is supported by available evidence and
 relevant offline validation passes. Personal live testing is optional. Credible
 complaints or Git issues about material module defects return them to WIP until
-resolved. See [the module maturity policy](docs/module-maturity-policy.md) for
-promotion, reopening and archive collection rules.
+resolved. Promotion and reopening rules are in [AGENTS.md](AGENTS.md).
 
 ## Questionable compatibility
 
@@ -61,8 +56,8 @@ Select **BossMod** as Questionable's combat module. xBMR provides the shared
 companion plugin is required. Questionable may still display its BossMod Reborn
 warning and mark the original BossMod plugin as missing. The inspected version's
 combat and solo-duty paths check the IPC directly, independently of those notices.
-See [the compatibility notes](docs/questionable-compatibility.md) for the tested
-Questionable version, remaining gameplay validation, and scope.
+Compatibility findings and remaining gameplay validation belong in the relevant
+[xBMR issue](https://github.com/Xeltor/xBMR/issues).
 
 ## Development and releases
 

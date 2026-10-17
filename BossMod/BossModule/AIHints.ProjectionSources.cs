@@ -26,8 +26,7 @@ public sealed partial class AIHints
     {
         if (!ProjectionSourcesRequested || _projectionSourcesInvalid)
         { component.AddAIHints(slot, actor, assignment, this); return; }
-        var candidate = component is GenericKnockback { SupportsCounterfactualProjection: true } knockback
-            && knockback.ActiveKnockbacks(slot, actor).Length == 1;
+        var candidate = component is GenericKnockback knockback && knockback.ActiveKnockbacks(slot, actor).Length <= 32;
         if (!candidate && _projectionSources.Count == 0)
         { component.AddAIHints(slot, actor, assignment, this); return; }
         if (_collectingProjectionSource || ForbiddenZones.Count > 128)

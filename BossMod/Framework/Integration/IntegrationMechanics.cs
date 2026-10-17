@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace BossMod.Integration;
 
 // A bounded view of native publications. Missing components/future pulses are never negative evidence.
-internal static class IntegrationMechanics
+internal static partial class IntegrationMechanics
 {
     internal const int MaxComponents = 64;
     internal const int MaxEntries = 128;
@@ -35,6 +35,10 @@ internal static class IntegrationMechanics
         return result;
     }
 
+    private static readonly System.Reflection.MethodInfo StandardStackAI = typeof(GenericStackSpread).GetMethod(nameof(GenericStackSpread.AddAIHints))!;
+    private static bool UsesStandardStackAI(GenericStackSpread component)
+        => component.GetType().GetMethod(nameof(GenericStackSpread.AddAIHints))?.DeclaringType == StandardStackAI.DeclaringType;
+
     internal sealed record Movement(float[] From, float[] To, float? Facing, bool NativeDestinationUnsafe,
         string? ActivationTicks, string? EndTicks, int? SourceIndex, int? ArenaProjectionLayer, bool? RestrictToArenaProjectionLayer);
     internal static Movement[]? ObserveCurrentProjection(BossComponent component, Actor actor, int slot)
@@ -58,7 +62,7 @@ internal static class IntegrationMechanics
         return null;
     }
 
-    internal static object Capture(BossModule module, Actor actor, IntegrationSession.Context context, IntegrationRoutes.Budget? budget = null)
+    internal static object Capture(BossModule module, Actor actor, IntegrationSession.Context context, IntegrationRoutes.Budget? budget = null, bool nativeCarrierSeparation = false)
     {
         budget ??= new();
         var slot = module.Raid.FindSlot(actor.InstanceID);
@@ -101,9 +105,13 @@ internal static class IntegrationMechanics
                 foreach (var s in stacks.Stacks.Take(MaxEntries + 1))
                 {
                     if (entries.Count >= MaxEntries || !budget.Step()) { omitted = true; break; }
+                    var participation = StackFacts(module, actor, stacks, s, budget, nativeCarrierSeparation);
+                    if (participation == null) omitted = true;
                     Add(new { kind = "stack", componentId = id, targetActorId = s.Target.InstanceID.ToString("X"), position = P(s.Target.Position),
-                        s.Radius, s.MinSize, s.MaxSize, activationTicks = T(s.Activation), excludedActorIds = Recipients(s.ForbiddenPlayers),
+                        s.Radius, s.MinSize, s.MaxSize, participation,
+                        localCarrierSeparation = nativeCarrierSeparation && IntegrationStackCorrection.Required(stacks, actor, s), activationTicks = T(s.Activation), excludedActorIds = Recipients(s.ForbiddenPlayers),
                         stacks.IncludeDeadTargets, targetDead = s.Target.IsDead, stacks.EnableHints,
+                        standardAIHints = UsesStandardStackAI(stacks), extraAISpreadThreshold = stacks.ExtraAISpreadThreshold,
                         positioningPublished = stacks.EnableHints && (stacks.IncludeDeadTargets || !s.Target.IsDead),
                         arenaProjectionLayer = s.ResolveArenaProjectionLayer(module), s.RestrictToArenaProjectionLayer });
                 }
@@ -112,6 +120,7 @@ internal static class IntegrationMechanics
                     if (entries.Count >= MaxEntries || !budget.Step()) { omitted = true; break; }
                     Add(new { kind = "spread", componentId = id, targetActorId = s.Target.InstanceID.ToString("X"), position = P(s.Target.Position),
                         s.Radius, activationTicks = T(s.Activation), stacks.IncludeDeadTargets, targetDead = s.Target.IsDead, stacks.EnableHints,
+                        standardAIHints = UsesStandardStackAI(stacks), extraAISpreadThreshold = stacks.ExtraAISpreadThreshold,
                         positioningPublished = stacks.EnableHints && (stacks.IncludeDeadTargets || !s.Target.IsDead),
                         arenaProjectionLayer = s.ResolveArenaProjectionLayer(module), s.RestrictToArenaProjectionLayer });
                 }
@@ -122,7 +131,12 @@ internal static class IntegrationMechanics
                 foreach (var b in baits.CurrentBaits.Take(MaxEntries + 1))
                 {
                     if (entries.Count >= MaxEntries || !budget.Step()) { omitted = true; break; }
-                    Add(new { kind = "bait", componentId = id, sourceActorId = b.Source.InstanceID.ToString("X"), targetActorId = b.Target.InstanceID.ToString("X"),
+                    var isStack = baits is GenericBaitStack;
+                    var stackParticipation = isStack ? BaitStackFacts(module, actor, baits, b, budget) : null;
+                    if (isStack && stackParticipation == null) omitted = true;
+                    Add(new { kind = "bait", nativeBaitStack = isStack, stackParticipation,
+                        stackParticipationForbiddenActorIds = isStack ? Recipients(b.Forbidden) : null,
+                        forbiddenBaiterActorIds = Recipients(baits.ForbiddenPlayers), componentId = id, sourceActorId = b.Source.InstanceID.ToString("X"), targetActorId = b.Target.InstanceID.ToString("X"),
                         sourcePosition = P(b.Source.Position), targetPosition = P(b.Target.Position), shape = Describe(b.Shape), rotation = b.Rotation.Rad,
                         offset = new[] { b.Offset.X, b.Offset.Z }, b.MaxCasts, activationTicks = T(b.Activation),
                         excludedActorIds = Recipients(b.Forbidden | baits.ForbiddenPlayers), baits.AllowDeadTargets, baits.EnableHints,
@@ -172,11 +186,17 @@ internal static class IntegrationMechanics
                         pending = state.PendingMoves.Take(32).Select(m => new { direction = m.dir.Rad, m.duration, activationTicks = T(m.activation) }).ToArray(),
                         pendingComplete = state.PendingMoves.Count <= 32 });
             }
-            coverage.Add(new { componentId = id, component = component.GetType().FullName, genericPublicationSupported = supported,
+            coverage.Add(new { componentId = id, component = component.GetType().FullName,
+                nativeKind = component switch { GenericKnockback => "knockback", GenericForcedMarch => "forced-march", GenericChasingAOEs => "chasing-aoe", GenericAOEs => "aoe",
+                    GenericStackSpread => "stack-spread", GenericBaitAway => "bait", _ => "other" },
+                genericPublicationSupported = supported,
                 counterfactualGeometrySupported = component is GenericForcedMarch || component is GenericKnockback { SupportsCounterfactualProjection: true },
                 publishedEntries = entries.Count - before });
         }
-        return new { available = true, context, actorId = actor.InstanceID.ToString("X"), entries, components = coverage,
+        return new { available = true, context, worldTimeTicks = T(module.WorldState.CurrentTime), actorId = actor.InstanceID.ToString("X"), entries, components = coverage,
+            party = party.Select(p => new { slot = p.Item1, actorId = p.Item2.InstanceID.ToString("X"),
+                position = P(p.Item2.Position), p.Item2.IsDead, p.Item2.IsDestroyed }).ToArray(),
+            partyMeaning = "same native publication; includes dead actors; no actor names or external party lookup",
             publishedEntriesComplete = !omitted, encounterForecastComplete = false, futurePulsesComplete = false,
             validThroughFrame = context.FrameId, validForMs = IntegrationSession.MaxFrameAgeMs,
             coverage = "known generic component publications only; unknown components and later pulses are not safe evidence" };

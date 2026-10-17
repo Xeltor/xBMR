@@ -41,6 +41,7 @@ internal sealed partial class IntegrationCoordinator
             decision.Id, decision.InstanceGeneration, decision.FrameId, decision.Owner, actorId = decision.ActorId.ToString("X"),
             worldTimeTicks = T(decision.WorldTime), decision.AgeSeconds, origin = V(decision.Origin), destination = V(decision.Destination),
             direction = V(decision.Direction), decision.WroteMovement, decision.Reason,
+            suggestedIngressDestination = decision.Reason == "native-ingress-without-route-proof" ? V(SuggestedIngressDestination()) : null,
             decision.NavigationGeneration, decision.NavigationFrameId, decision.NavigationInstance,
             navigationDestination = decision.NavigationDestination is { } first ? new[] { first.X, first.Y } : null,
             matchesCurrentHints = decision.WroteMovement && hints.ForcedMovement == decision.Direction,

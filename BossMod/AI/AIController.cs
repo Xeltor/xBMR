@@ -41,7 +41,7 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
         }
     }
 
-    public void Update(Actor? player, AIHints hints, DateTime now, Pathfinding.NavigationPublication? navigation = null, bool followActive = false)
+    public void Update(Actor? player, AIHints hints, DateTime now, Pathfinding.NavigationPublication? navigation = null, bool followActive = false, Actor? followMaster = null)
     {
         if (player == null || player.IsDead || ws.Party.Members[PartyState.PlayerSlot].InCutscene)
         {
@@ -93,5 +93,11 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
                 null, false, hints.ForcedMovement != null ? "other-movement-wins"
                     : moveRequested ? "manual-input" : forbidMovement ? "native-cast-hold"
                     : NaviTargetPos == null ? "no-controller-destination" : "within-destination-tolerance", navigation);
+        if (followActive && navigation != null && hints.IntegrationGoals is { } integration
+            && hints.IntegrationControllerDecision is { WroteMovement: true, Owner: "bmr-follow" } observed
+            && hints.ForcedMovement is { } direction && NaviTargetPos is { } destination)
+            hints.IntegrationMovementDecision = new(integration.Context.InstanceGeneration, integration.Context.FrameId,
+                "bmr-follow", player.InstanceID, ws.CurrentTime, System.Diagnostics.Stopwatch.GetTimestamp(), player.Position, destination, direction, navigation)
+            { ControllerDecisionId = observed.Id, FollowMasterId = followMaster?.InstanceID, FollowMasterPosition = followMaster?.PosRot.XYZ() };
     }
 }

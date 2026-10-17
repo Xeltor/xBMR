@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using BossMod.Integration;
 
 static partial class Checks
@@ -14,7 +15,7 @@ static partial class Checks
             => targetMethod!.ReturnType == typeof(nint) ? (nint)0 : targetMethod.ReturnType.IsValueType ? Activator.CreateInstance(targetMethod.ReturnType) : null;
     }
 
-    private static void NativeAutomaticPacing()
+    private static unsafe void NativeAutomaticPacing()
     {
         Service.Config._nodes.TryAdd(typeof(ActionTweaksConfig), new ActionTweaksConfig());
         // MovementOverride's type initializer resolves a signature even for a managed fixture.
@@ -70,22 +71,25 @@ static partial class Checks
         normalType.GetField("Instance")!.SetValue(null, normal);
         try
         {
-            object Refresh()
+            object Refresh(WPos? destination = null, bool onward = true, bool blockedStep = false)
             {
                 Call(gate, "Clear"); Set(coordinator, "_pendingPace", null); Set(coordinator, "_paceAttempts", 0);
                 var stamp = Stopwatch.GetTimestamp(); Set(world, "LiveFrameObservedTimestamp", stamp);
-                var map = new Map(); map.InitGrid(1, default, 16, 16);
-                var raster = New("Pathfinding.NavigationRaster", map, null, new byte[256]);
+                var map = new Map(); map.InitGrid(blockedStep ? 0.25f : 1, default, 16, 16);
+                var blocks = new byte[256];
+                if (blockedStep) { blocks[7 * 16 + 9] = 1; blocks[8 * 16 + 9] = 1; }
+                var raster = New("Pathfinding.NavigationRaster", map, null, blocks);
                 var identity = New("Pathfinding.NavigationIdentity", 101L, instance, frame, world.CurrentTime, DateTimeOffset.UtcNow,
                     stamp, default(WPos), false, 6f, 0f, null, player.InstanceID, world.CurrentZone, world.CurrentCFCID);
                 var mapSource = New("Pathfinding.NavigationMapSource", hints.PathfindMapBounds, default(WPos), null, default(Bitmap.Region));
                 var score = Enum.Parse(Type("Pathfinding.ThetaStar+Score"), "SafeMaxPrio");
-                var decision = new NavigationDecision { Destination = new(2, 0), NextWaypoint = new(2, 0), LeewaySeconds = 5, TimeToGoal = 1f / 3 };
-                var built = New("Pathfinding.NavigationPublication", identity, raster, new WPos[] { default, new(2, 0) }, true, false, score, decision, false, mapSource);
+                var target = destination ?? new WPos(2, 0);
+                var decision = new NavigationDecision { Destination = target, NextWaypoint = onward ? target + new WDir(1, 0) : null, LeewaySeconds = 5, TimeToGoal = 1f / 3 };
+                var built = New("Pathfinding.NavigationPublication", identity, raster, new WPos[] { default, target }, true, false, score, decision, false, mapSource);
                 var publication = Call(built, "Publish")!;
                 Set(normal, "<PublishedNavigation>k__BackingField", publication);
                 var authority = New("Integration.IntegrationMovementDecision", instance, frame, "bmr-normal-movement", player.InstanceID,
-                    world.CurrentTime, stamp, default(WPos), new WPos(2, 0), new Vector3(2, 0, 0), publication);
+                    world.CurrentTime, stamp, default(WPos), target, new Vector3(2, 0, 0), publication);
                 Set(hints, "IntegrationMovementDecision", authority);
                 var scope = (string)Call(coordinator, "ControlScope")!;
                 Set(coordinator, "_controlObservation", New("Integration.IntegrationCoordinator+ControlObservation", scope, true, stamp));
@@ -164,6 +168,69 @@ static partial class Checks
             Call(coordinator, "FinalizePace");
             Check(gate.GetType().GetProperty("Current", InternalInstance)!.GetValue(gate) == null,
                 "a later native/controller direction change revokes pending pacing before input application");
+            hints.ForcedMovement = new Vector3(2, 0, 0);
+            string FinalHoldRequest(int lease = 100) => IntegrationSession.Serialize(new { context, ownerToken = owner, generation = 101, leaseMs = lease });
+            JsonDocument FinalHold(string kind, int lease = 100) => JsonDocument.Parse((string)Call(coordinator, kind, FinalHoldRequest(lease))!);
+            Refresh(new(0.75f, 0), onward: false);
+            using (var arrival = FinalHold("RequestArrivalHold")) Check(arrival.RootElement.TryGetProperty("accepted", out var ok) && ok.GetBoolean(),
+                "native redundant arrival obtains a bounded zero-input ticket after per-leaf and route safety checks: " + arrival.RootElement);
+            hints.GoalZones.Add(p => p.X); hints.GoalZones.Add(p => 1 - p.X);
+            Refresh(new(0.75f, 0), onward: false);
+            using (var improves = FinalHold("RequestArrivalHold")) Check(!improves.RootElement.GetProperty("available").GetBoolean(),
+                "cancelling aggregate scores cannot hide one improving native execution leaf");
+            hints.GoalZones.Clear(); Refresh(new(0.75f, 0), onward: true);
+            using (var onward = FinalHold("RequestArrivalHold")) Check(!onward.RootElement.GetProperty("available").GetBoolean(), "onward native route waypoint forbids arrival hold");
+            Refresh(blockedStep: true);
+            using (var brake = FinalHold("RequestPhysicalBrake", 50)) Check(brake.RootElement.TryGetProperty("accepted", out var ok) && ok.GetBoolean(),
+                "native physical brake requires a blocked exact step and a safe stationary footprint: " + brake.RootElement);
+            Refresh(); using (var clear = FinalHold("RequestPhysicalBrake", 50)) Check(!clear.RootElement.GetProperty("available").GetBoolean(), "clear physical step cannot authorize a brake");
+            Refresh(blockedStep: true); using (var longBrake = FinalHold("RequestPhysicalBrake", 51)) Check(!longBrake.RootElement.GetProperty("available").GetBoolean(), "physical brake cannot exceed the native 50ms lease");
+            Refresh(new(0.75f, 0), onward: false);
+            var followPublication = normal.GetType().GetProperty("PublishedNavigation", InternalInstance)!.GetValue(normal)!;
+            var behaviour = Blank("AI.AIBehaviour"); Set(behaviour, "_publishedNavigation", followPublication); Set(behaviour, "ForceMovementIn", float.MaxValue);
+            Set(ai, "Beh", behaviour); Set(ai, "MasterSlot", 1);
+            var liveController = New("AI.AIController", world, amex, movement); Set(ai, "Controller", liveController);
+            Set(liveController, "NaviTargetPos", new WPos(0.75f, 0));
+            Set(hints, "IntegrationGoals", New("Integration.IntegrationGoalSet", session, Array.Empty<Func<WPos, float>>()));
+            hints.ForcedMovement = null;
+            var nativeInstance = typeof(ActionManagerEx).GetField("_inst", InternalInstance)!;
+            var fakeActionManager = NativeMemory.AllocZeroed((nuint)Marshal.SizeOf(nativeInstance.FieldType.GetElementType()!));
+            try
+            {
+                nativeInstance.SetValue(amex, Pointer.Box(fakeActionManager, nativeInstance.FieldType));
+                Call(liveController, "Update", player, hints, world.CurrentTime, followPublication, true, ally);
+            }
+            finally { nativeInstance.SetValue(amex, Pointer.Box(null, nativeInstance.FieldType)); NativeMemory.Free(fakeActionManager); }
+            var observed = typeof(AIHints).GetField("IntegrationControllerDecision", InternalInstance)!.GetValue(hints)!;
+            string FollowRequest(int lease = 100) => IntegrationSession.Serialize(new { context, ownerToken = owner, generation = 101,
+                controllerDecisionId = (string)Property(observed, "Id"), leaseMs = lease });
+            using (var follow = JsonDocument.Parse((string)Call(coordinator, "RequestFollowArrivalHold", FollowRequest())!))
+                Check(follow.RootElement.TryGetProperty("accepted", out var ok) && ok.GetBoolean(), "actual native follow writer can authorize its own redundant arrival: " + follow.RootElement);
+            ally.PosRot.X += 1;
+            Call(coordinator, "FinalizePace");
+            Check(gate.GetType().GetProperty("Current", InternalInstance)!.GetValue(gate) == null,
+                "moving native follow leader invalidates the exact pending follow arrival before input");
+            ally.PosRot.X -= 1;
+            Refresh(blockedStep: true);
+            followPublication = normal.GetType().GetProperty("PublishedNavigation", InternalInstance)!.GetValue(normal)!;
+            Set(behaviour, "_publishedNavigation", followPublication); Set(liveController, "NaviTargetPos", new WPos(2, 0));
+            hints.ForcedMovement = null;
+            fakeActionManager = NativeMemory.AllocZeroed((nuint)Marshal.SizeOf(nativeInstance.FieldType.GetElementType()!));
+            try
+            {
+                nativeInstance.SetValue(amex, Pointer.Box(fakeActionManager, nativeInstance.FieldType));
+                Call(liveController, "Update", player, hints, world.CurrentTime, followPublication, true, ally);
+            }
+            finally { nativeInstance.SetValue(amex, Pointer.Box(null, nativeInstance.FieldType)); NativeMemory.Free(fakeActionManager); }
+            observed = typeof(AIHints).GetField("IntegrationControllerDecision", InternalInstance)!.GetValue(hints)!;
+            using (var followBrake = JsonDocument.Parse((string)Call(coordinator, "RequestFollowPhysicalBrake", FollowRequest(50))!))
+                Check(followBrake.RootElement.TryGetProperty("accepted", out var ok) && ok.GetBoolean(),
+                    "actual native follow source can brake only its own proven blocked physical step: " + followBrake.RootElement);
+            Set(liveController, "NaviTargetPos", new WPos(3, 0)); Call(coordinator, "FinalizePace");
+            Check(gate.GetType().GetProperty("Current", InternalInstance)!.GetValue(gate) == null,
+                "changed native follow destination invalidates physical brake before input application");
+            Set(ai, "Beh", null); Set(ai, "MasterSlot", 0); Set(ai, "Controller", controller);
+            Set(hints, "IntegrationGoals", null); Set(hints, "IntegrationControllerDecision", null);
             // The distinct hold contract may operate during combat, but native route,
             // cast-pressure, authored constraints and input authority remain mandatory.
             hints.ForcedMovement = new Vector3(2, 0, 0); player.InCombat = true;

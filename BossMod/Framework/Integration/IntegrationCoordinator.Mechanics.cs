@@ -6,7 +6,7 @@ internal sealed partial class IntegrationCoordinator
 {
     internal string GetMechanics(string request) => WithContext(request, context =>
         bossmod.ActiveModule is { } module && World.Party.Player() is { } actor && module.StateMachine.ActivePhase != null
-            ? IntegrationSession.Serialize(IntegrationMechanics.Capture(module, actor, context))
+            ? IntegrationSession.Serialize(IntegrationMechanics.Capture(module, actor, context, nativeCarrierSeparation: hints.StackCarrierSeparationActive))
             : Unavailable("no-active-module-or-player"));
 
     internal sealed record ProjectionRequest(IntegrationSession.Context Context, string ComponentId, float[] Position, float Facing);

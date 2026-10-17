@@ -353,7 +353,21 @@ public abstract class QuestBattle : ZoneModule
         }
     }
 
-    public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints)
+    public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints) => CalculateAIHints(playerSlot, player, hints, false);
+
+    // Keep objectives and waypoints current, but let encounter navigation resolve
+    // hazards, cast locks and manual control before consuming a waypoint goal.
+    public void CalculateCombatAIHints(int playerSlot, Actor player, AIHints hints)
+    {
+        // Legacy objective priorities can include PrioritizeAll, which normally
+        // removes exclusions. Combat cooperation must preserve those restrictions.
+        var exclusions = hints.PotentialTargets.Where(e => e.Priority < 0).Select(e => (Enemy: e, e.Priority)).ToArray();
+        CalculateAIHints(playerSlot, player, hints, true);
+        foreach (var (enemy, priority) in exclusions)
+            enemy.Priority = priority;
+    }
+
+    private void CalculateAIHints(int playerSlot, Actor player, AIHints hints, bool asGoal)
     {
         if (AI.AIManager.Instance?.Beh == null && Autorotation.MiscAI.NormalMovement.Instance == null || !_config.EnableQuestBattles)
         {
@@ -407,7 +421,7 @@ public abstract class QuestBattle : ZoneModule
 
             if (!Paused && !World.Party.Members[playerSlot].InCutscene)
             {
-                MoveNext(player, curObjective, hints);
+                MoveNext(player, curObjective, hints, asGoal);
             }
         }
 
@@ -577,7 +591,7 @@ public abstract class QuestBattle : ZoneModule
         return thesePoints;
     }
 
-    private void MoveNext(Actor player, QuestObjective objective, AIHints hints)
+    private void MoveNext(Actor player, QuestObjective objective, AIHints hints, bool asGoal)
     {
         if (CurrentWaypoints.Count == 0)
         {
@@ -592,7 +606,10 @@ public abstract class QuestBattle : ZoneModule
         var nextwp = CurrentWaypoints[0];
         var playerPos = player.PosRot.XYZ();
         var direction = nextwp.Position - playerPos;
-        if (direction.XZ().Length() < Tolerance)
+        // A combat navigator arrives at cell centers, so allow one map cell of
+        // precision instead of requiring the direct-steering tolerance.
+        var tolerance = asGoal ? Math.Max(Tolerance, 0.75f) : Tolerance;
+        if (direction.XZ().Length() < tolerance)
         {
             if (nextwp.SpecifiedInPath)
             {
@@ -605,7 +622,11 @@ public abstract class QuestBattle : ZoneModule
                 objective.OnNavigationComplete?.Invoke();
             }
 
-            MoveNext(player, objective, hints);
+            MoveNext(player, objective, hints, asGoal);
+        }
+        else if (asGoal)
+        {
+            hints.GoalZones.Add(AIHints.GoalProximity(new WPos(nextwp.Position.XZ()), 100f, 1f));
         }
         else
         {

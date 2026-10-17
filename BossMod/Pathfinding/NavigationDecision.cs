@@ -1,4 +1,4 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Threading;
 using System.Diagnostics;
 
@@ -40,17 +40,22 @@ public struct NavigationDecision
 
     internal sealed record CapturedInput(NavigationMapSource MapSource, ShapeDistance[] Obstacles,
         (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] Warnings, GoalInput Goals, bool GoalsEnabled,
-        Teleporter[] Teleporters, NavigationIdentity Identity, bool PublishRaster);
+        Teleporter[] Teleporters, NavigationIdentity Identity, bool PublishRaster)
+    {
+        internal (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] OwnedWarnings { get; init; } = [];
+    }
 
     internal static CapturedInput CaptureInput(DateTime currentTime, AIHints hints, Actor player, float speed = 6f, float cushion = 0f, ushort zoneId = 0, ushort contentId = 0)
     {
         var source = hints.IntegrationGoals?.Context;
-        return new(hints.CapturePathfindMapSource(), hints.TemporaryObstacles.ToArray(), hints.ForbiddenZones.ToArray(),
+        var owned = hints.IntegrationConstraints?.CaptureZones() ?? []; // validate paired goals BEFORE capture
+        var obstacles = hints.CaptureIntegrationObstacles();
+        return new(hints.CapturePathfindMapSource(), obstacles, hints.ForbiddenZones.ToArray(),
             CaptureGoals(hints), hints.GoalZonesEnabled, hints.Teleporters.ToArray(),
             new(NavigationPublication.NextGeneration(), source?.InstanceGeneration, source?.FrameId ?? 0, currentTime,
                 DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(), player.Position, player.CastInfo != null, speed, cushion,
                 hints.PathfindMapArenaProjectionLayer, player.InstanceID, zoneId, contentId),
-            hints.IntegrationGoals?.NavigationPublicationRequested == true);
+            hints.IntegrationGoals?.NavigationPublicationRequested == true) { OwnedWarnings = owned };
     }
 
     public static NavigationDecision Build(Context ctx, DateTime currentTime, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default)
@@ -83,6 +88,12 @@ public struct NavigationDecision
                     blocks[i] = 3;
         var relaxed = false;
         var unrelaxed = input.Warnings.Length == 0 ? null : RasterizeForbiddenZones(ctx.Map, input.Warnings, input.Identity.WorldTime, blocks != null, out relaxed);
+        if (input.OwnedWarnings.Length != 0)
+        {
+            _ = RasterizeForbiddenZones(ctx.Map, input.OwnedWarnings, input.Identity.WorldTime, false, out _, allowRelaxation: false);
+            if (unrelaxed != null)
+                for (var i = 0; i < count; ++i) unrelaxed[i] = Math.Min(unrelaxed[i], ctx.Map.PixelMaxG[i]);
+        }
         if (input.GoalsEnabled && !input.Identity.Casting)
         {
             var gridPos = ctx.Map.WorldToGrid(pos);
@@ -230,7 +241,7 @@ public struct NavigationDecision
         map.MaxPriority = globalMax;
     }
 
-    private static float[]? RasterizeForbiddenZones(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, bool captureSafetyLimits, out bool relaxed)
+    internal static float[]? RasterizeForbiddenZones(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation = true)
     {
         relaxed = false;
         // very slight difference in activation times cause issues for pathfinding - cluster them together
@@ -442,6 +453,7 @@ public struct NavigationDecision
                 return null;
             }
         }
+        if (!allowRelaxation) return captureSafetyLimits ? pixelMaxG.AsSpan(0, lenPixelMaxG).ToArray() : null;
         relaxed = true;
         var originalLimits = captureSafetyLimits ? pixelMaxG.AsSpan(0, lenPixelMaxG).ToArray() : null;
         // everything is dangerous, clear least dangerous so that pathfinding works reasonably

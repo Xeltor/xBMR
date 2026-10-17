@@ -50,7 +50,7 @@ static partial class Checks
             Set(coordinator, "Session", session);
             Set(coordinator, "<bossmod>P", manager); Set(coordinator, "<hints>P", hints); Set(coordinator, "<movement>P", movement);
             object? navigation = null;
-            void Update() => Call(controller, "Update", player, hints, world.CurrentTime, navigation, true);
+            void Update() => Call(controller, "Update", player, hints, world.CurrentTime, navigation, true, null);
             object Decision() => Field(hints, "IntegrationControllerDecision")!;
             void Reset() { hints.Clear(); AttachGoals(); movement.UserMove = default; amex.MoveMightInterruptCast = false; Set(controller, "NaviTargetPos", new WPos(12, 0)); }
 

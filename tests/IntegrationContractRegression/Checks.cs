@@ -28,6 +28,7 @@ static partial class Checks
         ExpiryAndIsolation();
         ScoringFailures();
         Composition();
+        NoLossGoals();
         ActionEffects();
         ArenaGeometry();
         ConsumerTransport();
@@ -37,6 +38,7 @@ static partial class Checks
         OwnedConfiguration();
         LeaseLifetimes();
         MechanicPublications();
+        StackParticipationPublications();
         InputObservations();
         FollowCancellation();
         DirectionalScopeConsumer();
@@ -55,7 +57,17 @@ static partial class Checks
         CounterfactualProjections();
         NativeProjectionPoses();
         NativeHintPublications();
-        DefaultTerrainFrames();
+        NativeGoalMatrix();
+        NativeStaticRegistry();
+        NativeReplayEvidence();
+        ShapeSnapshots();
+        NativeDistanceSurfaces();
+        NativeMarchSafety();
+        NativeStackCorrection();
+        NativeKnockbackPoses();
+        NativeSafetySnapshots();
+        NativePhysicalProbes();
+        ReflectedWriteAdapters();
         NativeLandingConstraints();
         Console.WriteLine($"{_checks} integration contract assertions passed");
     }

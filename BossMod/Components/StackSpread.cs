@@ -504,7 +504,7 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
             var radius = s.Radius;
             if (s.Target != actor)
             {
-                if (s.ForbiddenPlayers[slot])
+                if (s.ForbiddenPlayers[slot] || hints.StackCarrierSeparationActive && Integration.IntegrationStackCorrection.Required(this, actor, s))
                 {
                     goto addfz;
                 }

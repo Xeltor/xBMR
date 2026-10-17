@@ -520,6 +520,8 @@ public abstract class BossModule : IDisposable
 
     // return true if out-of-combat enemies should be set to priority 0 - useful for multi-phase encounters when player wants to use automatic targeting via cdplan
     public virtual bool ShouldPrioritizeAllEnemies => false;
+    // Opt in when a quest's objectives must keep advancing during encounter combat.
+    public virtual bool KeepQuestBattleHints => false;
 
     protected virtual void UpdateModule() { }
     protected virtual void UpdatePreModuleActivation() { }

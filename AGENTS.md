@@ -97,8 +97,8 @@ in the encounter's implementation notes.
 
 ## Module maturity: evidence-based promotion, issue-driven reopening
 
-Apply [the module maturity policy](docs/module-maturity-policy.md) when deciding
-whether a module should leave or return to WIP. Promote when relevant mechanics
+Apply the maturity rules below when deciding whether a module should leave or
+return to WIP. Promote when relevant mechanics
 and known patterns are covered, available evidence supports correctness, and
 relevant offline validation and the build pass with no known material defect.
 Personal live testing is optional; do not require the maintainer to test every
@@ -113,11 +113,9 @@ again; a full encounter retest is not required for every change.
 
 ## Versioned integration contracts
 
-For supported XCAI/BMR IPC work, start with
-[the agent guide](docs/xcai-integration-agent-guide.md) and its linked contract
-specification/example. Advertise families independently, keep unknown/stale
-results explicit, and preserve BMR frame/movement/safety ownership. The delivery
-ledger records residual gaps; capability publication alone does not prove a
+For XCAI/BMR IPC work, use the contracts and agent handoff in
+[issue #1](https://github.com/Xeltor/xBMR/issues/1). Advertise families independently, keep unknown/stale
+results explicit, and preserve BMR frame/movement/safety ownership. The issue records residual gaps; capability publication alone does not prove a
 completed consumer migration or live gameplay acceptance.
 
 ## Local development builds
@@ -211,3 +209,16 @@ major, minor, patch or revision for fork changes.
 The legacy bootstrap `v7.5.7` / `7.5.7.0` is superseded. Never use it as the base
 for future version calculation. Its one-time reinstall note is in the README
 and release notes; preserve its existing tag and assets.
+
+## Repository scope and focused validation
+
+Keep IPC implementation notes, usage contracts and agent handoffs in the linked
+issue. Do not add separate documentation trees, general inspection projects or
+copies of native implementations for broad test coverage. Keep research and
+one-off development tools outside the repository. Retain the release-version
+checker required by the existing fork CI and version policy.
+
+Regression tests are welcome when they target changed IPC behavior or encounter
+fixes. Use the smallest relevant checks; do not require full BMR coverage or grow
+an unrelated testing framework. Existing upstream debug and replay tools remain
+available. Preserve encounter-module work when trimming agent scaffolding.

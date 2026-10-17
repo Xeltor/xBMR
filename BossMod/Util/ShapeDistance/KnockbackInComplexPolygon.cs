@@ -1,6 +1,6 @@
 namespace BossMod;
 
-public sealed class SDKnockbackInComplexPolygonAwayFromOrigin : ShapeDistance
+public sealed class SDKnockbackInComplexPolygonAwayFromOrigin : ShapeDistance, IKnockbackPreparationConstraint
 {
     public SDKnockbackInComplexPolygonAwayFromOrigin(WPos Center, WPos Origin, float Distance, RelSimplifiedComplexPolygon Polygon)
     {
@@ -26,7 +26,7 @@ public sealed class SDKnockbackInComplexPolygonAwayFromOrigin : ShapeDistance
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInComplexPolygonFixedDirection : ShapeDistance
+public sealed class SDKnockbackInComplexPolygonFixedDirection : ShapeDistance, IKnockbackPreparationConstraint
 {
     public SDKnockbackInComplexPolygonFixedDirection(WPos Center, WDir Direction, RelSimplifiedComplexPolygon Polygon)
     {
@@ -50,7 +50,7 @@ public sealed class SDKnockbackInComplexPolygonFixedDirection : ShapeDistance
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusAOEAABBSquares : ShapeDistance
+public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusAOEAABBSquares : ShapeDistance, IKnockbackPreparationConstraint
 {
     public SDKnockbackInComplexPolygonAwayFromOriginPlusAOEAABBSquares(WPos Center, WPos Origin, float Distance, RelSimplifiedComplexPolygon Polygon, WPos[] AOEs, float HalfWidth, int Length)
     {
@@ -99,7 +99,7 @@ public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusAOEAABBSquares 
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusAOECircles : ShapeDistance
+public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusAOECircles : ShapeDistance, IKnockbackPreparationConstraint
 {
     public SDKnockbackInComplexPolygonAwayFromOriginPlusAOECircles(WPos Center, WPos Origin, float Distance, RelSimplifiedComplexPolygon Polygon, WPos[] AOEs, float Radius, int Length)
     {
@@ -148,7 +148,7 @@ public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusAOECircles : Sh
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInComplexPolygonAwayFromOriginMixedAOEs : ShapeDistance
+public sealed class SDKnockbackInComplexPolygonAwayFromOriginMixedAOEs : ShapeDistance, IKnockbackPreparationConstraint
 {
     public SDKnockbackInComplexPolygonAwayFromOriginMixedAOEs(WPos Center, WPos Origin, float Distance, RelSimplifiedComplexPolygon Polygon, Components.GenericAOEs.AOEInstance[] AOEs, int Length)
     {
@@ -196,7 +196,7 @@ public sealed class SDKnockbackInComplexPolygonAwayFromOriginMixedAOEs : ShapeDi
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusIntersectionTest : ShapeDistance
+public sealed class SDKnockbackInComplexPolygonAwayFromOriginPlusIntersectionTest : ShapeDistance, IKnockbackPreparationConstraint
 {
     public SDKnockbackInComplexPolygonAwayFromOriginPlusIntersectionTest(WPos Center, WPos Origin, float Distance, RelSimplifiedComplexPolygon Polygon)
     {

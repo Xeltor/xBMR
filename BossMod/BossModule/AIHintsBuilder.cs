@@ -59,6 +59,7 @@ public sealed class AIHintsBuilder : IDisposable
         var player = _ws.Party[playerSlot];
 
         hints.Clear();
+        hints.StackCarrierSeparationActive = hints.StackCarrierSeparationPolicy?.Enabled == true;
         if (moveImminent || player?.PendingKnockbacks.Count > 0)
         {
             hints.MaxCastTime = 0;
@@ -87,6 +88,8 @@ public sealed class AIHintsBuilder : IDisposable
             FillEnemies(hints, isTank, outOfCombatPriority);
             if (activeModule != null)
             {
+                if (activeModule.KeepQuestBattleHints && _zmm.ActiveModule is QuestBattle.QuestBattle quest)
+                    quest.CalculateCombatAIHints(playerSlot, player, hints);
                 activeModule.CalculateAIHints(playerSlot, player, playerAssignment, hints);
             }
             else

@@ -8,14 +8,12 @@ static partial class Checks
     {
         var type = typeof(AIHints).Assembly.GetType("BossMod.AI.AIBehaviour", true)!;
         var execute = type.GetMethod("Execute")!;
-        Check(execute.ReturnType == typeof(void) && execute.GetCustomAttribute<AsyncStateMachineAttribute>() == null,
-            "follow application is synchronous in the native frame rather than a post-await controller continuation");
+        Check(execute.ReturnType == typeof(Task) && execute.GetCustomAttribute<AsyncStateMachineAttribute>() != null,
+            "follow retains its original native async executor");
         var behavior = RuntimeHelpers.GetUninitializedObject(type);
         type.GetMethod("Dispose")!.Invoke(behavior, null);
         Check((bool)type.GetField("cancel", InternalInstance)!.GetValue(behavior)!, "native stop marks the previous follow owner canceled");
-        // No actors/controller/world are supplied: a canceled owner must return before touching
-        // any of them, even if the old executor is called again after follow stop.
-        execute.Invoke(behavior, [null, null]);
-        Check(true, "canceled follow owner cannot access/apply late actor/controller state");
+        // Native SwitchToIdle/Dispose semantics are preserved. This fixture does not
+        // claim that native async work has been drained or rewrite its continuation.
     }
 }

@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace BossMod;
 
-public sealed class ReplayParserLog : IDisposable
+public sealed partial class ReplayParserLog : IDisposable
 {
     abstract class Input : IDisposable
     {
@@ -177,6 +177,7 @@ public sealed class ReplayParserLog : IDisposable
     sealed class BinaryInput(Stream stream) : Input
     {
         private readonly BinaryReader _input = new(stream);
+        internal BinaryInput(BinaryReader reader) : this(Stream.Null) { _input = reader; }
 
         protected override void Dispose(bool disposing)
         {

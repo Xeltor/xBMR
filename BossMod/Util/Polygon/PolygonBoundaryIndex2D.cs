@@ -242,6 +242,49 @@ internal sealed unsafe class PolygonBoundaryIndex2D : IDisposable
     private readonly WDir[] _contourSamples;
 
     private bool _disposed;
+    private long _snapshotMemoryBytes;
+    internal int SnapshotEntryCount => _total;
+
+    // A query snapshot owns a new native buffer; source pointers are never shared.
+    internal PolygonBoundaryIndex2D CloneForReadOnlyQuery(int maxEntries)
+    {
+        if (_disposed || _total < 0 || _total > maxEntries || _hEdges.Length > maxEntries || _contourSamples.Length > maxEntries)
+            throw new InvalidOperationException("polygon-query-copy-limit");
+        var bytes = checked((nuint)_total * 10 * sizeof(float));
+        var block = AllocAlignedBlock(bytes, 64);
+        var data = (float*)block;
+        PolygonBoundaryIndex2D? result = null;
+        static float* Copy(float* source, float* destination, int length)
+        {
+            if (source == null) return null;
+            new ReadOnlySpan<float>(source, length).CopyTo(new Span<float>(destination, length));
+            return destination;
+        }
+        try
+        {
+            result = new(Copy(_y0, data, _total), Copy(_y1, data + _total, _total),
+                Copy(_x0, data + 2 * _total, _total), Copy(_k, data + 3 * _total, _total),
+                Copy(_b, data + 4 * _total, _total), Copy(_minX, data + 5 * _total, _total),
+                Copy(_maxX, data + 6 * _total, _total), Copy(_dx, data + 7 * _total, _total),
+                Copy(_dy, data + 8 * _total, _total), Copy(_invLen2, data + 9 * _total, _total), _total,
+                _rowOffsets.ToArray(), _rowEndingStarts.ToArray(), _rowNewStarts.ToArray(), _rowSingleStarts.ToArray(), _rowEnds.ToArray(),
+                _hEdges.ToArray(), _hRowOffsets.ToArray(), _rows, _sourceEdgeCount, _minY, _cellH, _invCellH,
+                _bbMinX, _bbMinY, _bbMaxX, _bbMaxY, _rowMinX.ToArray(), _rowMaxX.ToArray(), _contourSamples.ToArray(), block);
+            if (bytes > 0)
+            {
+                GC.AddMemoryPressure((long)bytes);
+                result._snapshotMemoryBytes = (long)bytes;
+            }
+            return result;
+        }
+        catch
+        {
+            if (result != null) result.Dispose();
+            else NativeMemory.Free((void*)((nuint*)block)[-1]);
+            throw;
+        }
+        finally { GC.KeepAlive(this); }
+    }
 
     private PolygonBoundaryIndex2D(float* y0, float* y1, float* x0, float* k, float* b, float* minX, float* maxX, float* dx, float* dy, float* invLen2, int total,
         int[] rowOffsets, int[] rowEndingStarts, int[] rowNewStarts, int[] rowSingleStarts, int[] rowEnds, H[] hEdges, int[] hRowOffsets, int rows, int sourceEdgeCount,
@@ -309,6 +352,8 @@ internal sealed unsafe class PolygonBoundaryIndex2D : IDisposable
             return;
         }
         _disposed = true;
+        var snapshotBytes = System.Threading.Interlocked.Exchange(ref _snapshotMemoryBytes, 0);
+        if (snapshotBytes > 0) GC.RemoveMemoryPressure(snapshotBytes);
 
         if (_rawBlock != null)
         {

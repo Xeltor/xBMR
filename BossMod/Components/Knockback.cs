@@ -197,6 +197,22 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
         return result;
     }
 
+    // Native actor-pose query: evaluates custom source providers against the same hypothetical actor
+    // used by native displacement. Capture its sources once so timing/index attribution cannot drift.
+    internal List<MovementProjection>? ProjectFromActorPose(int slot, Actor actor, WPos position, Angle facing, out Knockback[] sources)
+    {
+        sources = [];
+        if (slot < 0 || slot >= PartyState.MaxAllies || !float.IsFinite(position.X) || !float.IsFinite(position.Z) || !float.IsFinite(facing.Rad)) return null;
+        var copy = actor.CopyForProjection(position, facing);
+        var published = ActiveKnockbacks(slot, copy);
+        if (published.Length > 32) return null;
+        sources = published.ToArray();
+        if (sources.Any(s => s.SafeWalls.Length > 32)) return null;
+        var result = new List<MovementProjection>();
+        CalculateMovements(slot, copy, null, result, publishedSources: sources);
+        return result.Count <= 32 ? result : null;
+    }
+
     // A SimpleKnockbacks publication is independent of the queried actor pose.
     // Derived source overrides must opt in through a separate native contract;
     // inheriting this support must never silently approve pose-dependent sources.
@@ -213,7 +229,7 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
     }
 
     private List<(WPos from, WPos to)> CalculateMovements(int slot, Actor actor, List<(int? layer, bool? restrict)>? projectionLayers,
-        List<MovementProjection>? projections = null, WPos? startPosition = null)
+        List<MovementProjection>? projections = null, WPos? startPosition = null, Knockback[]? publishedSources = null)
     {
         if (MaxCasts <= 0)
         {
@@ -223,7 +239,7 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
         var movements = new List<(WPos, WPos)>();
         var from = startPosition ?? actor.Position;
         var count = 0;
-        var activeKnockbacks = ActiveKnockbacks(slot, actor);
+        ReadOnlySpan<Knockback> activeKnockbacks = publishedSources != null ? publishedSources : ActiveKnockbacks(slot, actor);
         var len = activeKnockbacks.Length;
         for (var i = 0; i < len; ++i)
         {

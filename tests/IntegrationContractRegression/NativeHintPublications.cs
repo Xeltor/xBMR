@@ -67,6 +67,9 @@ static partial class Checks
                 "dash restriction tracks current native hints at the exact requested stage");
             actor.TargetID = actor.InstanceID; actor.AggroPlayer = false;
             hints.PotentialTargets.Add(new(actor, 0, false));
+            using (var targetPolicy = Targets()) Check(!targetPolicy.RootElement.GetProperty("automaticSelfFacingCopied").GetBoolean()
+                && targetPolicy.RootElement.GetProperty("defaultDesiredRotation").GetString() == "unset-unless-natively-requested",
+                "native target policy identifies the absent automatic facing copy without suppressing authored requests");
             using (var target = Targets()) Check(!target.RootElement.GetProperty("targets")[0].GetProperty("aggroPlayer").GetBoolean(),
                 "targeting the player cannot fabricate native enmity membership");
             actor.TargetID = 999; actor.AggroPlayer = true;

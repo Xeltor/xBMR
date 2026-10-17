@@ -65,21 +65,28 @@ public sealed class SmartRotationTweak(WorldState ws, AIHints hints)
                     continue;
                 }
 
-                var center = (d.center - midpoint).Normalized();
-                var min = center - d.halfWidth;
-                if (min.Rad < -MathF.PI)
-                {
-                    _forbidden.Add(min.Rad + Angle.DoublePI, MathF.PI);
-                    min = -MathF.PI.Radians();
-                }
-                var max = center + d.halfWidth;
-                if (max.Rad > MathF.PI)
-                {
-                    _forbidden.Add(-MathF.PI, max.Rad - Angle.DoublePI);
-                    max = MathF.PI.Radians();
-                }
-                _forbidden.Add(min.Rad, max.Rad);
+                Add(d);
             }
+        }
+        if (hints.IntegrationHeadings is { } contributed)
+            foreach (var d in contributed.Current()) Add(d);
+
+        void Add((Angle center, Angle halfWidth, DateTime activation) d)
+        {
+            var center = (d.center - midpoint).Normalized();
+            var min = center - d.halfWidth;
+            if (min.Rad < -MathF.PI)
+            {
+                _forbidden.Add(min.Rad + Angle.DoublePI, MathF.PI);
+                min = -MathF.PI.Radians();
+            }
+            var max = center + d.halfWidth;
+            if (max.Rad > MathF.PI)
+            {
+                _forbidden.Add(-MathF.PI, max.Rad - Angle.DoublePI);
+                max = MathF.PI.Radians();
+            }
+            _forbidden.Add(min.Rad, max.Rad);
         }
 
         if (preferredDirection != null && currentOffset.Abs().Rad >= preferredHalfWidth.Rad)

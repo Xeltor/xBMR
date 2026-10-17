@@ -63,6 +63,7 @@ internal sealed class NavigationRaster
         return new(left, top, width, height, blocks, times, priorities);
     }
 
+    internal float LimitAt(int x, int y) => _timeLimits[y * Width + x];
     internal byte BlockAt(int x, int y) => _blocks[y * Width + x];
     internal Map? CopyForSearch(float elapsedSeconds, int maxCells)
     {

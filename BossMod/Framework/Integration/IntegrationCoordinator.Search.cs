@@ -132,7 +132,7 @@ internal sealed partial class IntegrationCoordinator
             if (region.Bitmap == null || (long)region.Rect.Width * region.Rect.Height <= NavigationRaster.MaxCells)
             {
                 var source = new IntegrationRoutes.Source(job.Source.Raster!, hints.CapturePathfindMapSource().Obstacles,
-                    hints.TemporaryObstacles.ToArray(), hints.ForbiddenZones.Select(w => (w.shapeDistance, w.activation, w.Source)).ToArray(),
+                    hints.CaptureIntegrationObstacles(), hints.CaptureIntegrationWarnings().Select(w => (w.shapeDistance, w.activation, w.Source)).ToArray(),
                     World.CurrentTime, hints.PathfindMapBounds.AllowObstacleMap);
                 validation = IntegrationRoutes.Evaluate(source, result.Route, job.Model, new());
             }

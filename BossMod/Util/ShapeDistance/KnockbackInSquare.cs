@@ -1,6 +1,6 @@
 namespace BossMod;
 
-public sealed class SDKnockbackInSquareFixedDirection(WPos Center, WDir Direction, float HalfWidth, Angle Rotation) : ShapeDistance
+public sealed class SDKnockbackInSquareFixedDirection(WPos Center, WDir Direction, float HalfWidth, Angle Rotation) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WDir direction = Direction; // direction includes distance, not normalized

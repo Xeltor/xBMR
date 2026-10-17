@@ -26,7 +26,7 @@ static partial class Checks
         var manager = (BossModuleManager)RuntimeHelpers.GetUninitializedObject(typeof(BossModuleManager));
         Set(manager, nameof(BossModuleManager.WorldState), world); Set(manager, "_activeModule", module);
         var coordinator = RuntimeHelpers.GetUninitializedObject(Type("Integration.IntegrationCoordinator"));
-        Set(coordinator, "Session", session); Set(coordinator, "<bossmod>P", manager);
+        Set(coordinator, "Session", session); Set(coordinator, "<bossmod>P", manager); Set(coordinator, "<hints>P", new AIHints());
         using var publication = JsonDocument.Parse((string)Call(coordinator, "GetMechanics", IntegrationSession.Serialize(Context()))!);
         var component = publication.RootElement.GetProperty("components")[0];
         var id = component.GetProperty("componentId").GetString()!;

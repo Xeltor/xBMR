@@ -9,11 +9,15 @@ internal sealed class IntegrationGoalSet(IntegrationSession session, Func<WPos, 
     internal sealed record Snapshot(Func<WPos, float>[] Encounter, Func<WPos, float>[] Combat,
         Func<WPos, float>[] MechanicPreference, Func<WPos, float>[] Presentation);
 
+    private IntegrationNativeGoals? _noLoss;
+    internal object? NoLossObservation => _noLoss?.Observation;
+
     internal Snapshot? Capture(Func<WPos, float>[] native)
     {
         if (encounterGoals.Length > native.Length || !encounterGoals.SequenceEqual(native.Take(encounterGoals.Length)))
             return null; // native producer replaced the goal list; do not guess its priority/ownership
-        Func<WPos, float>[] Adapt(string category) => session.CaptureGoals(category)
+        _noLoss = new(native);
+        Func<WPos, float>[] Adapt(string category) => session.CaptureGoals(category, _noLoss.Capture)
             .Select(score => (Func<WPos, float>)(p => score(new(p.X, p.Z)))).ToArray();
         var combat = Adapt("combat");
         var utility = Adapt("party-utility");

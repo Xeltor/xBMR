@@ -1,4 +1,4 @@
-namespace BossMod;
+﻿namespace BossMod;
 
 // information relevant for AI decision making process for a specific player
 public sealed partial class AIHints
@@ -93,7 +93,6 @@ public sealed partial class AIHints
     public ArenaBounds PathfindMapBounds = DefaultBounds;
     public int? PathfindMapArenaProjectionLayer;
     public Bitmap.Region PathfindMapObstacles;
-    internal Pathfinding.DefaultTerrainFrame.Alignment? DefaultTerrainFrameAlignment;
     private ArenaBoundsCustom? _arenaProjectionLayerClipOwner;
     private WPos _arenaProjectionLayerClipCenter;
     private ShapeDistance?[]? _arenaProjectionLayerClips;
@@ -164,6 +163,14 @@ public sealed partial class AIHints
     // orientation restrictions (e.g. for gaze attacks): a list of forbidden orientation ranges, now or in near future
     // AI will rotate to face allowed orientation at last possible moment, potentially losing uptime
     public readonly List<(Angle center, Angle halfWidth, DateTime activation)> ForbiddenDirections = [];
+    internal Integration.IntegrationHeadingConstraints? IntegrationHeadings;
+    internal Integration.IntegrationConstraints? IntegrationConstraints;
+    internal ShapeDistance[] CaptureIntegrationObstacles() => TemporaryObstacles.ToArray();
+    internal (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] CaptureIntegrationWarnings()
+        => [.. ForbiddenZones, .. IntegrationConstraints?.CaptureZones() ?? []];
+    internal bool ObstacleMapsDisabled => _config.DisableObstacleMaps;
+    internal Integration.IntegrationStackCorrection? StackCarrierSeparationPolicy;
+    internal bool StackCarrierSeparationActive;
 
     // closest special movement/targeting/action mode, if any
     // activation = when the restriction starts (e.g. bomb detonation), finish = when the restriction ends (e.g. pyretic expires)
@@ -214,7 +221,6 @@ public sealed partial class AIHints
     // clear all stored data
     public void Clear()
     {
-        DefaultTerrainFrameAlignment = null;
         PathfindMapCenter = default;
         PathfindMapBounds = DefaultBounds;
         PathfindMapArenaProjectionLayer = null;
@@ -238,6 +244,9 @@ public sealed partial class AIHints
         Teleporters.Clear();
         RecommendedPositional = default;
         ForbiddenDirections.Clear();
+        IntegrationHeadings = null;
+        IntegrationConstraints = null;
+        StackCarrierSeparationActive = false;
         ImminentSpecialMode = default;
         NoMovementAllowsManualInput = false;
         MisdirectionThreshold = 15f.Degrees();

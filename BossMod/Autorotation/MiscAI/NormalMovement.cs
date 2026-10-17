@@ -77,8 +77,7 @@ public sealed class NormalMovement : RotationModule
         return res;
     }
 
-    private NavigationDecision.Context _navCtx = new(); // completed context, never written by the active worker
-    private NavigationDecision.Context _workerNavCtx = new();
+    private readonly NavigationDecision.Context _navCtx = new();
     internal NavigationPublication? PublishedNavigation { get; private set; }
 
     public const float MeleeRange = 2.6f; // Note: melee range is always hitbox radius + 2.6 for auto attacks, doesn't matter if skills have 3 range...
@@ -107,7 +106,6 @@ public sealed class NormalMovement : RotationModule
             {
                 PublishedNavigation = built.Publish();
                 _lastDecision.Publication = PublishedNavigation;
-                (_navCtx, _workerNavCtx) = (_workerNavCtx, _navCtx);
             }
         }
 
@@ -117,20 +115,9 @@ public sealed class NormalMovement : RotationModule
                 Service.Log($"exception during pathfind: {exception}");
 
             var input = NavigationDecision.CaptureInput(World.CurrentTime, Hints, Player, speed, cushionSize, World.CurrentZone, World.CurrentCFCID);
-            var worker = _workerNavCtx;
-            _decisionTask = Task.Run(() => NavigationDecision.BuildCaptured(worker, input));
+            _decisionTask = Task.Run(() => NavigationDecision.BuildCaptured(_navCtx, input));
         }
 
-        if (PublishedNavigation is { } publication)
-        {
-            if (publication.TryRemainingLeeway(World.CurrentTime, Player.InstanceID, World.CurrentZone, World.CurrentCFCID, out var leeway))
-                _lastDecision.LeewaySeconds = leeway;
-            else
-            {
-                _lastDecision = new() { LeewaySeconds = float.MaxValue };
-                PublishedNavigation = null;
-            }
-        }
         return _lastDecision;
     }
 

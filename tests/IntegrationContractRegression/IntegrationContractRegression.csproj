@@ -10,6 +10,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Numerics" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationPhysicalProbe.cs" Link="IntegrationPhysicalProbe.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationStackCorrection.cs" Link="IntegrationStackCorrection.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationSession.Observations.cs" Link="IntegrationSession.Observations.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationShapeSnapshot.cs" Link="IntegrationShapeSnapshot.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationSession.NoLoss.cs" Link="IntegrationSession.NoLoss.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationNativeGoals.cs" Link="IntegrationNativeGoals.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationSession.cs" Link="IntegrationSession.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationGoalSet.cs" Link="IntegrationGoalSet.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationActionEffects.cs" Link="IntegrationActionEffects.cs" />
@@ -21,21 +27,12 @@
     <Compile Include="../../BossMod/Framework/Integration/IntegrationControllerDecision.cs" Link="IntegrationControllerDecision.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationPacing.cs" Link="IntegrationPacing.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationLeases.cs" Link="IntegrationLeases.cs" />
+    <Compile Include="../../BossMod/Framework/Integration/IntegrationMechanics.Stacks.cs" Link="IntegrationMechanics.Stacks.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationMechanics.cs" Link="IntegrationMechanics.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationCounterfactualProjection.cs" Link="IntegrationCounterfactualProjection.cs" />
     <Compile Include="../../BossMod/Framework/Integration/IntegrationHintEvidence.cs" Link="IntegrationHintEvidence.cs" />
     <Compile Include="../../BossMod/Pathfinding/NavigationMapSource.cs" Link="NavigationMapSource.cs" />
     <Compile Include="../../BossMod/Pathfinding/NavigationPublication.cs" Link="NavigationPublication.cs" />
-    <Compile Include="../../docs/examples/BossModV1Consumer.cs" Link="BossModV1Consumer.cs" />
-    <Compile Include="../../docs/examples/BossModV1DirectionalScope.cs" Link="BossModV1DirectionalScope.cs" />
-    <Compile Include="../../docs/examples/BossModV1StrategyLease.cs" Link="BossModV1StrategyLease.cs" />
-    <Compile Include="../../docs/examples/BossModV1ModuleLease.cs" Link="BossModV1ModuleLease.cs" />
-    <Compile Include="../../docs/examples/BossModV1CastControl.cs" Link="BossModV1CastControl.cs" />
-    <Compile Include="../../docs/examples/BossModV1DepartureHold.cs" Link="BossModV1DepartureHold.cs" />
-    <Compile Include="../../docs/examples/BossModV1AutomaticPace.cs" Link="BossModV1AutomaticPace.cs" />
-    <Compile Include="../../docs/examples/BossModV1MovementProvenance.cs" Link="BossModV1MovementProvenance.cs" />
-    <Compile Include="../../docs/examples/BossModV1ProjectionGeometry.cs" Link="BossModV1ProjectionGeometry.cs" />
-    <Compile Include="../../docs/examples/BossModV1LandingConstraints.cs" Link="BossModV1LandingConstraints.cs" />
     <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
   </ItemGroup>
 </Project>

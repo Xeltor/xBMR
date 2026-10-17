@@ -6,7 +6,7 @@ using System.Threading;
 namespace BossMod.Integration;
 
 // Transport-independent contract state. Never holds a game object, manager, or mutable map.
-internal sealed class IntegrationSession : IDisposable
+internal sealed partial class IntegrationSession : IDisposable
 {
     internal const int SchemaVersion = 1;
     internal const int MaxOwners = 8;
@@ -35,16 +35,19 @@ internal sealed class IntegrationSession : IDisposable
         internal long Expires = expires;
         internal int Revoked;
         internal int GoalRevision;
+        internal volatile ContributionGuard? Constraint;
         internal readonly List<Goal> Goals = [];
     }
 
-    internal sealed class Goal(Owner owner, string category, Func<Vector2, float> score, long frame, long expires)
+    internal sealed class Goal(Owner owner, string category, Func<Vector2, float> score, long frame, long expires, NoLossLeaf[]? noLossLeaves = null)
     {
         internal readonly Owner Owner = owner;
+        internal volatile ContributionGuard? Constraint = owner.Constraint;
         internal readonly string Category = category;
         internal readonly Func<Vector2, float> Score = score;
         internal readonly long Frame = frame;
         internal readonly long Expires = expires;
+        internal readonly NoLossLeaf[]? NoLossLeaves = noLossLeaves;
     }
 
     private readonly Dictionary<string, Owner> _owners = [];
@@ -71,6 +74,7 @@ internal sealed class IntegrationSession : IDisposable
             return !_disposed && publication != null && _clock() - publication.FrameStarted < Milliseconds(MaxFrameAgeMs) ? publication.Json : null;
         }
     }
+    internal bool ProviderAlive => !_disposed;
     internal bool Fresh => !_disposed && FrameId > 0 && Stage != "unavailable" && _clock() - _frameStarted < Milliseconds(MaxFrameAgeMs);
     internal bool HasActiveOwners
     {
@@ -197,7 +201,7 @@ internal sealed class IntegrationSession : IDisposable
         lock (_gate) return SubmitCore(request, score);
     }
 
-    private Result SubmitCore(GoalRequest? request, Func<Vector2, float>? score)
+    private Result SubmitCore(GoalRequest? request, Func<Vector2, float>? score, NoLossLeaf[]? leaves = null)
     {
         if (request == null || !Matches(request.Context) || Stage != "hints-ready" || !CanContribute || score == null
             || request.Category is not ("combat" or "party-utility" or "mechanic-preference" or "presentation")
@@ -205,7 +209,7 @@ internal sealed class IntegrationSession : IDisposable
             return Reply(false, "invalid-goal-context-or-owner");
         if (owner!.Goals.Count >= MaxGoalsPerOwner)
             return Reply(false, "goal-limit");
-        owner.Goals.Add(new(owner, request.Category, score, FrameId, _frameStarted + Milliseconds(MaxFrameAgeMs)));
+        owner.Goals.Add(new(owner, request.Category, score, FrameId, _frameStarted + Milliseconds(MaxFrameAgeMs), leaves));
         return Reply(true, "submitted");
     }
 
@@ -251,7 +255,10 @@ internal sealed class IntegrationSession : IDisposable
         Stage = "hints-ready";
         CanContribute = canContribute;
         foreach (var owner in _owners.Values)
+        {
             owner.Goals.Clear();
+            owner.Constraint = null;
+        }
         if (!canContribute)
             Interlocked.Increment(ref _goalRevision);
         Prune();
@@ -298,36 +305,36 @@ internal sealed class IntegrationSession : IDisposable
     private long _lastPublishedFrame;
     private string? _lastPublishedStage;
 
-    internal Func<Vector2, float>[] CaptureGoals(string category)
+    internal Func<Vector2, float>[] CaptureGoals(string category, Func<Vector2[], Func<Vector2, bool>?>? captureGuard = null)
     {
-        lock (_gate) return CaptureGoalsCore(category);
+        lock (_gate) return CaptureGoalsCore(category, captureGuard);
     }
 
-    private Func<Vector2, float>[] CaptureGoalsCore(string category)
+    private Func<Vector2, float>[] CaptureGoalsCore(string category, Func<Vector2[], Func<Vector2, bool>?>? captureGuard)
     {
         if (!OnThread || !CanContribute)
             return [];
         var revision = Volatile.Read(ref _goalRevision);
         return _owners.Values.Where(Live).SelectMany(o => o.Goals).Where(g => g.Frame == FrameId && g.Category == category)
-            .Select(g => Wrap(g, revision)).ToArray();
+            .Select(g => Wrap(g, revision, CaptureNoLossScore(g, captureGuard))).ToArray();
     }
 
-    private Func<Vector2, float> Wrap(Goal goal, int revision)
+    private Func<Vector2, float> Wrap(Goal goal, int revision, Func<Vector2, float> score)
     {
         var ownerRevision = Volatile.Read(ref goal.Owner.GoalRevision);
         var calls = 0;
-        return p => Interlocked.Increment(ref calls) <= 262144 ? Evaluate(goal, revision, ownerRevision, p) : 0f;
+        return p => Interlocked.Increment(ref calls) <= 262144 ? Evaluate(goal, revision, ownerRevision, p, score) : 0f;
     }
 
-    private float Evaluate(Goal goal, int revision, int ownerRevision, Vector2 point)
+    private float Evaluate(Goal goal, int revision, int ownerRevision, Vector2 point, Func<Vector2, float> score)
     {
         if (revision != Volatile.Read(ref _goalRevision) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
-            || !Live(goal.Owner) || _clock() >= goal.Expires)
+            || !Live(goal.Owner) || _clock() >= goal.Expires || goal.Constraint is { Live: false })
             return 0f;
         try
         {
             var start = _clock();
-            var value = goal.Score(point);
+            var value = score(point);
             if (!float.IsFinite(value) || value is < 0 or > 16 || _clock() - start > Milliseconds(2))
             {
                 Revoke(goal.Owner);
@@ -336,7 +343,7 @@ internal sealed class IntegrationSession : IDisposable
             // A scorer can already be running when the native frame or owner is retired.
             // Its eventual return must not republish a contribution that was cleared meanwhile.
             if (revision != Volatile.Read(ref _goalRevision) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
-                || !Live(goal.Owner) || _clock() >= goal.Expires)
+                || !Live(goal.Owner) || _clock() >= goal.Expires || goal.Constraint is { Live: false })
                 return 0f;
             return value;
         }

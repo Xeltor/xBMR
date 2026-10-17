@@ -1,6 +1,6 @@
 namespace BossMod;
 
-public sealed class SDKnockbackInAABBSquareLeftRightAlongXAxisPlusAOECircles(WPos Center, float Distance, float HalfWidth, WPos[] AOEs, float Radius, int Length) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareLeftRightAlongXAxisPlusAOECircles(WPos Center, float Distance, float HalfWidth, WPos[] AOEs, float Radius, int Length) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly float originX = Center.X;
@@ -37,7 +37,7 @@ public sealed class SDKnockbackInAABBSquareLeftRightAlongXAxisPlusAOECircles(WPo
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareLeftRightAlongZAxisTowardsGoal(WPos Center, float Distance, float HalfWidth, WPos GoalPos, float GoalRadius) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareLeftRightAlongZAxisTowardsGoal(WPos Center, float Distance, float HalfWidth, WPos GoalPos, float GoalRadius) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly float originZ = Center.Z;
@@ -65,7 +65,7 @@ public sealed class SDKnockbackInAABBSquareLeftRightAlongZAxisTowardsGoal(WPos C
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareLeftRightAlongXAxisTowardsGoal(WPos Center, float Distance, float HalfWidth, WPos GoalPos, float GoalRadius) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareLeftRightAlongXAxisTowardsGoal(WPos Center, float Distance, float HalfWidth, WPos GoalPos, float GoalRadius) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly float originX = Center.X;
@@ -93,7 +93,7 @@ public sealed class SDKnockbackInAABBSquareLeftRightAlongXAxisTowardsGoal(WPos C
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOrigin(WPos Center, WPos Origin, float Distance, float HalfWidth) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOrigin(WPos Center, WPos Origin, float Distance, float HalfWidth) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -112,7 +112,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOrigin(WPos Center, WPos Orig
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusRectAOE(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos RectOrigin, WDir RectDirection, float LengthFront, float RectHalfWidth) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusRectAOE(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos RectOrigin, WDir RectDirection, float LengthFront, float RectHalfWidth) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -137,7 +137,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusRectAOE(WPos Center
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginIntoCircle(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos CircleOrigin, float Radius) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOriginIntoCircle(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos CircleOrigin, float Radius) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -160,7 +160,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginIntoCircle(WPos Center,
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareFixedDirection(WPos Center, WDir Direction, float HalfWidth) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareFixedDirection(WPos Center, WDir Direction, float HalfWidth) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WDir direction = Direction; // direction includes distance, not normalized
@@ -176,7 +176,7 @@ public sealed class SDKnockbackInAABBSquareFixedDirection(WPos Center, WDir Dire
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareFixedDirectionPlusAOECircle(WPos Center, WDir Direction, float HalfWidth, WPos CircleOrigin, float Radius) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareFixedDirectionPlusAOECircle(WPos Center, WDir Direction, float HalfWidth, WPos CircleOrigin, float Radius) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WDir direction = Direction; // direction includes distance, not normalized
@@ -198,7 +198,7 @@ public sealed class SDKnockbackInAABBSquareFixedDirectionPlusAOECircle(WPos Cent
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareFixedDirectionPlusAOECircles(WPos Center, WDir Direction, float HalfWidth, WPos[] Origins, float Radius, int Length) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareFixedDirectionPlusAOECircles(WPos Center, WDir Direction, float HalfWidth, WPos[] Origins, float Radius, int Length) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WDir direction = Direction; // direction includes distance, not normalized
@@ -233,7 +233,7 @@ public sealed class SDKnockbackInAABBSquareFixedDirectionPlusAOECircles(WPos Cen
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareFixedDirectionIntoCircle(WPos Center, WDir Direction, float HalfWidth, WPos CircleOrigin, float Radius) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareFixedDirectionIntoCircle(WPos Center, WDir Direction, float HalfWidth, WPos CircleOrigin, float Radius) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WDir direction = Direction; // direction includes distance, not normalized
@@ -255,7 +255,7 @@ public sealed class SDKnockbackInAABBSquareFixedDirectionIntoCircle(WPos Center,
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECirclesMixedRadii(WPos Center, WPos Origin, float Distance, float HalfWidth, (WPos Origin, float Radius)[] AOEs, int Length) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECirclesMixedRadii(WPos Center, WPos Origin, float Distance, float HalfWidth, (WPos Origin, float Radius)[] AOEs, int Length) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -291,7 +291,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECirclesMixedRadi
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECirclesMixedRadiiPlusAvoidShape(WPos Center, WPos Origin, float Distance, float HalfWidth, (WPos Origin, float Radius)[] AOEs, int Length, ShapeDistance Shape) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECirclesMixedRadiiPlusAvoidShape(WPos Center, WPos Origin, float Distance, float HalfWidth, (WPos Origin, float Radius)[] AOEs, int Length, ShapeDistance Shape) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -333,7 +333,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECirclesMixedRadi
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECircles(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos[] AOEs, float Radius, int Length) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECircles(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos[] AOEs, float Radius, int Length) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -369,7 +369,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOECircles(WPos Cen
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOERects(WPos Center, WPos Origin, float Distance, float HalfWidth, (WPos Origin, WDir Direction)[] AOEs, float LengthFront, float RectHalfWidth, int Length) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOERects(WPos Center, WPos Origin, float Distance, float HalfWidth, (WPos Origin, WDir Direction)[] AOEs, float LengthFront, float RectHalfWidth, int Length) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
@@ -407,7 +407,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusAOERects(WPos Cente
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareFixedDirectionPlusMixedAOEs(WPos Center, WDir Direction, float HalfWidth, Components.GenericAOEs.AOEInstance[] AOEs, int Length) : ShapeDistance
+public sealed class SDKnockbackInAABBSquareFixedDirectionPlusMixedAOEs(WPos Center, WDir Direction, float HalfWidth, Components.GenericAOEs.AOEInstance[] AOEs, int Length) : ShapeDistance, IKnockbackPreparationConstraint
 {
     private readonly WPos center = Center;
     private readonly WDir direction = Direction; // direction includes distance, not normalized
@@ -442,7 +442,7 @@ public sealed class SDKnockbackInAABBSquareFixedDirectionPlusMixedAOEs(WPos Cent
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusIntersectAOECircles(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos[] Origins, float Radius, int Length) : ShapeDistance {
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusIntersectAOECircles(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos[] Origins, float Radius, int Length) : ShapeDistance, IKnockbackPreparationConstraint {
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
     private readonly float halfWidth = HalfWidth;

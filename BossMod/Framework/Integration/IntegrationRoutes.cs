@@ -106,7 +106,7 @@ internal static class IntegrationRoutes
         return new("clear", "current-hints-complete-walk-route", TravelSeconds: travel, ArrivalSeconds: arrival);
     }
 
-    private static Result? CheckShape(ShapeDistance shape, WPos a, WPos b, float radius, float elapsed, float duration,
+    internal static Result? CheckShape(ShapeDistance shape, WPos a, WPos b, float radius, float elapsed, float duration,
         float deadline, int segment, string? actor, int? index, Budget budget)
     {
         var lipschitz = shape.ConservativeLipschitz;
@@ -139,7 +139,7 @@ internal static class IntegrationRoutes
         return null;
     }
 
-    private static Result? CheckPhysical(Source source, WPos a, WPos b, float radius, int segment, Budget budget)
+    internal static Result? CheckPhysical(Source source, WPos a, WPos b, float radius, int segment, Budget budget)
     {
         var map = source.Raster;
         var ga = map.WorldToGrid(a);
@@ -179,7 +179,7 @@ internal static class IntegrationRoutes
         return reason == null ? null : new("blocked", reason, segment, V(a + (b - a) * first), SegmentFraction: first);
     }
 
-    private static bool? PhysicalAt(Bitmap.Region region, int x, int y)
+    internal static bool? PhysicalAt(Bitmap.Region region, int x, int y)
     {
         if (region.Bitmap == null)
             return null;

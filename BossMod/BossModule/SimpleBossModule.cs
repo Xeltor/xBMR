@@ -6,7 +6,6 @@ public abstract class SimpleBossModule(WorldState ws, Actor primary) : BossModul
     new ArenaBoundsCircle(30f, AllowObstacleMap: true, AllowDrawing3DArenaBounds: false) { WorldProjectionHeight = 10f })
 {
     private WPos _prevFramePathfindCenter;
-    private bool? _usesInheritedSearchFrame;
 
     public override bool CheckReset() => !PrimaryActor.InCombat;
 
@@ -25,22 +24,6 @@ public abstract class SimpleBossModule(WorldState ws, Actor primary) : BossModul
     {
         hints.PathfindMapCenter = _prevFramePathfindCenter;
         hints.PathfindMapBounds = AIHints.DefaultBounds;
-        // Custom update/hint overrides own their frame policy. Correct only the inherited
-        // default (including ordinary FATE modules), without reframing authored geometry.
-        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-        _usesInheritedSearchFrame ??= GetType().GetMethod(nameof(UpdateModule), flags, null, Type.EmptyTypes, null)?.DeclaringType == typeof(SimpleBossModule)
-            && GetType().GetMethod(nameof(CalculateModuleAIHints), flags, null,
-                [typeof(int), typeof(Actor), typeof(PartyRolesConfig.Assignment), typeof(AIHints)], null)?.DeclaringType == typeof(SimpleBossModule);
-        if (!_usesInheritedSearchFrame.Value || hints.PathfindMapObstacles.Bitmap == null)
-            return;
-        var center = hints.PathfindMapCenter;
-        var (entry, bitmap) = Obstacles.Find(new(center.X, actor.PosRot.Y, center.Z));
-        if (Pathfinding.DefaultTerrainFrame.Align(hints, entry, bitmap) is { } frame)
-        {
-            hints.PathfindMapCenter = frame.Center;
-            hints.PathfindMapObstacles = frame.Region;
-            hints.DefaultTerrainFrameAlignment = frame;
-        }
     }
 }
 
