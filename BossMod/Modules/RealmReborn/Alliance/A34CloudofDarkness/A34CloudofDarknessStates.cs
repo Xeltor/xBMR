@@ -1,4 +1,4 @@
-﻿namespace BossMod.RealmReborn.Alliance.A34CloudofDarkness;
+namespace BossMod.RealmReborn.Alliance.A34CloudofDarkness;
 
 class A34CloudofDarknessStates : StateMachineBuilder
 {
@@ -7,6 +7,8 @@ class A34CloudofDarknessStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<FeintParticleBeam>()
             .ActivateOnEnter<ZeroFormParticleBeam>()
-            .ActivateOnEnter<ParticleBeam2>();
+            .ActivateOnEnter<ParticleBeam2>()
+            .ActivateOnEnter<ParticleTowers>()
+            .ActivateOnEnter<CloudAssignments>();
     }
 }

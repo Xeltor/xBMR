@@ -3,22 +3,56 @@
 class BlizzagaForte(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BlizzagaForte, 10f);
 class Darkness(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Darkness, new AOEShapeCone(6f, 22.5f.Degrees()));
 
-class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, (uint)AID.CurtainCall, 60f)
+class CurtainCall(BossModule module) : Components.GenericLineOfSightAOE(module, (uint)AID.CurtainCall, 100, safeInsideHitbox: false)
 {
-    public override ReadOnlySpan<Actor> BlockerActors()
+    public override void Update()
     {
-        var boulders = Module.Enemies((uint)OID.IceCage);
-        var count = boulders.Count;
-        if (count == 0)
-            return [];
-        var actors = new List<Actor>();
-        for (var i = 0; i < count; ++i)
+        Safezones.Clear();
+        IgnoredPlayers = default;
+        foreach (var (slot, actor) in Raid.WithSlot())
+            if (actor.FindStatus(SID.DeepFreeze) != null || actor.FindStatus(SID.DeepFreezeLegacy) != null)
+                IgnoredPlayers.Set(slot);
+        var boss = Module.PrimaryActor;
+        if (boss.IsDeadOrDestroyed || boss.CastInfo is not { } cast || cast.Action.ID != WatchedAction)
         {
-            var b = boulders[i];
-            if (!b.IsDead)
-                actors.Add(b);
+            Modify(null, []);
+            return;
         }
-        return CollectionsMarshal.AsSpan(actors);
+        Modify(boss.Position, Module.Enemies((uint)OID.IceCage).Where(c => !c.IsDeadOrDestroyed
+            && (c.Position - boss.Position).LengthSq() > boss.HitboxRadius * boss.HitboxRadius)
+            .Select(c => (c.Position, c.HitboxRadius)), Module.CastFinishAt(cast, -0.5));
+        AddSafezone(NextExplosion);
+    }
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (caster == Module.PrimaryActor && spell.Action.ID == WatchedAction)
+            Update();
+    }
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (caster == Module.PrimaryActor && spell.Action.ID == WatchedAction)
+        {
+            Safezones.Clear();
+            Modify(null, []);
+        }
+    }
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (IgnoredPlayers[slot])
+            return;
+        if (Origin is { } origin && Safezones.Count == 0)
+            hints.AddForbiddenZone(new SDCircle(origin, MaxRange), NextExplosion);
+        else
+            base.AddAIHints(slot, actor, assignment, hints);
+    }
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (IgnoredPlayers[slot])
+            return;
+        if (Origin != null && Safezones.Count == 0)
+            hints.Add("Curtain Call: no intact ice outside Amon - cover unavailable!");
+        else
+            base.AddHints(slot, actor, hints);
     }
 }
 

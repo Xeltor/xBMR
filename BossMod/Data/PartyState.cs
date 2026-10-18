@@ -43,6 +43,18 @@ public sealed class PartyState
     public Actor? this[int slot] => (slot >= 0 && slot < _actors.Length) ? _actors[slot] : null; // bounds-checking accessor
     public Actor? Player() => this[PlayerSlot];
 
+    // Live displayed-group labels (local party, first alliance list, second alliance list).
+    // Legacy recordings do not contain these labels: unknown must stay explicit.
+    private readonly int[] _allianceGroups = [-1, -1, -1];
+    public int AllianceGroupForSlot(int slot) => slot >= 0 && slot < MaxAllianceSize ? _allianceGroups[slot / MaxPartySize] : -1;
+    public void SetAllianceGroups(int local, int first, int second)
+    {
+        var valid = local is >= 0 and < 3 && first is >= 0 and < 3 && second is >= 0 and < 3 && local != first && local != second && first != second;
+        _allianceGroups[0] = valid ? local : -1;
+        _allianceGroups[1] = valid ? first : -1;
+        _allianceGroups[2] = valid ? second : -1;
+    }
+
     public int LimitBreakCur;
     public int LimitBreakMax = 10000;
 

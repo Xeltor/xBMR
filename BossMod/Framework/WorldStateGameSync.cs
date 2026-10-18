@@ -833,6 +833,10 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdatePartyAlliance(GroupManager.Group* group)
     {
+        var labelledAlliance = group != null && group->IsAlliance && !group->IsSmallGroupAlliance;
+        _ws.Party.SetAllianceGroups(labelledAlliance ? group->GetAllianceGroupIndexBySlot(0) : -1,
+            labelledAlliance ? group->GetAllianceGroupIndexBySlot(1) : -1,
+            labelledAlliance ? group->GetAllianceGroupIndexBySlot(2) : -1);
         if (group == null)
             return;
 

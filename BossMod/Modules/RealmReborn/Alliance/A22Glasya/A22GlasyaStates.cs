@@ -5,6 +5,7 @@ class A22GlasyaStates : StateMachineBuilder
     public A22GlasyaStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<ClockworkWrights>()
             .ActivateOnEnter<Aura>()
             .ActivateOnEnter<VileUtterance>();
     }

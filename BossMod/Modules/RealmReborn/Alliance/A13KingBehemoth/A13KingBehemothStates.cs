@@ -6,6 +6,8 @@ class A13KingBehemothStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<EclipticMeteor>()
+            .ActivateOnEnter<CometMarkers>()
+            .ActivateOnEnter<Adds>()
             .ActivateOnEnter<SelfDestruct>()
             .ActivateOnEnter<CharybdisAOE>();
     }

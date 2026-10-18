@@ -7,6 +7,7 @@ public enum OID : uint
     AetherialMine = 0xBDF, // R1.000, x?
     StonefallCircle = 0xBDD, // R1.000, x?
     StarfallCircle = 0xBDC, // R1.000, x?
+    NullGravity = 0x1E9582,
 }
 
 public enum AID : uint

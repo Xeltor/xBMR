@@ -10,7 +10,9 @@ class A14PhlegethonStates : StateMachineBuilder
             .ActivateOnEnter<MegiddoFlame4>()
             .ActivateOnEnter<MegiddoFlame5>()
             .ActivateOnEnter<MoonfallSlash>()
-            .ActivateOnEnter<AncientFlare1>()
+            .ActivateOnEnter<AncientFlare>()
+            .ActivateOnEnter<AbyssalSlash>()
+            .ActivateOnEnter<QuakeIII>()
             .ActivateOnEnter<VacuumSlash2>();
 
     }

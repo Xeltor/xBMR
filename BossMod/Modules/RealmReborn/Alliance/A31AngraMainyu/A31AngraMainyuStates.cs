@@ -7,7 +7,11 @@ class A31AngraMainyuStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<DoubleVision>()
             .ActivateOnEnter<MortalGaze1>()
-            .ActivateOnEnter<Level100Flare1>()
-            .ActivateOnEnter<Level150Death1>();
+            .ActivateOnEnter<MortalGaze2>()
+            .ActivateOnEnter<Stare>()
+            .ActivateOnEnter<EyesOnMe>()
+            .ActivateOnEnter<LevelMechanics>()
+            .ActivateOnEnter<DoomCleanse>()
+            .ActivateOnEnter<Adds>();
     }
 }

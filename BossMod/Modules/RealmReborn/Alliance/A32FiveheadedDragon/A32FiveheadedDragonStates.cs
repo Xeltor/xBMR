@@ -1,4 +1,4 @@
-﻿namespace BossMod.RealmReborn.Alliance.A32FiveheadedDragon;
+namespace BossMod.RealmReborn.Alliance.A32FiveheadedDragon;
 
 class A32FiveheadedDragonStates : StateMachineBuilder
 {
@@ -11,6 +11,9 @@ class A32FiveheadedDragonStates : StateMachineBuilder
             .ActivateOnEnter<BreathOfPoison>()
             .ActivateOnEnter<BreathOfIce>()
             .ActivateOnEnter<Radiance>()
-            .ActivateOnEnter<HeatWave>();
+            .ActivateOnEnter<Discordance>()
+            .ActivateOnEnter<HeatWave>()
+            .ActivateOnEnter<Markers>()
+            .ActivateOnEnter<AddsAndPrey>();
     }
 }

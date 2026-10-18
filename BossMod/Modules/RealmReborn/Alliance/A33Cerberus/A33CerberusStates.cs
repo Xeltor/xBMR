@@ -1,10 +1,12 @@
-﻿namespace BossMod.RealmReborn.Alliance.A33Cerberus;
+namespace BossMod.RealmReborn.Alliance.A33Cerberus;
 
 class A33CerberusStates : StateMachineBuilder
 {
     public A33CerberusStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<BellyAndChains>()
+            .ActivateOnEnter<Chains>()
             .ActivateOnEnter<TailBlow>()
             .ActivateOnEnter<Slabber>()
             .ActivateOnEnter<Mini>()

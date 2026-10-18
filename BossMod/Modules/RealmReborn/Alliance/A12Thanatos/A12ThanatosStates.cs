@@ -8,6 +8,8 @@ class A12ThanatosStates : StateMachineBuilder
             .ActivateOnEnter<BlackCloud>()
             .ActivateOnEnter<Cloudscourge>()
             .ActivateOnEnter<VoidFireII>()
-            .ActivateOnEnter<AstralLight>();
+            .ActivateOnEnter<AstralLight>()
+            .ActivateOnEnter<CrepusculeBlade>()
+            .ActivateOnEnter<AstralRealignment>();
     }
 }

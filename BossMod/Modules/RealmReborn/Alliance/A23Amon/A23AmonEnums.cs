@@ -40,7 +40,8 @@ public enum SID : uint
     Minimum = 438, // DimensionalCompression->player/ExperimentalByProduct33/KumKum/Kichiknebik, extra=0x32
     FireToad = 511, // Boss->player, extra=0x2
     Silence = 7, // ExperimentalByProduct33->player, extra=0x0
-    DeepFreeze = 487, // Boss->player, extra=0x1
+    DeepFreeze = 3479, // Boss->player, extra=0x1 (current game)
+    DeepFreezeLegacy = 487,
     Pacification = 6, // ExperimentalByProduct66->player, extra=0x0
     Weakness = 43, // none->player, extra=0x0
     Transcendent = 418, // none->player, extra=0x0

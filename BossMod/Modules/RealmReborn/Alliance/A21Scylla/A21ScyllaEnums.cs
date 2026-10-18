@@ -10,6 +10,7 @@ public enum OID : uint
     Gomory = 0xBCD, // R0.900, x?
     Acheron = 0xBCE, // R2.500, x?
     Actor1b2 = 0x1B2, // R0.500, x?, 523 type
+    Water = 0x1E950D, // water left by thawing a frozen player
 }
 
 public enum AID : uint
@@ -30,7 +31,8 @@ public enum SID : uint
 {
     Invincibility = 1570, // none->player, extra=0x0
     Heavy = 14, // none->ShiveringSoul, extra=0x32
-    DeepFreeze = 487, // ShiveringSoul->player, extra=0x1
+    DeepFreeze = 3479, // ShiveringSoul->player, extra=0x1 (current game)
+    DeepFreezeLegacy = 487,
     FireResistanceUp = 520, // none->player, extra=0x0
 }
 

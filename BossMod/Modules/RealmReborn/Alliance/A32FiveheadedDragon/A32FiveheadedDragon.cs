@@ -1,4 +1,4 @@
-﻿namespace BossMod.RealmReborn.Alliance.A32FiveheadedDragon;
+namespace BossMod.RealmReborn.Alliance.A32FiveheadedDragon;
 
 class WhiteBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.WhiteBreath, new AOEShapeCone(30, 60.Degrees()));
 class BreathOfFire(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfFire, 6);
@@ -7,10 +7,11 @@ class BreathOfPoison(BossModule module) : Components.SimpleAOEs(module, (uint)AI
 class BreathOfIce(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfIce, 6);
 
 class Radiance(BossModule module) : Components.RaidwideCast(module, (uint)AID.Radiance);
+class Discordance(BossModule module) : Components.RaidwideCast(module, (uint)AID.Discordance);
 class HeatWave(BossModule module) : Components.RaidwideCast(module, (uint)AID.HeatWave);
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 111, NameID = 3227)]
-public class A32FiveheadedDragon(WorldState ws, Actor primary) : BossModule(ws, primary, new(200, 180), new ArenaBoundsCircle(30))
+public class A32FiveheadedDragon(WorldState ws, Actor primary) : BossModule(ws, primary, new(200, 179), new ArenaBoundsCustom([new Polygon(new(200, 179), 30, 32)]))
 {
     protected override void DrawEnemies(int pcSlot, Actor pc)
     {

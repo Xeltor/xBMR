@@ -9,7 +9,8 @@ class A24XandeStates : StateMachineBuilder
             .ActivateOnEnter<BurningRave1>()
             .ActivateOnEnter<BurningRave2>()
             .ActivateOnEnter<AncientQuake>()
-            .ActivateOnEnter<AncientQuaga>()
+            .ActivateOnEnter<AetherialMines>()
+            .ActivateOnEnter<ImperiumAndQuaga>()
             //.ActivateOnEnter<Stackmarker>()
             .ActivateOnEnter<AuraCannon>();
     }
