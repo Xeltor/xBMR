@@ -95,7 +95,7 @@ public class Cleave(BossModule module, uint aid, AOEShape shape, uint[]? enemyOI
 
             var radius = a.Type == ActorType.Pet ? a.HitboxRadius : 0f;
 
-            ShapeDistance zone;
+            ShapeDistance? zone;
 
             switch (Shape)
             {
@@ -109,20 +109,41 @@ public class Cleave(BossModule module, uint aid, AOEShape shape, uint[]? enemyOI
                 case AOEShapeCone cone:
                     {
                         var distance = (a.Position - sourcePosition).Length();
-                        var halfAngle = distance <= radius ? new Angle(MathF.PI) : cone.HalfAngle + Angle.Asin(Math.Clamp(radius / distance, 0f, 1f));
-                        zone = BaitAimZone(sourcePosition, source.AngleTo(a) - cone.DirectionOffset, halfAngle, cone.Radius);
+                        // Victim reach is measured from the enemy, independently of the tank's distance.
+                        if (distance > cone.Radius + radius || distance <= radius)
+                        {
+                            // An ally overlapping the origin cannot be protected by changing aim.
+                            continue;
+                        }
+                        var halfAngle = cone.HalfAngle + ConeBaitExtraAngle(distance, cone.Radius, radius);
+                        if (halfAngle.Rad >= MathF.PI)
+                        {
+                            continue; // no safe aim; do not forbid the entire arena for the recipient
+                        }
+                        zone = BaitAimZone(sourcePosition, source.AngleTo(a) - cone.DirectionOffset, halfAngle);
                         break;
                     }
 
                 case AOEShapeRect rect:
                     {
                         var distance = (a.Position - sourcePosition).Length();
-                        var halfAngle = RectBaitHalfAngle(distance, rect.HalfWidth, radius);
-                        zone = BaitAimZone(sourcePosition, source.AngleTo(a) - rect.DirectionOffset, halfAngle, rect.LengthFront);
+                        if (distance <= radius)
+                        {
+                            continue;
+                        }
+                        var direction = source.AngleTo(a) - rect.DirectionOffset;
+                        var front = RectBaitAimZone(sourcePosition, direction, distance, rect.LengthFront, rect.HalfWidth, radius);
+                        var back = rect.LengthBack > 0f ? RectBaitAimZone(sourcePosition, direction + 180f.Degrees(), distance, rect.LengthBack, rect.HalfWidth, radius) : null;
+                        zone = front == null ? back : back == null ? front : new CombinedBaitAimZone(front, back);
                         break;
                     }
                 default:
                     continue;
+            }
+
+            if (zone == null)
+            {
+                continue;
             }
 
             hints.AddForbiddenZone(zone, NextExpected, arenaProjectionLayer: ArenaProjectionLayerForAI(ArenaProjectionLayer, RestrictToArenaProjectionLayer));
@@ -134,9 +155,79 @@ public class Cleave(BossModule module, uint aid, AOEShape shape, uint[]? enemyOI
         public override float Distance(in WPos p) => inner.Distance(p) - radius;
     }
 
-    private static ShapeDistance BaitAimZone(WPos source, Angle direction, Angle halfAngle, float zoneRadius)
+    // This is a restriction on aim, not on attack reach. Moving radially away from the
+    // source must not become a way to aim a persistent cleave through a nearby ally.
+    private static ShapeDistance BaitAimZone(WPos source, Angle direction, Angle halfAngle) => new BaitAimDistance(source, direction, halfAngle);
+
+    private sealed class BaitAimDistance : ShapeDistance
     {
-        return halfAngle.Rad >= MathF.PI ? new SDCircle(source, zoneRadius) : new SDCone(source, zoneRadius, direction, halfAngle);
+        private readonly SDHalfPlane _left, _right;
+        private readonly bool _wide;
+        private readonly BaitAimDistance? _inner;
+
+        public BaitAimDistance(WPos source, Angle direction, Angle halfAngle, Angle innerHalfAngle = default)
+        {
+            _wide = halfAngle.Rad > Angle.HalfPi;
+            var factor = _wide ? -1f : 1f;
+            _left = new(source, factor * (direction + halfAngle).ToDirection().OrthoL());
+            _right = new(source, factor * (direction - halfAngle).ToDirection().OrthoR());
+            _inner = innerHalfAngle.Rad > 0f ? new(source, direction, innerHalfAngle) : null;
+        }
+
+        public override float ConservativeLipschitz => Math.Max(_left.ConservativeLipschitz, _right.ConservativeLipschitz);
+        public override float Distance(in WPos p)
+        {
+            var outer = (_wide ? -1f : 1f) * Math.Max(_left.Distance(p), _right.Distance(p));
+            return _inner == null ? outer : Math.Max(outer, -_inner.Distance(p));
+        }
+    }
+
+    private sealed class CombinedBaitAimZone(ShapeDistance front, ShapeDistance back) : ShapeDistance
+    {
+        public override float ConservativeLipschitz => Math.Max(front.ConservativeLipschitz, back.ConservativeLipschitz);
+        public override float Distance(in WPos p) => Math.Min(front.Distance(p), back.Distance(p));
+    }
+
+    // A finite rectangle can hit a distant ally around a corner but miss them when
+    // aimed directly at them (past the front cap). Preserve that safe central interval.
+    private static ShapeDistance? RectBaitAimZone(WPos source, Angle direction, float distance, float length, float halfWidth, float radius)
+    {
+        var cornerDistanceSq = length * length + halfWidth * halfWidth;
+        var cornerDistance = MathF.Sqrt(cornerDistanceSq);
+        if (distance > cornerDistance + radius)
+        {
+            return null;
+        }
+
+        var distanceSq = distance * distance;
+        var outer = RectBaitHalfAngle(distance, halfWidth, radius);
+        var inner = default(Angle);
+        var cornerAngle = Angle.Atan2(halfWidth, length);
+        var cornerExtra = distanceSq > cornerDistanceSq
+            ? Angle.Acos(Math.Clamp((distanceSq + cornerDistanceSq - radius * radius) / (2f * distance * cornerDistance), -1f, 1f)) : default;
+        if (distanceSq > length * length + (halfWidth + radius) * (halfWidth + radius))
+        {
+            outer = cornerAngle + cornerExtra;
+        }
+        if (distance > length + radius)
+        {
+            inner = distanceSq > (length + radius) * (length + radius) + halfWidth * halfWidth ? cornerAngle - cornerExtra
+                : Angle.Acos(Math.Clamp((length + radius) / distance, -1f, 1f));
+        }
+        return new BaitAimDistance(source, direction, outer, inner);
+    }
+
+    // Angular extent of a circular victim as seen through the finite attack disk.
+    // Near its outer cap, the tangency to the hitbox can lie beyond attack reach.
+    private static Angle ConeBaitExtraAngle(float distance, float reach, float radius)
+    {
+        if (radius <= 0f)
+        {
+            return default;
+        }
+        var tangentDistanceSq = distance * distance - radius * radius;
+        return tangentDistanceSq <= reach * reach ? Angle.Asin(Math.Clamp(radius / distance, 0f, 1f))
+            : Angle.Acos(Math.Clamp((distance * distance + reach * reach - radius * radius) / (2f * distance * reach), -1f, 1f));
     }
 
     // Angular interval in which a circular hitbox intersects a forward, infinitely long rectangle
