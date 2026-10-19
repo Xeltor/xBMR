@@ -56,7 +56,7 @@ class DoubleVision(BossModule module) : Components.GenericAOEs(module, warningTe
     }
 }
 
-class LevelMechanics(BossModule module) : BossComponent(module)
+class LevelMechanics(BossModule module) : Components.GenericAOEs(module)
 {
     private Actor? _target;
     private DateTime _activation;
@@ -108,13 +108,11 @@ class LevelMechanics(BossModule module) : BossComponent(module)
             hints.Add(actor == target ? "Level marker: stay still; everyone else leave the circle!" : "Leave the marked player's level circle!",
                 actor != target && actor.Position.InCircle(target.Position, 12));
     }
-    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        // One isolated bound recipient satisfies both odd-number Flare and non-multiple-of-three Death.
-        // The boss cast's location is not the circle center in this recording; use the marked player.
-        if (Target is { } target && actor != target)
-            hints.AddForbiddenZone(new SDCircle(target.Position, 12), _activation);
-    }
+    // Keep the bound recipient still; all other players leave the 12y circle.
+    // Publish the same timed shape to radar, AI and mechanic forecast consumers.
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+        => Target is { } target && actor != target
+            ? new AOEInstance[] { new(new AOEShapeCircle(12), target.Position, default, _activation) } : [];
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
         if (Target is { } target)

@@ -1,4 +1,4 @@
-﻿namespace BossMod.RealmReborn.Alliance.A31AngraMainyu;
+namespace BossMod.RealmReborn.Alliance.A31AngraMainyu;
 
 class A31AngraMainyuStates : StateMachineBuilder
 {
@@ -12,6 +12,7 @@ class A31AngraMainyuStates : StateMachineBuilder
             .ActivateOnEnter<EyesOnMe>()
             .ActivateOnEnter<LevelMechanics>()
             .ActivateOnEnter<DoomCleanse>()
+            .ActivateOnEnter<Roulette>()
             .ActivateOnEnter<Adds>();
     }
 }

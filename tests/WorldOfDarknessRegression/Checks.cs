@@ -68,7 +68,7 @@ static class Checks
         using var game = new Lumina.GameData(Path.Combine(gameDirectory, "sqpack"));
         Service.LuminaGameData = game; Service.Config.Initialize();
         var failures=new List<Exception>();
-        foreach(var test in new Action[]{AngraColors,AngraLevelsAndDoom,DragonMarkers,CloudChase,CloudTowers,CloudGroups,CerberusFloorsAndBelly,CerberusChains,InterveningEncounters})
+        foreach(var test in new Action[]{AngraColors,AngraLevelsAndDoom,AngraRoulette,DragonMarkers,CloudChase,CloudTowers,CloudGroups,CerberusFloorsAndBelly,CerberusChains,InterveningEncounters})
             try { test(); } catch(Exception e) { failures.Add(e); Console.Error.WriteLine(test.Method.Name+": "+e.Message); }
         if(failures.Count!=0)throw new AggregateException(failures);
         Console.WriteLine($"World of Darkness synthetic regression: {assertions} checks passed; physical collision and live gameplay remain separate.");
@@ -96,6 +96,8 @@ static class Checks
     {
         using var f=new Fixture(0xE00,new(-147.07f,296.92f));f.Start(new Angra.A31AngraMainyu(f.World,f.Boss));
         f.Move(f.Players[3],new(-155,310)); f.Icon(f.Players[3],44);f.Cast(f.Boss,3275,4.5f);
+        Check(AOE(f,"LevelMechanics").ActiveAOEs(0,f.Players[0]).Length==1,"player circle publishes a filled radar hazard and forecast");
+        Check(AOE(f,"LevelMechanics").ActiveAOEs(3,f.Players[3]).Length==0,"marked recipient has no self-avoidance hazard");
         var z=f.Hints().ForbiddenZones.Single();Check(z.shapeDistance.Distance(new(-155,310))<0 && z.shapeDistance.Distance(new(-155,323))>0,"level circle follows bound player with12y radius");
         Check(f.Hints(3).ForbiddenZones.Count==0,"bound target is never directed away from itself");
         f.Event(f.Boss,3275,f.Boss.Position);f.Finish(f.Boss);Check(f.Hints().ForbiddenZones.Count==1,"level warning survives visual finish until helper hit");
@@ -106,6 +108,28 @@ static class Checks
         Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(pad.Position)>0,"Doom seeks the currently lit pad");
         f.EAnim(pad,1,16);Check(f.Hints().ForbiddenZones.Count==0,"pad rotation clears obsolete destination");
         f.EState(pad,4);f.EState(pad,1);Check(f.Hints().ForbiddenZones.Count==0,"reset clears lit pad");
+    }
+    static void AngraRoulette()
+    {
+        using var f = new Fixture(0xE00, new(-147.07f,296.92f)); f.Start(new Angra.A31AngraMainyu(f.World,f.Boss));
+        var quarter=f.Create(501,2004776,f.Boss.Position,ActorType.EventObj);
+        var glass=f.Create(502,0xE02,f.Boss.Position);
+        var roulette=AOE(f,"Roulette");
+        f.EState(quarter,8); f.Tick(.5);
+        Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"spinning Roulette does not forbid a transient quadrant");
+        f.World.Execute(new ActorState.OpDead(glass.InstanceID,true)); f.Tick(.7);
+        var hazard=roulette.ActiveAOEs(0,f.Players[0]);
+        Check(hazard.Length==1,"last hourglass death warns before the late attack animation");
+        Check(hazard[0].Check(f.Boss.Position+new WDir(-10,10)) && !hazard[0].Check(f.Boss.Position+new WDir(10,10)),"recorded final quadrant is southwest");
+        Check(f.Hints().ForbiddenZones.Count==1,"Roulette radar shape also constrains AI");
+        f.EAnim(quarter,1,16);Check(roulette.ActiveAOEs(0,f.Players[0]).Length==1,"lock animation preserves early warning");
+        var reaper=f.Create(503,0xE01,f.Boss.Position);f.Event(reaper,3279,f.Boss.Position);
+        Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"Death resolves the selected quadrant");
+        f.EState(quarter,4);f.EState(quarter,8);f.Tick(2.3);
+        Check(roulette.ActiveAOEs(0,f.Players[0]).Length==1,"stopped rotation has a fallback without hourglass death");
+        f.EAnim(quarter,1,2);Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"end animation clears when no Death packet is recorded");
+        f.EState(quarter,8);f.Tick(4);f.EState(quarter,1);
+        Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"reset removes the selected quadrant");
     }
     static void DragonMarkers()
     {
