@@ -13,6 +13,8 @@ class A32FiveheadedDragonStates : StateMachineBuilder
             .ActivateOnEnter<Radiance>()
             .ActivateOnEnter<Discordance>()
             .ActivateOnEnter<HeatWave>()
+            .ActivateOnEnter<HeatWavePreparation>()
+            .ActivateOnEnter<PoisonSuppression>()
             .ActivateOnEnter<Markers>()
             .ActivateOnEnter<AddsAndPrey>();
     }

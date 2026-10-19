@@ -123,15 +123,32 @@ class LevelMechanics(BossModule module) : Components.GenericAOEs(module)
 class DoomCleanse(BossModule module) : BossComponent(module)
 {
     private readonly HashSet<Actor> _active = [];
-    private static bool IsPad(Actor actor) => actor.OID is 2004753 or 2004754 or 2004755 or 2004756;
+    private Actor? _lastLit;
+    private DateTime _litSince;
+    private bool _cycleConfirmed;
+    private static bool IsPad(Actor actor) => actor.OID is >= 2004753 and <= 2004756;
+    private static uint NextOID(uint oid) => oid == 2004756 ? 2004753 : oid + 1;
     public override void OnActorEState(Actor actor, ushort state)
     {
-        if (IsPad(actor))
+        if (!IsPad(actor))
+            return;
+        if (state == 4)
         {
-            if (state == 4)
-                _active.Add(actor);
-            else
-                _active.Remove(actor);
+            var interval = (WorldState.CurrentTime - _litSince).TotalSeconds;
+            _cycleConfirmed = _lastLit != null && actor.OID == NextOID(_lastLit.OID) && interval is >= 4.8 and <= 5.2;
+            _lastLit = actor;
+            _litSince = WorldState.CurrentTime;
+            _active.Clear();
+            _active.Add(actor);
+        }
+        else
+        {
+            _active.Remove(actor);
+            if (actor == _lastLit)
+            {
+                _lastLit = null;
+                _cycleConfirmed = false;
+            }
         }
     }
     public override void OnActorEAnim(Actor actor, uint state)
@@ -139,27 +156,69 @@ class DoomCleanse(BossModule module) : BossComponent(module)
         if (IsPad(actor) && state == 0x00010010)
             _active.Remove(actor);
     }
-    public override void OnActorDestroyed(Actor actor) => _active.Remove(actor);
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _active.Remove(actor);
+        if (_lastLit == actor)
+        {
+            _lastLit = null;
+            _cycleConfirmed = false;
+        }
+    }
+    public override void Update()
+    {
+        // A missing light-change event must not leave an old destination lit indefinitely.
+        if (_lastLit != null && WorldState.CurrentTime > _litSince.AddSeconds(5.3))
+        {
+            _active.Clear();
+            _lastLit = null;
+            _cycleConfirmed = false;
+        }
+    }
+    private Actor? Destination(Actor actor)
+    {
+        var current = _active.Where(p => !p.IsDeadOrDestroyed).MinBy(p => (p.Position - actor.Position).LengthSq());
+        if (current == null || !_cycleConfirmed || current != _lastLit || actor.Position.InCircle(current.Position, 2))
+            return current;
+        // Seventy observed transitions in two runs advance clockwise every 4.956-5.059s.
+        // Compare conservative straight-line travel against the remaining light window.
+        // This selects a destination; it does not certify the actual route or server snapshot.
+        var speed = Math.Clamp(WorldState.Client.MoveSpeed, 0.1f, 6);
+        var arrival = WorldState.CurrentTime.AddSeconds((actor.Position - current.Position).Length() / speed + 1);
+        if (arrival < _litSince.AddSeconds(4.5))
+            return current;
+        var next = WorldState.Actors.FirstOrDefault(p => p.OID == NextOID(current.OID) && !p.IsDeadOrDestroyed);
+        if (next == null || actor.FindStatus(SID.Doom) is not { } doom)
+            return current;
+        var nextArrival = WorldState.CurrentTime.AddSeconds((actor.Position - next.Position).Length() / speed + 1);
+        var deadline = doom.ExpireAt < _litSince.AddSeconds(9.5) ? doom.ExpireAt.AddSeconds(-1) : _litSince.AddSeconds(9.5);
+        return _litSince.AddSeconds(5.3) < deadline && nextArrival < deadline ? next : current;
+    }
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (actor.FindStatus(SID.Doom) != null)
-            hints.Add(_active.Count == 0 ? "Doom: find a lit cleansing circle; current activation unknown!" : "Doom: enter a lit cleansing circle!");
+        {
+            var target = Destination(actor);
+            hints.Add(target == null ? "Doom: find a lit cleansing circle!" : _active.Contains(target)
+                ? "Doom: enter the lit cleansing circle!" : "Doom: go to the next cleansing circle and wait for its light!");
+        }
     }
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (actor.FindStatus(SID.Doom) is not { } doom)
-            return;
-        // Layout cylinders are 2.5y and both observed successful cleanses are inside them.
-        // Cleanse immediately: the next light change is not reliably forecast. Arrive within 2y; moving lights are re-read on each callback rather than a fitted cycle.
-        var safe = _active.Where(p => !p.IsDeadOrDestroyed).Select(p => (ShapeDistance)new SDInvertedCircle(p.Position, 2)).ToArray();
-        if (safe.Length != 0)
-            hints.AddForbiddenZone(new SDIntersection(safe), WorldState.CurrentTime);
+        // Unlit pads are safe to stand on. Arrive immediately and wait if the current
+        // light will expire before arrival; every observed activation corrects the plan.
+        if (actor.FindStatus(SID.Doom) != null && Destination(actor) is { } target)
+            hints.AddForbiddenZone(new SDInvertedCircle(target.Position, 2), WorldState.CurrentTime);
     }
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
         if (pc.FindStatus(SID.Doom) != null)
+        {
             foreach (var pad in _active)
                 Arena.AddCircleUnfilled(pad.Position, 2.5f, Colors.Safe);
+            if (Destination(pc) is { } target && !_active.Contains(target))
+                Arena.AddCircleUnfilled(target.Position, 2, Colors.Safe);
+        }
     }
 }
 

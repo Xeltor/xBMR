@@ -68,7 +68,7 @@ static class Checks
         using var game = new Lumina.GameData(Path.Combine(gameDirectory, "sqpack"));
         Service.LuminaGameData = game; Service.Config.Initialize();
         var failures=new List<Exception>();
-        foreach(var test in new Action[]{AngraColors,AngraLevelsAndDoom,AngraRoulette,DragonMarkers,CloudChase,CloudTowers,CloudGroups,CerberusFloorsAndBelly,CerberusChains,InterveningEncounters})
+        foreach(var test in new Action[]{AngraColors,AngraLevelsAndDoom,AngraDoomRotation,AngraRoulette,DragonMarkers,DragonResponses,CloudChase,CloudTowers,CloudGroups,CerberusFloorsAndBelly,CerberusChains,InterveningEncounters})
             try { test(); } catch(Exception e) { failures.Add(e); Console.Error.WriteLine(test.Method.Name+": "+e.Message); }
         if(failures.Count!=0)throw new AggregateException(failures);
         Console.WriteLine($"World of Darkness synthetic regression: {assertions} checks passed; physical collision and live gameplay remain separate.");
@@ -130,6 +130,62 @@ static class Checks
         f.EAnim(quarter,1,2);Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"end animation clears when no Death packet is recorded");
         f.EState(quarter,8);f.Tick(4);f.EState(quarter,1);
         Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"reset removes the selected quadrant");
+    }
+    static void AngraDoomRotation()
+    {
+        using var f=new Fixture(0xE00,new(-147.07f,296.92f));f.Start(new Angra.A31AngraMainyu(f.World,f.Boss));
+        var nw=f.Create(501,2004753,new(-156.52f,287.48f),ActorType.EventObj);
+        var ne=f.Create(502,2004754,new(-137.59f,287.47f),ActorType.EventObj);
+        var se=f.Create(503,2004755,new(-137.59f,306.38f),ActorType.EventObj);
+        f.EState(nw,4);f.Tick(5);f.EAnim(nw,1,16);f.EState(ne,4);
+        f.Status(f.Players[0],210);f.Move(f.Players[0],new(-156.51f,306.39f));f.Tick(9);
+        var zone=f.Hints().ForbiddenZones.Single();
+        Check(zone.shapeDistance.Distance(se.Position)>0 && zone.shapeDistance.Distance(ne.Position)<0,"late Doom targets next clockwise pad instead of chasing an expiring light");
+        f.Tick(10);f.EAnim(ne,1,16);f.EState(se,4);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(se.Position)>0,"next observed light confirms the prepared destination");
+        f.EState(se,1);Check(f.Hints().ForbiddenZones.Count==0,"reset invalidates light forecast");
+        f.EState(nw,4);f.Tick(15);f.EState(se,4);f.Tick(19);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(se.Position)>0,"unexpected order drops the cycle model and follows observed light");
+        f.Tick(20.4);Check(f.Hints().ForbiddenZones.Count==0,"missing light events expire stale destinations");
+    }
+    static void DragonResponses()
+    {
+        using var f=new Fixture(0xDFC,new(200,179));f.Start(new Dragon.A32FiveheadedDragon(f.World,f.Boss));
+        f.Move(f.Players[0],new(200,190));f.Move(f.Players[1],new(200,189));
+        f.Status(f.Players[0],420);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(f.Players[1].Position)>0,"Prey requires contact with the closest eligible recipient");
+        f.Status(f.Players[1],475);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(f.Players[1].Position)<0,"Slippery Prey excludes the nearest recipient");
+        f.Status(f.Players[0],639,1);
+        Check(f.Hints().ForbiddenZones.Count==0 && f.Hints().ImminentSpecialMode.mode==AIHints.SpecialMode.Pyretic,"Pyretic takes precedence over Prey movement");
+        f.World.Execute(new ActorState.OpStatus(f.Players[0].InstanceID,0,default));
+        f.World.Execute(new ActorState.OpStatus(f.Players[0].InstanceID,1,default));
+        f.Cast(f.Boss,3294,1.5f);
+        var mode=f.Hints().ImminentSpecialMode;
+        Check(mode.mode==AIHints.SpecialMode.Pyretic && Math.Abs((mode.activation-Now).TotalSeconds-1)<.001,"Heat Wave predicts no movement/actions before status delivery");
+        f.Finish(f.Boss);Check(f.Hints().ImminentSpecialMode.mode==AIHints.SpecialMode.Normal,"cancelled Heat Wave clears preparation");
+        f.Cast(f.Boss,3294,1.5f);f.Event(f.Boss,3294,f.Boss.Position);f.Finish(f.Boss);
+        Check(f.Hints().ImminentSpecialMode.mode==AIHints.SpecialMode.Pyretic,"resolved Heat Wave retains the guide-supported five-second response");
+        f.Tick(7);Check(f.Hints().ImminentSpecialMode.mode==AIHints.SpecialMode.Normal,"Heat Wave preparation expires");
+        var pool=f.Create(510,2004780,new(210,190),ActorType.EventObj);
+        Check(f.Hints().ForbiddenZones.Count==0,"poison suppression never sends an unprotected player into poison");
+        f.Status(f.Players[0],640);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(pool.Position)>0,"poison resistance permits required center entry");
+        f.Status(f.Players[2],640);f.Move(f.Players[2],pool.Position);
+        Check(f.Hints().ForbiddenZones.Count==0,"existing resistant occupant suppresses duplicate assignment");
+        f.Move(f.Players[2],new(180,180));
+        f.Icon(f.Players[4],318);
+        var suppression=f.Module.Components.Single(c=>c.GetType().Name=="PoisonSuppression");
+        var suppressed=new AIHints();suppression.AddAIHints(0,f.Players[0],default,suppressed);
+        Check(suppressed.ForbiddenZones.Count==0,"thunder stack assignment takes precedence over poison entry");
+        f.Event(f.Boss,3287,f.Players[4].Position,f.Players[4]);
+        var helper=f.Create(511,0x1B2,pool.Position);f.Cast(helper,3285,3);
+        Check(f.Hints().ForbiddenZones.Count==1,"known fire overlap retains only the fire hazard and cancels poison entry");
+        Check(f.Hints().ForbiddenZones[0].shapeDistance.Distance(pool.Position)<0,"poison assignment cannot force entry into an overlapping fire hazard");
+        f.Finish(helper);f.World.Execute(new ActorState.OpDestroy(pool.InstanceID));
+        Check(f.Hints().ForbiddenZones.Count==0,"destroyed poison puddle clears center-entry assignment");
+        pool=f.Create(512,2004780,new(210,190),ActorType.EventObj);f.Cast(f.Boss,3294,1.5f);
+        Check(f.Hints().ForbiddenZones.Count==0,"upcoming Heat Wave cancels poison movement assignment");
     }
     static void DragonMarkers()
     {
