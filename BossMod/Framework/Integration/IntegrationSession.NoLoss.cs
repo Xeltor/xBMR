@@ -47,7 +47,7 @@ internal sealed partial class IntegrationSession
         }
     }
 
-    private static Func<Vector2, float> CaptureNoLossScore(Goal goal, Func<Vector2[], Func<Vector2, bool>?>? captureGuard)
+    private Func<Vector2, float> CaptureNoLossScore(Goal goal, Func<Vector2[], Func<Vector2, bool>?>? captureGuard)
     {
         if (goal.NoLossLeaves == null) return goal.Score;
         var leaves = goal.NoLossLeaves.Select(leaf => (leaf.Score,
@@ -55,11 +55,22 @@ internal sealed partial class IntegrationSession
         return point =>
         {
             var sum = 0f;
+            long consumerTicks = 0;
             foreach (var (score, guard) in leaves)
             {
+                // Native no-loss comparisons have their own bounded budget.
+                // Charging that work to the consumer can revoke a healthy
+                // observer even when its score delegate never runs.
                 if (guard != null && !guard(point)) continue;
+                var start = _clock();
                 var value = score(point);
+                consumerTicks += _clock() - start;
                 if (!float.IsFinite(value) || value is < 0 or > 16) return float.NaN;
+                if (consumerTicks > Milliseconds(2))
+                {
+                    Revoke(goal.Owner, "owner-revoked:goal-evaluation-budget");
+                    return 0f;
+                }
                 sum += value;
             }
             return Math.Min(16, sum);

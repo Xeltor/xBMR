@@ -34,6 +34,7 @@ internal sealed partial class IntegrationSession : IDisposable
         internal readonly Action<string> Callback = callback;
         internal long Expires = expires;
         internal int Revoked;
+        internal string? Failure;
         internal int GoalRevision;
         internal volatile ContributionGuard? Constraint;
         internal readonly List<Goal> Goals = [];
@@ -51,6 +52,7 @@ internal sealed partial class IntegrationSession : IDisposable
     }
 
     private readonly Dictionary<string, Owner> _owners = [];
+    private readonly Dictionary<string, (long Expires, string Reason)> _recentFailures = [];
     private readonly Func<long> _clock;
     private readonly long _frequency;
     private readonly object _gate = new();
@@ -154,7 +156,17 @@ internal sealed partial class IntegrationSession : IDisposable
     private Result RenewCore(Lease? request)
     {
         if (!ValidLease(request, out var owner) || request!.LeaseMs is < 1 or > MaxLeaseMs)
-            return Reply(false, "invalid-or-expired-owner");
+        {
+            var reason = "invalid-or-expired-owner";
+            if (request != null && request.SchemaVersion == SchemaVersion && request.InstanceGeneration == InstanceGeneration && request.OwnerToken != null)
+            {
+                if (_owners.TryGetValue(request.OwnerToken, out var rejected) && Volatile.Read(ref rejected.Failure) is { } failure)
+                    reason = failure;
+                else if (_recentFailures.TryGetValue(request.OwnerToken, out var retired) && _clock() < retired.Expires)
+                    reason = retired.Reason;
+            }
+            return Reply(false, reason);
+        }
         Interlocked.Exchange(ref owner!.Expires, _clock() + Milliseconds(request.LeaseMs));
         return Reply(true, "renewed");
     }
@@ -295,7 +307,7 @@ internal sealed partial class IntegrationSession : IDisposable
                 if (!Live(owner))
                     continue;
                 try { owner.Callback(json); }
-                catch { Revoke(owner); }
+                catch { Revoke(owner, "owner-revoked:frame-callback-exception"); }
             }
         }
         finally { _dispatching = false; }
@@ -317,17 +329,17 @@ internal sealed partial class IntegrationSession : IDisposable
             return [];
         var revision = Volatile.Read(ref _goalRevision);
         return _owners.Values.Where(Live).SelectMany(o => o.Goals).Where(g => g.Frame == FrameId && g.Category == category)
-            .Select(g => Wrap(g, revision, CaptureNoLossScore(g, captureGuard))).ToArray();
+            .Select(g => Wrap(g, revision, CaptureNoLossScore(g, captureGuard), budgetConsumer: g.NoLossLeaves == null)).ToArray();
     }
 
-    private Func<Vector2, float> Wrap(Goal goal, int revision, Func<Vector2, float> score)
+    private Func<Vector2, float> Wrap(Goal goal, int revision, Func<Vector2, float> score, bool budgetConsumer = true)
     {
         var ownerRevision = Volatile.Read(ref goal.Owner.GoalRevision);
         var calls = 0;
-        return p => Interlocked.Increment(ref calls) <= 262144 ? Evaluate(goal, revision, ownerRevision, p, score) : 0f;
+        return p => Interlocked.Increment(ref calls) <= 262144 ? Evaluate(goal, revision, ownerRevision, p, score, budgetConsumer) : 0f;
     }
 
-    private float Evaluate(Goal goal, int revision, int ownerRevision, Vector2 point, Func<Vector2, float> score)
+    private float Evaluate(Goal goal, int revision, int ownerRevision, Vector2 point, Func<Vector2, float> score, bool budgetConsumer)
     {
         if (revision != Volatile.Read(ref _goalRevision) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
             || !Live(goal.Owner) || _clock() >= goal.Expires || goal.Constraint is { Live: false })
@@ -336,9 +348,14 @@ internal sealed partial class IntegrationSession : IDisposable
         {
             var start = _clock();
             var value = score(point);
-            if (!float.IsFinite(value) || value is < 0 or > 16 || _clock() - start > Milliseconds(2))
+            if (!float.IsFinite(value) || value is < 0 or > 16)
             {
-                Revoke(goal.Owner);
+                Revoke(goal.Owner, "owner-revoked:invalid-goal-score");
+                return 0f;
+            }
+            if (budgetConsumer && _clock() - start > Milliseconds(2))
+            {
+                Revoke(goal.Owner, "owner-revoked:goal-evaluation-budget");
                 return 0f;
             }
             // A scorer can already be running when the native frame or owner is retired.
@@ -348,15 +365,28 @@ internal sealed partial class IntegrationSession : IDisposable
                 return 0f;
             return value;
         }
-        catch { Revoke(goal.Owner); return 0f; }
+        catch { Revoke(goal.Owner, "owner-revoked:goal-evaluation-exception"); return 0f; }
     }
 
-    private static void Revoke(Owner owner) => Interlocked.Exchange(ref owner.Revoked, 1);
+    private static void Revoke(Owner owner, string? failure = null)
+    {
+        if (failure != null) Interlocked.CompareExchange(ref owner.Failure, failure, null);
+        Interlocked.Exchange(ref owner.Revoked, 1);
+    }
     private void Prune()
     {
+        var now = _clock();
+        foreach (var token in _recentFailures.Where(entry => now >= entry.Value.Expires).Select(entry => entry.Key).ToArray())
+            _recentFailures.Remove(token);
         foreach (var owner in _owners.Values.Where(o => !Live(o)).ToArray())
         {
             Revoke(owner);
+            if (Volatile.Read(ref owner.Failure) is { } failure)
+            {
+                if (_recentFailures.Count >= MaxOwners)
+                    _recentFailures.Remove(_recentFailures.MinBy(entry => entry.Value.Expires).Key);
+                _recentFailures[owner.Token] = (now + Milliseconds(MaxLeaseMs), failure);
+            }
             _owners.Remove(owner.Token);
         }
     }
@@ -368,6 +398,7 @@ internal sealed partial class IntegrationSession : IDisposable
             foreach (var owner in _owners.Values)
                 Revoke(owner);
             _owners.Clear();
+            _recentFailures.Clear();
             ++_goalRevision;
             Stage = "unavailable";
             Volatile.Write(ref _latest, null);

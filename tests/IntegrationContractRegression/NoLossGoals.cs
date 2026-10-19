@@ -6,6 +6,7 @@ static partial class Checks
 {
     private static void NoLossGoals()
     {
+        NoLossConsumerBudget();
         long now = 1;
         using var session = new IntegrationSession(() => now, 1000);
         var owner = Owner(session);
@@ -85,5 +86,39 @@ static partial class Checks
         Check(new IntegrationNativeGoals([first]).Capture([]) == null, "native comparator requires a baseline rather than vacuous approval");
         Check(IntegrationNativeGoals.Id(first) == IntegrationNativeGoals.Id(first)
             && IntegrationNativeGoals.Id(first) != IntegrationNativeGoals.Id(second), "opaque individual identities distinguish equal summed goals");
+    }
+
+    private static void NoLossConsumerBudget()
+    {
+        foreach (var nativeAllows in new[] { false, true })
+        {
+            long now = 1;
+            using var session = new IntegrationSession(() => now, 1000);
+            var owner = Owner(session);
+            session.BeginFrame("budget", true);
+            var called = 0;
+            session.SubmitNoLossBatch(new(session.CurrentContext, owner, "combat", [new([[0, 0]])]),
+                [_ => { called++; return 2; }]);
+            var goal = session.CaptureGoals("combat", _ => _ => { now += 3; return nativeAllows; }).Single();
+            Check(goal(default) == (nativeAllows ? 2 : 0) && called == (nativeAllows ? 1 : 0),
+                "native no-loss comparisons remain binding before consumer scoring");
+            Check(session.Renew(Lease(session, owner)).Accepted,
+                "bounded native comparison work cannot revoke a healthy observer or be charged to an uncalled consumer");
+            session.Clear(Lease(session, owner));
+            Check(goal(default) == 0, "separating native timing does not bypass owner cleanup or captured-goal retirement");
+        }
+        foreach (var count in new[] { 1, 2 })
+        {
+            long now = 1;
+            using var session = new IntegrationSession(() => now, 1000);
+            var owner = Owner(session);
+            session.BeginFrame("budget", true);
+            var items = Enumerable.Repeat(new IntegrationSession.NoLossItem(null), count).ToArray();
+            Func<Vector2, float> slow = _ => { now += count == 1 ? 3 : 2; return 1; };
+            session.SubmitNoLossBatch(new(session.CurrentContext, owner, "combat", items), Enumerable.Repeat(slow, count).ToArray());
+            Check(session.CaptureGoals("combat").Single()(default) == 0 &&
+                session.Renew(Lease(session, owner)).Reason == "owner-revoked:goal-evaluation-budget",
+                "all consumer leaves still share the original two-millisecond budget");
+        }
     }
 }

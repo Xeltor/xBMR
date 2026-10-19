@@ -278,6 +278,24 @@ static partial class Checks
                 if (goal(default) != 0) throw new InvalidOperationException("invalid score escaped");
             });
             Check(!s.Renew(Lease(s, token)).Accepted, "scoring failure revokes owner and leaves native processing available");
+            var reason = s.Renew(Lease(s, token)).Reason;
+            Check(reason.StartsWith("owner-revoked:goal-evaluation-") || reason == "owner-revoked:invalid-goal-score",
+                "renewal preserves the exact bounded scorer rejection instead of reporting generic expiry");
+            s.BeginFrame("scope", true);
+            Check(s.Renew(Lease(s, token)).Reason == reason, "pruning retains the owner failure through the next renewal");
+            now += 2001;
+            s.BeginFrame("scope", true);
+            Check(s.Renew(Lease(s, token)).Reason == "invalid-or-expired-owner", "retired failure diagnostics expire without retaining owners");
+        }
+        long slowNow = 100;
+        using (var timed = new IntegrationSession(() => slowNow, 1000))
+        {
+            var token = Owner(timed);
+            timed.BeginFrame("scope", true);
+            timed.Submit(new(timed.CurrentContext, token, "combat"), _ => { slowNow += 3; return 1; });
+            Check(timed.CaptureGoals("combat").Single()(default) == 0 &&
+                timed.Renew(Lease(timed, token)).Reason == "owner-revoked:goal-evaluation-budget",
+                "a slow scorer remains fail-closed and reports its actual timing rejection");
         }
         using var callbacks = new IntegrationSession();
         Owner(callbacks, "broken", _ => throw new InvalidOperationException());
