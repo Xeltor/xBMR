@@ -9,6 +9,7 @@ class A21ScyllaStates : StateMachineBuilder
             .ActivateOnEnter<Topple>()
             .ActivateOnEnter<SearingChain>()
             .ActivateOnEnter<InfiniteAnguish>()
-            .ActivateOnEnter<AncientFlare>();
+            .ActivateOnEnter<AncientFlare>()
+            .ActivateOnEnter<FirewalkerPositioning>();
     }
 }

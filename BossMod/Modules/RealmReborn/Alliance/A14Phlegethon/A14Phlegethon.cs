@@ -5,10 +5,13 @@ class MegiddoFlame3(BossModule module) : Components.SimpleAOEs(module, (uint)AID
 class MegiddoFlame4(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MegiddoFlame4, 5);
 class MegiddoFlame5(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MegiddoFlame5, 6);
 class MoonfallSlash(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MoonfallSlash, new AOEShapeCone(15, 60.Degrees()));
-class VacuumSlash2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.VacuumSlash2, new AOEShapeCone(80, 22.5f.Degrees()));
+class VacuumSlash2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.VacuumSlash2, new AOEShapeCone(80, 26.Degrees()));
 class QuakeIII(BossModule module) : Components.RaidwideCast(module, (uint)AID.QuakeIII);
-// The exact half-ring geometry is not established by the retained Action range alone.
-class AbyssalSlash(BossModule module) : Components.CastHint(module, (uint)AID.AbyssalSlash1, "Abyssal Slash: avoid the half-ring telegraphs", true);
+// Reviewed half-ring reference, corroborated by the three pairs of helper casts.
+class AbyssalSlashSmall(BossModule module) : Components.SimpleAOEs(module, (uint)AID.AbyssalSlash2, new AOEShapeDonutSector(2.2f, 7.5f, 90.Degrees()));
+class AbyssalSlashLarge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.AbyssalSlash3, new AOEShapeDonutSector(12.5f, 17.5f, 90.Degrees()));
+class GreatDivide(BossModule module) : Components.Cleave(module, (uint)AID.GreatDivide, new AOEShapeRect(10, 4), activeWhileCasting: false);
+class GrandSword(BossModule module) : Components.Cleave(module, (uint)AID.GrandSword, new AOEShapeCone(15, 60.Degrees()), [(uint)OID.IronGiant], activeWhileCasting: false);
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 92, NameID = 732, ConfigType = typeof(LabyrinthConfig))]
 public class A14Phlegethon(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)

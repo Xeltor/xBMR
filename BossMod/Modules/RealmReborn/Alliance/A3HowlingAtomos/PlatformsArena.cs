@@ -3,7 +3,8 @@ namespace BossMod.RealmReborn.Alliance.A3HowlingAtomos;
 static class PlatformsArena
 {
     // Territory151 collision meshes: three disconnected upper floors and their lower floors.
-    // Holes remain excluded from the lower-floor pathfinding stencils. No planar jump links.
+    // Physical floors stay distinct. Each upper/lower pair shares a navigation grid;
+    // the collision-supported gap remains blocked except for authored downward transfers.
     private record FloorPart(WPos[] Outer, WPos[][] Holes);
     private static readonly FloorPart[][] Floors = [
         [
@@ -43,7 +44,7 @@ static class PlatformsArena
                 vertices.AddRange(hole.Select(v=>v-center));
             }
             return new RelPolygonWithHoles(vertices,starts);
-        }).ToList()),index<3 ? 95.25f : 90.25f)).ToArray();
+        }).ToList()),index<3 ? 95.25f : 90.25f, shared2DGroup: index % 3)).ToArray();
         return new(shapes,WorldProjectionLayers:layers);
     }
 }

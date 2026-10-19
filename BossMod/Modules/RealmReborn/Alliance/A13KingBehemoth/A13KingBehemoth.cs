@@ -111,6 +111,7 @@ class Adds(BossModule module) : BossComponent(module)
 }
 
 class SelfDestruct(BossModule module) : Components.SimpleAOEs(module, (uint)AID.SelfDestruct, 8.4f);
+class GrandSword(BossModule module) : Components.Cleave(module, (uint)AID.GrandSword, new AOEShapeCone(15, 60.Degrees()), [(uint)OID.IronGiant], activeWhileCasting: false);
 class CharybdisAOE(BossModule module) : Components.VoidzoneAtCastTarget(module, 6f, (uint)AID.CharybdisVisual, GetVoidzones, 0.1f)
 {
     private static Actor[] GetVoidzones(BossModule module)

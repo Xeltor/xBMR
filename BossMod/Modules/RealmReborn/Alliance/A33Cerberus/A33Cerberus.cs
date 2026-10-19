@@ -7,6 +7,13 @@ class SulphurousBreath2(BossModule module) : Components.SimpleAOEs(module, (uint
 class LightningBolt2(BossModule module) : Components.ChargeAOEs(module, (uint)AID.LightningBolt2, 2, arenaProjectionLayer: 0);
 class HoundOutOfHell(BossModule module) : Components.ChargeAOEs(module, (uint)AID.HoundOutOfHell, 7, arenaProjectionLayer: 0);
 class Ululation(BossModule module) : Components.RaidwideCast(module, (uint)AID.Ululation, arenaProjectionLayer: 0);
+class PredatorClawsPositioning(BossModule module) : Components.FrontalPositioning(module, 9)
+{
+    protected override bool AppliesToActor(Actor actor) => base.AppliesToActor(actor) && !BellyAndChains.Inside(actor)
+        && actor.FindStatus(SID.Transporting) == null && actor.FindStatus(SID.Minimum) == null
+        && Module.FindComponent<BellyAndChains>()?.Assigned(actor) != true;
+}
+class HexEye(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HexEye, 4.8f, arenaProjectionLayer: 1);
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 111, NameID = 3224)]
 public class A33Cerberus(WorldState ws, Actor primary) : BossModule(ws, primary, CerberusArena.Bounds.Center, CerberusArena.Bounds)

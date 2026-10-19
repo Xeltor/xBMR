@@ -1,7 +1,27 @@
 ﻿namespace BossMod.RealmReborn.Alliance.A23Amon;
 
 class BlizzagaForte(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BlizzagaForte, 10f);
-class Darkness(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Darkness, new AOEShapeCone(6f, 22.5f.Degrees()));
+class Darkness(BossModule module) : Components.CastHint(module, (uint)AID.Darkness, "Darkness: get behind the casting add or outside its reach!", true)
+{
+    public override void OnActorDestroyed(Actor actor) => Casters.Remove(actor);
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (actor.FindStatus(SID.DeepFreeze) != null || actor.FindStatus(SID.DeepFreezeLegacy) != null)
+            return;
+        foreach (var caster in Casters)
+            if (!caster.IsDeadOrDestroyed && caster.CastInfo is { } cast)
+                // The range is supplied by Action1875 and the live add hitbox.
+                // Rear-position response replaces an unsupported inherited cone angle.
+                hints.AddForbiddenZone(new SDIntersection([new SDCircle(caster.Position, 6 + caster.HitboxRadius),
+                    new SDHalfPlane(caster.Position, -cast.Rotation.ToDirection())]), Module.CastFinishAt(cast, -0.2));
+    }
+}
+class ColoraturaPositioning(BossModule module) : Components.FrontalPositioning(module, 8)
+{
+    protected override bool AppliesToActor(Actor actor) => base.AppliesToActor(actor)
+        && actor.FindStatus(SID.DeepFreeze) == null && actor.FindStatus(SID.DeepFreezeLegacy) == null
+        && !Module.Enemies((uint)OID.DimensionalCompression).Any(a => !a.IsDeadOrDestroyed && a.Tether.Target == actor.InstanceID);
+}
 
 class CurtainCall(BossModule module) : Components.GenericLineOfSightAOE(module, (uint)AID.CurtainCall, 100, safeInsideHitbox: false)
 {

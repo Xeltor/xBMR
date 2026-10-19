@@ -2,13 +2,21 @@
 
 class Aura(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Aura, 8);
 class VileUtterance(BossModule module) : Components.SimpleAOEs(module, (uint)AID.VileUtterance, new AOEShapeCone(64, 22.5f.Degrees()));
+// No cast bar: preview the current recipient's frontal continuously between casts.
+// Action2346 is range8 plus the boss's4y hitbox, with the90-degree fan omen.
+class AstralPunch(BossModule module) : Components.Cleave(module, (uint)AID.AstralPunch, new AOEShapeCone(12, 45.Degrees()), activeWhileCasting: false)
+{
+    public override List<(Actor origin, Actor target, Angle angle)> OriginsAndTargets()
+        => base.OriginsAndTargets().Where(e => e.origin.InCombat && !e.origin.IsDeadOrDestroyed
+            && !e.target.IsDeadOrDestroyed && e.target.Type == ActorType.Player).ToList();
+}
 
 class ClockworkWrights(BossModule module) : BossComponent(module)
 {
     public override void AddGlobalHints(Actor actor, GlobalHints hints)
     {
         if (Module.Enemies((uint)OID.ClockworkWright).Any(a => !a.IsDeadOrDestroyed))
-            hints.Add("Avoid Clockwork Wright stun fields; interceptors handle the power tethers");
+            hints.Add("Quick kill: focus Glasya, ignore Clockwork Wrights and avoid their electric fields");
     }
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {

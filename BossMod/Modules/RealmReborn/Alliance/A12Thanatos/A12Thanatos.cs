@@ -5,7 +5,32 @@ class Cloudscourge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.
 class VoidFireII(BossModule module) : Components.SimpleAOEs(module, (uint)AID.VoidFireII, 5);
 // Astral Light grants the alliance buff; treating it as an AOE drove players away from their pot.
 class AstralLight(BossModule module) : Components.CastHint(module, (uint)AID.AstralLight, "Magic Pot is granting Astral Realignment");
-class CrepusculeBlade(BossModule module) : Components.CastHint(module, (uint)AID.CrepusculeBlade, "Frontal cleave - move behind Thanatos", true);
+class CrepusculeBlade(BossModule module) : Components.CastHint(module, (uint)AID.CrepusculeBlade, "Frontal cleave - move behind Thanatos", true)
+{
+    public override void OnActorDestroyed(Actor actor) => Casters.Remove(actor);
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        foreach (var caster in Casters)
+            if (!caster.IsDeadOrDestroyed && caster.CastInfo is { } cast)
+            {
+                // Rear-position response; this is not a claim about the unknown cone angle.
+                hints.AddForbiddenZone(new SDIntersection([new SDCircle(caster.Position, 11),
+                    new SDHalfPlane(caster.Position, -cast.Rotation.ToDirection())]), Module.CastFinishAt(cast, -0.5));
+                if (cast.Interruptible && hints.FindEnemy(caster) is { } enemy)
+                    enemy.ShouldBeInterrupted = true;
+            }
+    }
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        foreach (var caster in Casters)
+            if (!caster.IsDeadOrDestroyed && caster.CastInfo is { } cast)
+            {
+                var rear = caster.Position - 4 * cast.Rotation.ToDirection();
+                Arena.AddCircleUnfilled(rear, 1, Colors.Safe);
+                Arena.AddLine(pc.Position, rear, Colors.Safe);
+            }
+    }
+}
 
 class AstralRealignment(BossModule module) : BossComponent(module)
 {

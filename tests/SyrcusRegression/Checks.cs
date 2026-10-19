@@ -63,7 +63,7 @@ static class Checks
     {
         using var game = new Lumina.GameData(Path.Combine(gameDirectory, "sqpack"));
         Service.LuminaGameData = game; Service.Config.Initialize();
-        ScyllaOrbsAndWater(); GlasyaCone(); AmonIceAndAdds(); XandeTowers(); XandeExistingTowers(); XandeMeteors(); XandeStacksAndGravity();
+        ScyllaOrbsAndWater(); OrbInterceptionAndToads(); GlasyaCone(); GlasyaPunch(); FrontalResponses(); AmonIceAndAdds(); XandeTowers(); XandeExistingTowers(); XandeMeteors(); XandeStacksAndGravity();
         Console.WriteLine($"Syrcus synthetic regression: {assertions} checks passed; physical collision and live gameplay remain separate.");
     }
     static void ScyllaOrbsAndWater()
@@ -100,7 +100,49 @@ static class Checks
         water.Finish(water.Boss); Check(water.Hints().ForbiddenZones.Count == 0, "cancelled or resolved Flare releases shelter");
         water.Status(water.Players[1], 3479);
         var fire = water.Create(13, 0xBC5, new(0, -180)); water.Tether(fire, 5, water.Players[0]);
-        Check(water.Hints().GoalZones.Count == 1, "modern Deep Freeze identifies a player who can be thawed");
+        Check(water.Hints().ForbiddenZones.Single().shapeDistance.Distance(water.Players[1].Position)>0,
+            "modern Deep Freeze creates required fire-orb interception instead of a suppressible uptime goal");
+    }
+    static void OrbInterceptionAndToads()
+    {
+        using(var f=new Fixture(0xBC1,new(0,-192)))
+        {
+            f.Start(new Scylla.A21Scylla(f.World,f.Boss));
+            var pool=f.Create(10,0x1E950D,new(10,-192),ActorType.EventObj);
+            var ice=f.Create(11,0xBC4,new(5,-192));f.Tether(ice,8,f.Players[0]);
+            f.World.Execute(new ActorState.OpMove(100,new(10,0,-192,0)));f.Status(f.Players[0],520);
+            var h=f.Hints();Check(h.ForbiddenZones.Count==1 && h.ForbiddenZones[0].shapeDistance.Distance(f.Players[0].Position)<0,
+                "actual water-contact status gives an ice carrier an immediate exit response");
+            f.World.Execute(new ActorState.OpStatus(100,0,default));Check(f.Hints().ForbiddenZones.Count==0,
+                "observed water-contact loss stops the feedback movement without inventing a water radius");
+            f.Status(f.Players[0],3479);Check(f.Hints().ForbiddenZones.Count==0,"frozen carriers cannot be told to move");
+            f.World.Execute(new ActorState.OpStatus(100,0,default));f.World.Execute(new ActorState.OpTether(11,default));
+            var fire=f.Create(12,0xBC5,new(0,-190));f.Tether(fire,5,f.Players[0]);f.Status(f.Players[1],3479);
+            Check(f.Hints().ForbiddenZones.Count==1,"fire tether requires reaching the frozen player from its earliest cue");
+            f.Event(fire,2322,fire.Position,f.Players[1]);Check(f.Hints().ForbiddenZones.Count==0,
+                "Smolder resolution retires interception before delayed actor removal or status callbacks");
+        }
+        using(var f=new Fixture(0xBE0,new(0,-200)))
+        {
+            f.Start(new Amon.A23Amon(f.World,f.Boss));
+            var orb=f.Create(10,0xBE2,new(0,-190));f.Tether(orb,1,f.Players[0]);
+            var first=f.Create(11,0xBE7,new(10,-190),hitbox:2);var second=f.Create(12,0xBE7,new(-10,-190),hitbox:2);
+            f.World.Execute(new ActorState.OpCombat(11,true));f.World.Execute(new ActorState.OpCombat(12,true));
+            var h=f.Hints();var z=h.ForbiddenZones.Single().shapeDistance;
+            Check(z.Distance(new(13.5f,-190))>0 && z.Distance(new(6,-190))<0,
+                "shrinking-orb recipient stands beyond the add so the orb crosses it first");
+            Check(h.GoalZones.Count==0,"required shrinking interception cannot lose to optional uptime goals");
+            f.Status(first,438);z=f.Hints().ForbiddenZones.Single().shapeDistance;
+            Check(z.Distance(new(-13.5f,-190))>0,"an already shrunk add is replaced by an eligible unshrunk one");
+            f.Event(orb,2371,orb.Position,second);Check(f.Hints().ForbiddenZones.Count==0,
+                "Mini action resolution immediately retires the route even before status and destroy callbacks");
+            var snake=f.Create(13,0xBE6,new(0,-195),hitbox:1.2f);f.World.Execute(new ActorState.OpCombat(13,true));f.Status(f.Players[0],511);
+            z=f.Hints().ForbiddenZones.Single().shapeDistance;
+            Check(z.Distance(snake.Position)<0 && z.Distance(new(0,-205))>0,"fire toad gets contact-avoidance guidance for the living snake");
+            f.World.Execute(new ActorState.OpDead(13,true));Check(f.Hints().ForbiddenZones.Count==0,"a defeated snake cannot keep a toad kiting");
+            f.World.Execute(new ActorState.OpDead(13,false));f.Status(f.Players[0],3479,1);
+            Check(f.Hints().ForbiddenZones.Count==0,"freeze supersedes an impossible toad movement assignment");
+        }
     }
     static void GlasyaCone()
     {
@@ -111,6 +153,65 @@ static class Checks
         f.Finish(f.Boss); Check(f.Hints().ForbiddenZones.Count == 0, "cancelled cone clears guidance");
         var wright = f.Create(10, 0xBD9, new(24, -200));
         Check(f.Hints(0, wright).PotentialTargets[0].Priority == AIHints.Enemy.PriorityUndesirable, "AI does not approach a Clockwork Wright merely to attack it");
+    }
+    static void GlasyaPunch()
+    {
+        using var f = new Fixture(0xBD7, new(0, -200));
+        f.World.Execute(new ActorState.OpMove(f.Players[0].InstanceID, new(0, 0, -194, 0)));
+        f.World.Execute(new ActorState.OpMove(f.Players[1].InstanceID, new(0, 0, -192, 0)));
+        f.World.Execute(new ActorState.OpMove(f.Players[2].InstanceID, new(8, 0, -200, 0)));
+        f.World.Execute(new ActorState.OpTarget(1, f.Players[0].InstanceID));
+        f.Start(new Glasya.A22Glasya(f.World, f.Boss));
+        var punch = f.Module.Components.OfType<BossMod.Components.Cleave>().Single();
+        Check(punch.OriginsAndTargets().Count == 1, "Astral Punch warns from a preexisting target before any hit");
+        var zone = f.Hints(1).ForbiddenZones.Single();
+        Check(zone.activation == default, "an untelegraphed cleave uses immediate avoidance rather than an invented timer");
+        Check(zone.shapeDistance.Distance(new(0, -188.1f)) < 0 && zone.shapeDistance.Distance(new(0, -187.9f)) > 0,
+            "Astral Punch reach is8y plus the4y boss hitbox");
+        Check(zone.shapeDistance.Distance(new(5, -194)) < 0 && zone.shapeDistance.Distance(new(6, -195)) > 0,
+            "Astral Punch preserves the90-degree fan's side safety");
+        Check(zone.shapeDistance.Distance(new(0, -208)) > 0, "rear remains outside the current recipient's cleave");
+        var tankHints = new BossComponent.TextHints(); punch.AddHints(0, f.Players[0], tankHints);
+        Check(tankHints.Count == 0, "the current cleave recipient is not told to flee their own frontal");
+        f.World.Execute(new ActorState.OpTarget(1, f.Players[2].InstanceID));
+        var changed = f.Hints(1).ForbiddenZones.Single().shapeDistance;
+        Check(changed.Distance(new(8, -200)) < 0 && changed.Distance(new(0, -192)) > 0, "a target switch immediately corrects the predicted aim");
+        f.Cast(f.Boss, 2353, 2.7f);
+        Check(punch.OriginsAndTargets().Count == 0 && f.Hints(1).ForbiddenZones.Count == 1, "the instant punch yields to the active Vile Utterance cast");
+        f.Finish(f.Boss);
+        Check(punch.OriginsAndTargets().Count == 1, "punch preview resumes when the other cast ends");
+        f.World.Execute(new ActorState.OpDead(f.Players[2].InstanceID, true));
+        Check(punch.OriginsAndTargets().Count == 0, "a dead recipient cannot leave stale aim guidance");
+        f.World.Execute(new ActorState.OpTarget(1, f.Players[0].InstanceID));
+        f.World.Execute(new ActorState.OpCombat(1, false));
+        Check(punch.OriginsAndTargets().Count == 0, "an out-of-combat boss produces no pull-inducing cleave guidance");
+        f.World.Execute(new ActorState.OpCombat(1, true));
+        f.World.Execute(new ActorState.OpDead(1, true));
+        Check(punch.OriginsAndTargets().Count == 0, "boss death clears the continuous prediction");
+        f.Module.StateMachine.Reset(); Check(f.Module.Components.Count == 0, "reset removes the punch component");
+    }
+    static void FrontalResponses()
+    {
+        foreach (var oid in new uint[]{0xBC1,0xBE0})
+        {
+            using var f = new Fixture(oid,new(0,-200));
+            f.World.Execute(new ActorState.OpMove(100,new(0,0,-194,0)));
+            f.World.Execute(new ActorState.OpTarget(1,100));
+            f.Start(oid==0xBC1 ? new Scylla.A21Scylla(f.World,f.Boss) : new Amon.A23Amon(f.World,f.Boss));
+            var response=f.Module.Components.OfType<BossMod.Components.FrontalPositioning>().Single();
+            var h=new AIHints();response.AddAIHints(1,f.Players[1],default,h);
+            Check(h.ForbiddenZones.Count==1,"a recorded instant frontal receives advance standing-position guidance");
+            var z=h.ForbiddenZones.Single().shapeDistance;
+            Check(z.Distance(new(0,-194))<0 && z.Distance(new(0,-206))>0,"frontal response retains rear safety without claiming an unknown damage angle");
+            h=new();response.AddAIHints(0,f.Players[0],default,h);Check(h.ForbiddenZones.Count==0,"the recipient is not sent behind their own attack");
+            f.Cast(f.Boss,oid==0xBC1?2317u:2441u,10);h=new();response.AddAIHints(1,f.Players[1],default,h);
+            Check(h.ForbiddenZones.Count==0,"active shelter mechanics replace the standing-position policy");
+            f.Finish(f.Boss);f.Status(f.Players[1],3479);h=new();response.AddAIHints(1,f.Players[1],default,h);
+            Check(h.ForbiddenZones.Count==0,"a frozen player receives no impossible positioning response");
+            f.World.Execute(new ActorState.OpStatus(101,0,default));
+            var orb=f.Create(10,oid==0xBC1?0xBC5u:0xBE2u,new(0,-190));f.Tether(orb,5,f.Players[1]);
+            h=new();response.AddAIHints(1,f.Players[1],default,h);Check(h.ForbiddenZones.Count==0,"required orb interception takes priority over quiet-phase positioning");
+        }
     }
     static void AmonIceAndAdds()
     {

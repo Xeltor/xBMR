@@ -10,6 +10,8 @@ class A11BoneDragonStates : StateMachineBuilder
             .ActivateOnEnter<EvilEye>()
             .ActivateOnEnter<Stone>()
             .ActivateOnEnter<Level5Petrify>()
+            .ActivateOnEnter<MiasmaBreath>()
+            .ActivateOnEnter<Poison>()
             .Raw.Update = () => Module.PrimaryActor.IsDestroyed;
     }
 }

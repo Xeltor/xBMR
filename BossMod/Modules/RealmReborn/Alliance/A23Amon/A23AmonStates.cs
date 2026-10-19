@@ -10,6 +10,7 @@ class A23AmonStates : StateMachineBuilder
             .ActivateOnEnter<Darkness>()
             .ActivateOnEnter<CurtainCall>()
             .ActivateOnEnter<ThundagaForte1>()
-            .ActivateOnEnter<ThundagaForte2>();
+            .ActivateOnEnter<ThundagaForte2>()
+            .ActivateOnEnter<ColoraturaPositioning>();
     }
 }

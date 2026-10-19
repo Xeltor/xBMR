@@ -4,6 +4,7 @@ class Apocalypse(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Ap
 class EvilEye(BossModule module) : Components.SimpleAOEs(module, (uint)AID.EvilEye, new AOEShapeCone(105, 60.Degrees()));
 class Stone(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Stone);
 class Level5Petrify(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Level5Petrify, new AOEShapeCone(7.8f, 45.Degrees()));
+class MiasmaBreath(BossModule module) : Components.Cleave(module, (uint)AID.MiasmaBreath, new AOEShapeCone(13, 45.Degrees()), activeWhileCasting: false);
 
 class Platinals(BossModule module) : BossComponent(module)
 {

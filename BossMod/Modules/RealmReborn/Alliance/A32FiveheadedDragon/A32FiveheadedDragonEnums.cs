@@ -12,6 +12,9 @@ public enum OID : uint
     PoisonSlime = 0xDFF, // R1.000, x?
     ToxicSlime = 0xE17, // R3.000, x?
     DragonfireFly = 0xDFE, // R0.800, x?
+    IceSmall = 2004777, // successive, overlapping event-object stages of one patch
+    IceMedium = 2004778,
+    IceLarge = 2004779,
 }
 
 public enum AID : uint

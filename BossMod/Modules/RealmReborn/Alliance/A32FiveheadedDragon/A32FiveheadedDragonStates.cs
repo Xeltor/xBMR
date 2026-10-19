@@ -10,12 +10,14 @@ class A32FiveheadedDragonStates : StateMachineBuilder
             .ActivateOnEnter<BreathOfLight>()
             .ActivateOnEnter<BreathOfPoison>()
             .ActivateOnEnter<BreathOfIce>()
+            .ActivateOnEnter<IceFloor>()
             .ActivateOnEnter<Radiance>()
             .ActivateOnEnter<Discordance>()
             .ActivateOnEnter<HeatWave>()
             .ActivateOnEnter<HeatWavePreparation>()
             .ActivateOnEnter<PoisonSuppression>()
             .ActivateOnEnter<Markers>()
-            .ActivateOnEnter<AddsAndPrey>();
+            .ActivateOnEnter<AddsAndPrey>()
+            .ActivateOnEnter<AutoattackPositioning>();
     }
 }

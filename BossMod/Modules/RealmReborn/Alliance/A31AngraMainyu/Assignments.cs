@@ -216,8 +216,12 @@ class DoomCleanse(BossModule module) : BossComponent(module)
         {
             foreach (var pad in _active)
                 Arena.AddCircleUnfilled(pad.Position, 2.5f, Colors.Safe);
-            if (Destination(pc) is { } target && !_active.Contains(target))
+            if (Destination(pc) is { } target)
+            {
                 Arena.AddCircleUnfilled(target.Position, 2, Colors.Safe);
+                // Destination pointer only; native navigation still owns the safe route.
+                Arena.AddLine(pc.Position, target.Position, Colors.Safe, 2);
+            }
         }
     }
 }

@@ -32,11 +32,47 @@ class Markers(BossModule module) : Components.GenericStackSpread(module)
 
 class AddsAndPrey(BossModule module) : BossComponent(module)
 {
+    private readonly Dictionary<Actor, Actor> _handoffs = [];
     private static bool HasPrey(Actor a) => a.FindStatus(SID.Prey1) != null || a.FindStatus(SID.Prey2) != null;
     private static bool Immune(Actor a) => a.FindStatus(SID.SlipperyPrey1) != null || a.FindStatus(SID.SlipperyPrey2) != null;
-    private Actor? Handoff(Actor actor) => Raid.WithoutSlot().Where(p => p.Type == ActorType.Player && p != actor && !p.IsDeadOrDestroyed
-        && Arena.InBounds(p.Position) && !HasPrey(p) && !Immune(p) && p.FindStatus(SID.DeepFreeze) == null && p.InstanceID != Module.PrimaryActor.TargetID)
-        .OrderBy(p => (p.Position - actor.Position).LengthSq()).ThenBy(p => p.InstanceID).FirstOrDefault();
+    private bool Eligible(Actor actor, Actor recipient) => recipient.Type == ActorType.Player && recipient != actor && !recipient.IsDeadOrDestroyed
+        && WorldState.Actors.Find(recipient.InstanceID) == recipient && Arena.InBounds(recipient.Position) && !HasPrey(recipient) && !Immune(recipient)
+        && recipient.FindStatus(SID.DeepFreeze) == null && recipient.FindStatus(SID.Pyretic) == null && recipient.InstanceID != Module.PrimaryActor.TargetID;
+    private bool SafeDestination(int slot, Actor actor, Actor recipient)
+    {
+        foreach (var component in Module.Components.OfType<Components.GenericAOEs>())
+            foreach (ref readonly var aoe in component.ActiveAOEs(slot, actor))
+                if (aoe.Risky && aoe.Check(recipient.Position))
+                    return false;
+        if (Module.FindComponent<Markers>() is { } markers)
+            foreach (var spread in markers.Spreads)
+                if (spread.Target == actor || spread.Target == recipient || recipient.Position.InCircle(spread.Target.Position, spread.Radius))
+                    return false;
+        return true;
+    }
+    private Actor? Handoff(int slot, Actor actor)
+    {
+        if (_handoffs.TryGetValue(actor, out var current) && Eligible(actor, current) && SafeDestination(slot, actor, current))
+            return current;
+        var recipient = Raid.WithoutSlot().Where(p => Eligible(actor, p) && SafeDestination(slot, actor, p))
+            .OrderBy(p => (p.Position - actor.Position).LengthSq()).ThenBy(p => p.InstanceID).FirstOrDefault();
+        if (recipient != null)
+            _handoffs[actor] = recipient;
+        else
+            _handoffs.Remove(actor);
+        return recipient;
+    }
+    public override void OnStatusLose(Actor actor, ref ActorStatus status)
+    {
+        if (status.ID is (uint)SID.Prey1 or (uint)SID.Prey2)
+            _handoffs.Remove(actor);
+    }
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _handoffs.Remove(actor);
+        foreach (var source in _handoffs.Where(p => p.Value == actor).Select(p => p.Key).ToArray())
+            _handoffs.Remove(source);
+    }
     public override void AddGlobalHints(Actor actor, GlobalHints hints)
     {
         if (Module.PrimaryActor.CastInfo?.Action.ID == (uint)AID.Discordance)
@@ -45,7 +81,7 @@ class AddsAndPrey(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (HasPrey(actor))
-            hints.Add(Handoff(actor) == null ? "Prey: no eligible handoff player found!" : "Pass Prey to a player without Slippery Prey!");
+            hints.Add(Handoff(slot, actor) == null ? "Prey: no safe eligible handoff player found!" : "Pass Prey to a player without Slippery Prey!");
         if (actor.FindStatus(SID.Pyretic) != null)
             hints.Add("Pyretic: stop moving and acting!");
     }
@@ -62,7 +98,9 @@ class AddsAndPrey(BossModule module) : BossComponent(module)
                     (uint)OID.Boss => 1,
                     _ => target.Priority
                 };
-        if (HasPrey(actor) && actor.FindStatus(SID.Pyretic) == null && Handoff(actor) is { } recipient)
+        if (HasPrey(actor) && actor.FindStatus(SID.Pyretic) == null && actor.FindStatus(SID.DeepFreeze) == null
+            && Module.FindComponent<HeatWavePreparation>()?.Active != true
+            && Handoff(slot, actor) is { } recipient)
             // Required contact response, not an optional uptime preference. The 0.5y
             // arrival tolerance aims through the recipient; it is not a measured transfer radius.
             hints.AddForbiddenZone(new SDInvertedCircle(recipient.Position, 0.5f), WorldState.CurrentTime);
@@ -75,6 +113,7 @@ class HeatWavePreparation(BossModule module) : BossComponent(module)
 {
     private DateTime _activation, _finish;
     private bool _resolved;
+    public bool Active => _activation != default && WorldState.CurrentTime < _finish;
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (caster == Module.PrimaryActor && spell.Action.ID == (uint)AID.HeatWave)
@@ -97,60 +136,89 @@ class HeatWavePreparation(BossModule module) : BossComponent(module)
     }
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (_activation != default && WorldState.CurrentTime < _finish)
+        if (Active)
             hints.Add("Heat Wave: stop moving and acting!", WorldState.CurrentTime >= _activation);
     }
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (_activation != default && WorldState.CurrentTime < _finish && actor.FindStatus(SID.Pyretic) == null)
+        if (Active && actor.FindStatus(SID.Pyretic) == null)
             hints.AddSpecialMode(AIHints.SpecialMode.Pyretic, _activation, _finish);
     }
 }
 
 class PoisonSuppression(BossModule module) : BossComponent(module)
 {
+    private readonly Dictionary<Actor, Actor> _assignees = [];
     private IEnumerable<Actor> Puddles => WorldState.Actors.Where(p => p.OID == 2004780 && !p.IsDeadOrDestroyed);
     private bool Resistant(Actor actor) => actor.FindStatus(SID.PoisonResistanceUp) is { } resistance && resistance.ExpireAt > WorldState.FutureTime(3);
-    private Actor? Destination(int slot, Actor actor)
+    private bool Eligible(Actor actor, Actor puddle)
     {
-        if (!Resistant(actor) || actor.InstanceID == Module.PrimaryActor.TargetID || actor.FindStatus(SID.Pyretic) != null
+        if (actor.Type != ActorType.Player || actor.IsDeadOrDestroyed || !Arena.InBounds(actor.Position) || !Resistant(actor)
+            || actor.InstanceID == Module.PrimaryActor.TargetID || actor.FindStatus(SID.Pyretic) != null
             || actor.FindStatus(SID.DeepFreeze) != null || actor.FindStatus(SID.Prey1) != null || actor.FindStatus(SID.Prey2) != null
-            || Module.PrimaryActor.CastInfo?.Action.ID == (uint)AID.HeatWave
+            || Module.FindComponent<HeatWavePreparation>()?.Active == true
             || Module.Components.OfType<Markers>().Any(m => m.Active))
-            return null;
-        foreach (var puddle in Puddles.OrderBy(p => (p.Position - actor.Position).LengthSq()))
+            return false;
+        var travel = (puddle.Position - actor.Position).Length() / Math.Clamp(WorldState.Client.MoveSpeed, 0.1f, 6) + 3;
+        if (actor.FindStatus(SID.PoisonResistanceUp)!.Value.ExpireAt <= WorldState.FutureTime(travel))
+            return false;
+        // A known overlapping hazard takes precedence over this assignment.
+        var slot = Raid.FindSlot(actor.InstanceID);
+        foreach (var component in Module.Components.OfType<Components.GenericAOEs>())
+            foreach (ref readonly var aoe in component.ActiveAOEs(slot, actor))
+                if (aoe.Risky && aoe.Check(puddle.Position))
+                    return false;
+        return true;
+    }
+    private Actor? Destination(Actor actor)
+    {
+        var claimed = new HashSet<Actor>();
+        Actor? destination = null;
+        foreach (var puddle in Puddles.OrderBy(p => p.InstanceID))
         {
-            // One person can suppress the pool. Do not displace an existing occupant.
-            if (Raid.WithoutSlot().Any(p => p != actor && !p.IsDeadOrDestroyed && Resistant(p) && p.Position.InCircle(puddle.Position, 1)))
+            var occupant = Raid.WithoutSlot().Where(p => p.Type == ActorType.Player && !p.IsDeadOrDestroyed && p.Position.InCircle(puddle.Position, 1))
+                .OrderBy(p => p.InstanceID).FirstOrDefault();
+            Actor? selected = null;
+            if (occupant != null)
+                selected = !claimed.Contains(occupant) && Eligible(occupant, puddle) ? occupant : null;
+            else if (_assignees.TryGetValue(puddle, out var existing) && !claimed.Contains(existing) && Eligible(existing, puddle))
+                selected = existing;
+            else
+                selected = Raid.WithoutSlot().Where(p => !claimed.Contains(p) && Eligible(p, puddle))
+                    .OrderBy(p => (p.Position - puddle.Position).LengthSq()).ThenBy(p => p.InstanceID).FirstOrDefault();
+            if (selected == null)
+            {
+                _assignees.Remove(puddle);
                 continue;
-            var travel = (puddle.Position - actor.Position).Length() / Math.Clamp(WorldState.Client.MoveSpeed, 0.1f, 6) + 3;
-            if (actor.FindStatus(SID.PoisonResistanceUp)!.Value.ExpireAt <= WorldState.FutureTime(travel))
-                continue;
-            // A known overlapping hazard takes precedence over this assignment.
-            var blocked = false;
-            foreach (var component in Module.Components.OfType<Components.GenericAOEs>())
-                foreach (ref readonly var aoe in component.ActiveAOEs(slot, actor))
-                    blocked |= aoe.Risky && aoe.Check(puddle.Position);
-            if (blocked)
-                continue;
-            return puddle;
+            }
+            _assignees[puddle] = selected;
+            claimed.Add(selected);
+            if (selected == actor)
+                destination = puddle;
         }
-        return null;
+        return destination;
+    }
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _assignees.Remove(actor);
+        foreach (var puddle in _assignees.Where(p => p.Value == actor).Select(p => p.Key).ToArray())
+            _assignees.Remove(puddle);
     }
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Puddles.Any())
-            hints.Add(Resistant(actor) ? "Poison resistance: occupy the poison puddle to suppress slimes!" : "Kill the poison slime and gain poison resistance!", false);
+            hints.Add(Destination(actor) != null ? "Poison resistance: occupy the marked center to suppress slimes!"
+                : Resistant(actor) ? "One resistant player per poison puddle!" : "Kill the poison slime and gain poison resistance!", false);
     }
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         // A center arrival is an interior response policy, not a claimed puddle-edge radius.
-        if (Destination(slot, actor) is { } puddle)
+        if (Destination(actor) is { } puddle)
             hints.AddForbiddenZone(new SDInvertedCircle(puddle.Position, 1), WorldState.CurrentTime);
     }
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
-        if (Destination(pcSlot, pc) is { } puddle)
+        if (Destination(pc) is { } puddle)
             Arena.AddCircleUnfilled(puddle.Position, 1, Colors.Safe);
     }
 }

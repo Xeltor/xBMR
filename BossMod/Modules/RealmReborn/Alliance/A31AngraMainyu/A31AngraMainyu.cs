@@ -11,7 +11,7 @@ class Stare(BossModule module) : Components.Cleave(module, (uint)AID.Stare, new 
                 Shape.Draw(Arena, origin.Position, angle);
     }
 }
-class EyesOnMe(BossModule module) : Components.RaidwideCast(module, (uint)AID.EyesOnMe);
+class EyesOnMe(BossModule module) : Components.SimpleAOEs(module, (uint)AID.EyesOnMe, 31.8f);
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 111, NameID = 3231)]
 public class A31AngraMainyu(WorldState ws, Actor primary) : BossModule(ws, primary, new(-147.07f, 296.92f), new ArenaBoundsCustom([new Polygon(new(-147.07f, 296.92f), 30, 32)]))

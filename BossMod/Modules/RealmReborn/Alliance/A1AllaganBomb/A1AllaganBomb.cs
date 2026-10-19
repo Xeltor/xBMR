@@ -2,6 +2,7 @@ namespace BossMod.RealmReborn.Alliance.A1AllaganBomb;
 
 public enum OID : uint { Boss = 0x967, Balloon = 0x968, Napalm = 0x969, Vassago = 0x96A }
 class Desolation(BossModule module) : Components.SimpleAOEs(module, 1774, new AOEShapeRect(59.6f, 3));
+class GrimFatePositioning(BossModule module) : Components.FrontalPositioning(module, 8, [(uint)OID.Vassago]);
 
 class AllianceTargets(BossModule module) : BossComponent(module)
 {
@@ -70,7 +71,7 @@ class A1AllaganBombStates : StateMachineBuilder
 {
     public A1AllaganBombStates(BossModule module) : base(module)
     {
-        TrivialPhase().ActivateOnEnter<Desolation>().ActivateOnEnter<AllianceTargets>();
+        TrivialPhase().ActivateOnEnter<Desolation>().ActivateOnEnter<AllianceTargets>().ActivateOnEnter<GrimFatePositioning>();
     }
 }
 

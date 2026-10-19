@@ -9,6 +9,7 @@ class A13KingBehemothStates : StateMachineBuilder
             .ActivateOnEnter<CometMarkers>()
             .ActivateOnEnter<Adds>()
             .ActivateOnEnter<SelfDestruct>()
-            .ActivateOnEnter<CharybdisAOE>();
+            .ActivateOnEnter<CharybdisAOE>()
+            .ActivateOnEnter<GrandSword>();
     }
 }

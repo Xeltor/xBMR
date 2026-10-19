@@ -36,7 +36,7 @@ static class Checks
         }
         public Actor Create(ulong id, uint oid, WPos pos, ActorType type = ActorType.Enemy, Class job = Class.None, float hitbox = .5f)
         {
-            World.Execute(new ActorState.OpCreate(id, oid, (int)id, 0, "", 0, type, job, 50,
+            World.Execute(new ActorState.OpCreate(id, oid, type == ActorType.Player ? 100 + (int)(id % 100) * 2 : (int)id * 2, 0, "", 0, type, job, 50,
                 new Vector4(pos.X, 0, pos.Z, 0), hitbox, new(100, 100, 0, 0, 0), true, false, 0, 0, 0));
             return World.Actors.Find(id)!;
         }
@@ -57,7 +57,13 @@ static class Checks
         public AIHints Hints(int slot = 0, params Actor[] enemies)
         {
             var h = new AIHints();
-            foreach (var enemy in enemies) h.PotentialTargets.Add(new(enemy, 0, false));
+            foreach (var enemy in enemies)
+            {
+                var target = new AIHints.Enemy(enemy, 0, false);
+                h.PotentialTargets.Add(target);
+                if ((uint)enemy.CharacterSpawnIndex < h.Enemies.Length)
+                    h.Enemies[enemy.CharacterSpawnIndex] = target;
+            }
             Module.CalculateAIHints(slot, Players[slot], default, h);
             Check(h.ActionsToExecute.Entries.Count == 0, "encounter guidance executes no game actions");
             return h;
@@ -68,7 +74,7 @@ static class Checks
     {
         using var game = new Lumina.GameData(Path.Combine(gameDirectory, "sqpack"));
         Service.LuminaGameData = game; Service.Config.Initialize();
-        Labels(); BoneAndThanatos(); Meteor(); Flare(); AtomosPlatforms(); BombTargets();
+        Labels(); BoneAndThanatos(); PoisonAndCleaves(); HalfRings(); Meteor(); Flare(); AtomosPlatforms(); BombTargets();
         Console.WriteLine($"Labyrinth synthetic regression: {assertions} checks passed; live gameplay and physical geometry are separate.");
     }
     static void Labels()
@@ -111,6 +117,65 @@ static class Checks
             f.World.Execute(new ActorState.OpStatus(100, 0, default));
             Check(f.Hints(0, f.Boss).PotentialTargets[0].Priority < 0, "buff removal immediately restores immunity guidance");
         }
+    }
+    static void PoisonAndCleaves()
+    {
+        using (var f = new Fixture(0x92B, new(-451.2f, 23.93f)))
+        {
+            f.Start(new Bone.A11BoneDragon(f.World, f.Boss));
+            void Floor(byte stage) => f.World.Execute(new WorldState.OpLegacyMapEffect(1, 0, [3, 0, stage]));
+            Floor(0x10);
+            var center = f.Module.Center;
+            var zone = f.Hints().ForbiddenZones.Single().shapeDistance;
+            Check(zone.Distance(center) > 0 && zone.Distance(center + new WDir(0, 25)) > 0, "first poison stage retains center and radial platforms");
+            Check(zone.Distance(center + new WDir(16, 8)) < 0, "poison between radial platforms constrains AI movement");
+            Floor(0x20); zone = f.Hints().ForbiddenZones.Single().shapeDistance;
+            Check(zone.Distance(center + new WDir(0, 18.02f)) > 0 && zone.Distance(center + new WDir(0, 25)) < 0,
+                "second poison stage retains separate squares and closes the former long platform gaps");
+            f.World.Execute(new ActorState.OpDead(1, true)); f.Module.Update();
+            Check(f.Hints().ForbiddenZones.Count == 1, "a temporary dragon death does not incorrectly clear active poison");
+            Floor(0x40); Check(f.Hints().ForbiddenZones.Count == 0, "recorded second-stage drain clears poison");
+            Floor(0x10); Floor(0x80); Check(f.Hints().ForbiddenZones.Count == 0, "recorded first-stage drain clears poison");
+            Floor(0x20); f.World.Execute(new WorldState.OpLegacyMapEffect(1, 0, [7, 0, 0x40]));
+            Check(f.Hints().ForbiddenZones.Count == 0, "encounter transition clears the floor mask");
+            f.World.Execute(new WorldState.OpLegacyMapEffect(1, 0, [3]));
+            Check(f.Hints().ForbiddenZones.Count == 0, "truncated floor observations cannot fabricate a stage");
+        }
+        using (var f = new Fixture(0x92E, new(440, 280)))
+        {
+            f.Start(new Thanatos.A12Thanatos(f.World, f.Boss)); f.Cast(f.Boss, 762, 3 - ActorCastInfo.NPCFinishDelay);
+            var h = f.Hints(0, f.Boss);var z = h.ForbiddenZones.Single();
+            Check(z.shapeDistance.Distance(new(440, 285)) < 0 && z.shapeDistance.Distance(new(440, 275)) > 0,
+                "Crepuscule Blade has a timed rear response without inventing an exact cone angle");
+            Check(Math.Abs((z.activation-Now).TotalSeconds-2.5)<.001, "Crepuscule response includes a departure margin");
+            Check(!h.PotentialTargets[0].ShouldBeInterrupted, "an uninterruptible cast is never advertised as interruptible");
+            f.Boss.CastInfo!.Interruptible = true;Check(f.Hints(0, f.Boss).PotentialTargets[0].ShouldBeInterrupted,
+                "recorded interrupt eligibility enables the interrupt hint");
+            f.Finish(f.Boss);Check(f.Hints().ForbiddenZones.Count == 0, "cancelled Crepuscule releases movement immediately");
+        }
+        using (var f = new Fixture(0x932, new(-110, -368)))
+        {
+            f.Start(new Behemoth.A13KingBehemoth(f.World, f.Boss));
+            var giant = f.Create(2, 0x935, new(-100,-368), hitbox:3);
+            f.World.Execute(new ActorState.OpCombat(2,true));f.World.Execute(new ActorState.OpMove(100,new(-100,0,-362,0)));
+            f.World.Execute(new ActorState.OpTarget(2,100));
+            var z=f.Hints(1).ForbiddenZones.Single().shapeDistance;
+            Check(z.Distance(new(-100,-356))<0 && z.Distance(new(-100,-380))>0, "Iron Giant frontal is predicted before Grand Sword hits");
+            f.World.Execute(new ActorState.OpDead(2,true));Check(f.Hints(1).ForbiddenZones.Count==0,"dead Giant leaves no cleave");
+        }
+    }
+    static void HalfRings()
+    {
+        using var f = new Fixture(0x938,new(-110,181.6f));f.Start(new Phlegethon.A14Phlegethon(f.World,f.Boss));
+        var small=f.Create(2,0x939,f.Boss.Position);var large=f.Create(3,0x939,f.Boss.Position);
+        f.Cast(small,1737,3);f.Cast(large,1739,3);
+        var h=f.Hints();Check(h.ForbiddenZones.Count==2,"both half-ring sizes are activated from helper casts");
+        var a=h.ForbiddenZones[0].shapeDistance;var b=h.ForbiddenZones[1].shapeDistance;
+        Check(a.Distance(new(-110,186.6f))<0 && a.Distance(new(-110,182.6f))>0,"small ring retains its inner safe hole");
+        Check(b.Distance(new(-110,196.6f))<0 && b.Distance(new(-110,191.6f))>0,"large ring retains the gap between rings");
+        Check(a.Distance(new(-110,176.6f))>0 && b.Distance(new(-110,166.6f))>0,"opposite halves remain safe");
+        f.Finish(small);Check(f.Hints().ForbiddenZones.Count==1,"one resolved helper cannot clear the other half-ring");
+        f.Finish(large);Check(f.Hints().ForbiddenZones.Count==0,"all resolved half-rings clear promptly");
     }
     static void Meteor()
     {
@@ -233,6 +298,9 @@ static class Checks
         Check(f.Hints(0, a).PotentialTargets[0].DesiredPosition == null, "unknown alliance never chooses an arbitrary tank anchor");
         f.Cast(a, 1774, 2.7f);
         Check(f.Hints().ForbiddenZones.Count == 1, "Desolation emits a timed rectangle");
-        f.Finish(a); Check(f.Hints().ForbiddenZones.Count == 0, "Desolation cancellation clears the rectangle");
+        f.Finish(a);
+        Check(!f.Module.Components.OfType<BossMod.Components.GenericAOEs>().Any(component => component.GetType().Name == "Desolation"
+            && component.ActiveAOEs(0, f.Players[0]).ToArray().Any()), "Desolation cancellation clears its rectangle");
+        Check(f.Hints().ForbiddenZones.Count == 1, "Vassago frontal positioning resumes after Desolation cancellation");
     }
 }
