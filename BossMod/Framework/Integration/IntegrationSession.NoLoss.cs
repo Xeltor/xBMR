@@ -42,8 +42,8 @@ internal sealed partial class IntegrationSession
             if (!OnThread || !CanContribute) return [];
             var revision = Volatile.Read(ref _goalRevision);
             return _owners.Values.Where(Live).SelectMany(o => o.Goals).Where(g => g.Frame == FrameId)
-                .SelectMany(g => g.NoLossLeaves == null ? new[] { Wrap(g, revision, g.Score) }
-                    : g.NoLossLeaves.Select(leaf => Wrap(g, revision, leaf.Score))).ToArray();
+                .SelectMany(g => g.NoLossLeaves == null ? new[] { Wrap(g, revision, g.Score, comparison: true) }
+                    : g.NoLossLeaves.Select(leaf => Wrap(g, revision, leaf.Score, comparison: true))).ToArray();
         }
     }
 
@@ -68,7 +68,7 @@ internal sealed partial class IntegrationSession
                 if (!float.IsFinite(value) || value is < 0 or > 16) return float.NaN;
                 if (consumerTicks > Milliseconds(2))
                 {
-                    Revoke(goal.Owner, "owner-revoked:goal-evaluation-budget");
+                    Interlocked.Exchange(ref goal.BudgetExceeded, 1);
                     return 0f;
                 }
                 sum += value;

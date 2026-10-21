@@ -190,10 +190,12 @@ internal sealed partial class IntegrationCoordinator
             var scope = ControlScope();
             var alive = Session.CaptureOwnerLiveness(request.OwnerToken);
             if (alive == null) return Unavailable("expired-pace-owner");
+            var goalsValid = Session.CaptureGoalValidity();
+            if (!goalsValid()) return Unavailable("incomplete-integration-goal-scoring");
             var expires = Math.Min(decision.CapturedTimestamp + (long)(request.LeaseMs / 1000d * Stopwatch.Frequency),
                 decision.Navigation.Source.CapturedTimestamp + Stopwatch.Frequency / 4);
             var ticket = new IntegrationPacing.Ticket(Guid.NewGuid().ToString("N"), request.OwnerToken, Session.InstanceGeneration,
-                Session.FrameId, request.Generation, decision.Direction, request.Scale, expires, () => PacingOwnerLive(alive, scope, departureHold), departureHold);
+                Session.FrameId, request.Generation, decision.Direction, request.Scale, expires, () => goalsValid() && PacingOwnerLive(alive, scope, departureHold), departureHold);
             if (!movement.IntegrationPacing.Queue(ticket, epoch)) return Unavailable("pace-expired-cleared-or-already-owned");
             _pendingPace = new(request, decision, ticket, scope, kind); _paceResult = "pending-native-application";
             return IntegrationSession.Serialize(new { accepted = true, context = request.Context, proofId = ticket.Id, status = _paceResult,

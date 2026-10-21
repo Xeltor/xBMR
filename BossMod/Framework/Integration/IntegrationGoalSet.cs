@@ -7,7 +7,7 @@ internal sealed class IntegrationGoalSet(IntegrationSession session, Func<WPos, 
     internal readonly IntegrationSession.Context Context = session.CurrentContext;
     internal bool NavigationPublicationRequested => session.HasActiveOwners;
     internal sealed record Snapshot(Func<WPos, float>[] Encounter, Func<WPos, float>[] Combat,
-        Func<WPos, float>[] MechanicPreference, Func<WPos, float>[] Presentation);
+        Func<WPos, float>[] MechanicPreference, Func<WPos, float>[] Presentation, Func<bool> Valid);
 
     private IntegrationNativeGoals? _noLoss;
     internal object? NoLossObservation => _noLoss?.Observation;
@@ -25,18 +25,20 @@ internal sealed class IntegrationGoalSet(IntegrationSession session, Func<WPos, 
         var presentation = Adapt("presentation");
         if (combat.Length + utility.Length + mechanic.Length + presentation.Length == 0)
             return null;
-        return new(encounterGoals, [.. native.Skip(encounterGoals.Length), .. combat, .. utility], mechanic, presentation);
+        return new(encounterGoals, [.. native.Skip(encounterGoals.Length), .. combat, .. utility], mechanic, presentation,
+            session.CaptureGoalValidity());
     }
 
-    internal static void Rasterize(Pathfinding.Map map, Snapshot snapshot)
+    internal static bool Rasterize(Pathfinding.Map map, Snapshot snapshot)
     {
         // Each tier uses the same conservative four-corner rasterizer as native BMR.
         // Lexicographic ranks preserve encounter assignments first, combat/party value second,
         // mechanic preferences third and presentation last, without arbitrary epsilon weights.
         var count = checked(map.Width * map.Height);
-        if (count > 262144)
-            return; // bounded work; caller has already rasterized native goals
-        var tiers = new[] { snapshot.Encounter, snapshot.Combat, snapshot.MechanicPreference, snapshot.Presentation };
+        if (count > 262144 || !snapshot.Valid())
+            return false;
+        var tiers = new[] { snapshot.Encounter, snapshot.Combat, snapshot.MechanicPreference, snapshot.Presentation }
+            .Where(goals => goals.Length != 0).ToArray();
         var values = new float[tiers.Length][];
         var scratch = new Pathfinding.Map();
         scratch.Init(map, map.Center);
@@ -44,6 +46,7 @@ internal sealed class IntegrationGoalSet(IntegrationSession session, Func<WPos, 
         {
             Array.Clear(scratch.PixelPriority);
             Pathfinding.NavigationDecision.RasterizeGoalZones(scratch, tiers[tier]);
+            if (!snapshot.Valid()) return false;
             values[tier] = scratch.PixelPriority.AsSpan(0, count).ToArray();
         }
         var cells = Enumerable.Range(0, count).Where(i => map.PixelMaxG[i] == float.MaxValue).ToArray();
@@ -58,6 +61,7 @@ internal sealed class IntegrationGoalSet(IntegrationSession session, Func<WPos, 
             return 0;
         }
         Array.Sort(cells, Compare);
+        if (!snapshot.Valid()) return false;
         var rank = 0;
         for (var i = 0; i < cells.Length; ++i)
         {
@@ -66,5 +70,6 @@ internal sealed class IntegrationGoalSet(IntegrationSession session, Func<WPos, 
             map.PixelPriority[cells[i]] = rank;
         }
         map.MaxPriority = cells.Length == 0 ? float.MinValue : rank;
+        return true;
     }
 }

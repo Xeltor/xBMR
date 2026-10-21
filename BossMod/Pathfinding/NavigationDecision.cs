@@ -100,10 +100,11 @@ public struct NavigationDecision
             var inBounds = ctx.Map.InBounds(gridPos.x, gridPos.y);
             if (!inBounds || ctx.Map.PixelMaxG[ctx.Map.GridToIndex(gridPos)] >= 1f)
             {
-                if (input.Goals.Native.Length != 0)
+                // Successful integration ranking already rasterizes every native
+                // goal in its authoritative tier. Do not rasterize them twice.
+                if ((input.Goals.External is not { } external || !Integration.IntegrationGoalSet.Rasterize(ctx.Map, external))
+                    && input.Goals.Native.Length != 0)
                     RasterizeGoalZones(ctx.Map, input.Goals.Native);
-                if (input.Goals.External is { } external)
-                    Integration.IntegrationGoalSet.Rasterize(ctx.Map, external);
                 if (input.Identity.AvoidanceBuffer > 0f)
                     AvoidForbiddenZone(ctx.Map, input.Identity.AvoidanceBuffer);
             }

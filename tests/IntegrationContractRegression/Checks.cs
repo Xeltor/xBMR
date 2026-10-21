@@ -294,8 +294,8 @@ static partial class Checks
             timed.BeginFrame("scope", true);
             timed.Submit(new(timed.CurrentContext, token, "combat"), _ => { slowNow += 3; return 1; });
             Check(timed.CaptureGoals("combat").Single()(default) == 0 &&
-                timed.Renew(Lease(timed, token)).Reason == "owner-revoked:goal-evaluation-budget",
-                "a slow scorer remains fail-closed and reports its actual timing rejection");
+                timed.Renew(Lease(timed, token)).Accepted,
+                "a slow source is withheld without disconnecting target and movement observations");
         }
         using var callbacks = new IntegrationSession();
         Owner(callbacks, "broken", _ => throw new InvalidOperationException());

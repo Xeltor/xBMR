@@ -7,6 +7,7 @@ static partial class Checks
     private static void NoLossGoals()
     {
         NoLossConsumerBudget();
+        ScoringBudgetRecovery();
         long now = 1;
         using var session = new IntegrationSession(() => now, 1000);
         var owner = Owner(session);
@@ -117,8 +118,55 @@ static partial class Checks
             Func<Vector2, float> slow = _ => { now += count == 1 ? 3 : 2; return 1; };
             session.SubmitNoLossBatch(new(session.CurrentContext, owner, "combat", items), Enumerable.Repeat(slow, count).ToArray());
             Check(session.CaptureGoals("combat").Single()(default) == 0 &&
-                session.Renew(Lease(session, owner)).Reason == "owner-revoked:goal-evaluation-budget",
-                "all consumer leaves still share the original two-millisecond budget");
+                session.Renew(Lease(session, owner)).Accepted && !session.CaptureGoalValidity()(),
+                "all consumer leaves share the original two-millisecond budget without revoking observations");
         }
+    }
+
+    private static void ScoringBudgetRecovery()
+    {
+        long now = 1;
+        using var session = new IntegrationSession(() => Volatile.Read(ref now), 1000);
+        var callbacks = 0;
+        var owner = Owner(session, callback: _ => callbacks++);
+        var sibling = Owner(session, "sibling");
+        session.BeginFrame("budget-recovery", true);
+        var calls = 0;
+        session.Submit(new(session.CurrentContext, owner, "presentation"), _ =>
+        {
+            Interlocked.Increment(ref calls);
+            Interlocked.Add(ref now, 3);
+            return 16;
+        });
+        session.Submit(new(session.CurrentContext, sibling, "combat"), _ => 2);
+        var complete = session.CaptureGoalValidity();
+        var arrival = session.CaptureIndividualGoalLeaves();
+        var nativeCalls = 0;
+        Func<WPos, float> native = p => { Interlocked.Increment(ref nativeCalls); return p.X < 0 ? 1 : 0; };
+        var snapshot = new IntegrationGoalSet(session, []).Capture([native])!;
+        var map = new BossMod.Pathfinding.Map();
+        map.InitGrid(1, default, 8, 8);
+        map.PixelPriority[0] = 7;
+        map.PixelMaxG[0] = -1;
+        Check(!IntegrationGoalSet.Rasterize(map, snapshot) && map.PixelPriority[0] == 7 && map.MaxPriority == 0,
+            "a score timeout cannot publish partially ranked cells or overwrite the native fallback map");
+        Check(map.PixelMaxG[0] == -1 && nativeCalls > 0 && !complete(),
+            "budget fallback preserves physical hazards and marks its exact captured source incomplete");
+        var afterFault = calls;
+        Check(session.CaptureGoals("presentation").Single()(default) == 0 && calls == afterFault,
+            "a quarantined surface stops running for the rest of its captured lifetime");
+        Check(float.IsNaN(arrival[0](default)) && arrival[1](default) == 2,
+            "uncertain execution is not treated as an equal zero score when considering an arrival hold");
+        Check(session.Renew(Lease(session, owner)).Accepted && session.IsOwnerActive(sibling),
+            "budget isolation preserves both observer registrations and unrelated owner work");
+        session.Publish("hints-ready", IntegrationSession.Serialize);
+        Check(callbacks == 1, "a score timeout does not suppress fresh movement and target callbacks");
+        session.BeginFrame("budget-recovery", true);
+        session.Submit(new(session.CurrentContext, owner, "combat"), _ => 3);
+        Check(session.CaptureGoalValidity()() && session.CaptureGoals("combat").Single()(default) == 3 && !complete(),
+            "fresh source recovery needs no re-registration and cannot revive the old timed-out batch");
+        session.Clear(Lease(session, owner));
+        Check(session.CaptureGoals("combat").Length == 0,
+            "isolating a scoring timeout does not weaken explicit cleanup");
     }
 }

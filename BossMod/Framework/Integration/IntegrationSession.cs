@@ -49,6 +49,7 @@ internal sealed partial class IntegrationSession : IDisposable
         internal readonly long Frame = frame;
         internal readonly long Expires = expires;
         internal readonly NoLossLeaf[]? NoLossLeaves = noLossLeaves;
+        internal int BudgetExceeded;
     }
 
     private readonly Dictionary<string, Owner> _owners = [];
@@ -332,18 +333,46 @@ internal sealed partial class IntegrationSession : IDisposable
             .Select(g => Wrap(g, revision, CaptureNoLossScore(g, captureGuard), budgetConsumer: g.NoLossLeaves == null)).ToArray();
     }
 
-    private Func<Vector2, float> Wrap(Goal goal, int revision, Func<Vector2, float> score, bool budgetConsumer = true)
+    // A worker must discard a partially scored integration map, while keeping
+    // observation leases alive. Capture this exact source rather than reading
+    // the next frame's mutable owner goal lists from the worker.
+    internal Func<bool> CaptureGoalValidity()
+    {
+        lock (_gate)
+        {
+            var revision = Volatile.Read(ref _goalRevision);
+            var goals = _owners.Values.Where(Live).SelectMany(o => o.Goals).Where(g => g.Frame == FrameId)
+                .Select(g => (Goal: g, Revision: Volatile.Read(ref g.Owner.GoalRevision))).ToArray();
+            return () =>
+            {
+                if (_disposed || revision != Volatile.Read(ref _goalRevision)) return false;
+                foreach (var (goal, ownerRevision) in goals)
+                    if (!Live(goal.Owner) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
+                        || Volatile.Read(ref goal.BudgetExceeded) != 0 || _clock() >= goal.Expires
+                        || goal.Constraint is { Live: false }) return false;
+                return true;
+            };
+        }
+    }
+
+    private Func<Vector2, float> Wrap(Goal goal, int revision, Func<Vector2, float> score, bool budgetConsumer = true, bool comparison = false)
     {
         var ownerRevision = Volatile.Read(ref goal.Owner.GoalRevision);
         var calls = 0;
-        return p => Interlocked.Increment(ref calls) <= 262144 ? Evaluate(goal, revision, ownerRevision, p, score, budgetConsumer) : 0f;
+        return p =>
+        {
+            if (Interlocked.Increment(ref calls) > 262144) Interlocked.Exchange(ref goal.BudgetExceeded, 1);
+            return Evaluate(goal, revision, ownerRevision, p, score, budgetConsumer, comparison);
+        };
     }
 
-    private float Evaluate(Goal goal, int revision, int ownerRevision, Vector2 point, Func<Vector2, float> score, bool budgetConsumer)
+    private float Evaluate(Goal goal, int revision, int ownerRevision, Vector2 point, Func<Vector2, float> score, bool budgetConsumer, bool comparison)
     {
         if (revision != Volatile.Read(ref _goalRevision) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
             || !Live(goal.Owner) || _clock() >= goal.Expires || goal.Constraint is { Live: false })
             return 0f;
+        if (Volatile.Read(ref goal.BudgetExceeded) != 0)
+            return comparison ? float.NaN : 0f;
         try
         {
             var start = _clock();
@@ -355,9 +384,12 @@ internal sealed partial class IntegrationSession : IDisposable
             }
             if (budgetConsumer && _clock() - start > Milliseconds(2))
             {
-                Revoke(goal.Owner, "owner-revoked:goal-evaluation-budget");
-                return 0f;
+                // A scheduler pause or one expensive score cannot revoke live
+                // target/movement observations. Quarantine this source surface;
+                // navigation falls back atomically to native goals instead.
+                Interlocked.Exchange(ref goal.BudgetExceeded, 1);
             }
+            if (Volatile.Read(ref goal.BudgetExceeded) != 0) return comparison ? float.NaN : 0f;
             // A scorer can already be running when the native frame or owner is retired.
             // Its eventual return must not republish a contribution that was cleared meanwhile.
             if (revision != Volatile.Read(ref _goalRevision) || ownerRevision != Volatile.Read(ref goal.Owner.GoalRevision)
