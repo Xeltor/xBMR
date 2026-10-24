@@ -77,7 +77,10 @@ public static partial class Checks
             "One valid current request samples timing once, even when the projected movement payload needs display truncation.");
         Check(NativeActionTimingObservation.ActionsFor(BossMod.Class.BLM).Length == 6
             && NativeActionTimingObservation.ActionsFor(BossMod.Class.PCT).Length == 5
-            && NativeActionTimingObservation.ActionsFor(BossMod.Class.DRG).Length == 2
+            && NativeActionTimingObservation.ActionsFor(BossMod.Class.DRG).Length == 5
+            && NativeActionTimingObservation.ActionsFor(BossMod.Class.NIN).Length == 6
+            && NativeActionTimingObservation.ActionsFor(BossMod.Class.WAR).Length == 2
+            && NativeActionTimingObservation.ActionsFor(BossMod.Class.SMN).Length == 3
             && NativeActionTimingObservation.ActionsFor(BossMod.Class.WHM).IsEmpty,
             "Current timing diagnostics have a fixed mechanics-specific action set and no arbitrary action execution surface.");
     }

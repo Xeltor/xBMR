@@ -16,6 +16,11 @@ internal static class RsrExecutionCapture
         bool improveCoverage = true, bool improveTargetChoice = false)
     {
         reason = "Incomplete RSR action opportunity";
+        // RSR's IsFriendly flag describes its selection category; self buffs such
+        // as Umbral Soul and Inner Release may leave it false. Their native
+        // self-only geometry, rather than that category, identifies the recipient.
+        if (evidence.TargetId == player.Id && evidence.Range == 0 && evidence.CastType == 1 && evidence.EffectRange == 0)
+            evidence = evidence with { Friendly = true };
         if (evidence.ActionId == 0 || !float.IsFinite(latestCompletion) || latestCompletion < evidence.ReadyIn + evidence.CastTime
             || latestCompletion > MovementPlanningContext.MaximumHorizonSeconds)
             return null;
@@ -60,12 +65,13 @@ internal static class RsrExecutionCapture
         var reach = evidence.Range + (evidence.GroundTargeted ? 0 : player.Radius + target.Radius);
         var opportunity = new ExecutionOpportunity(shape.Value, target.Id, anchor, reach, evidence.EffectRange, recipients,
             evidence.HalfWidth, shape == ExecutionShape.Cone ? 60f.Degrees() : default,
-            target.Omnidirectional ? Positional.Any : positional, target.Rotation, tankFacing,
+            shape == ExecutionShape.Self || target.Omnidirectional ? Positional.Any : positional, target.Rotation,
+            shape == ExecutionShape.Self ? null : tankFacing,
             evidence.Friendly ? [] : forbidden.Select(a => new ExecutionRecipient(a.Id, a.Position, a.Radius, 0, HeightOffset: a.Height - height)));
         reason = "Selected action and each evidenced recipient captured before navigation";
         return new(evidence.ActionId, target.Id, evidence.ReadyIn, latestCompletion, evidence.CastTime,
             evidence.AnimationLock, 0, [], [], Opportunity: opportunity, HorizonLimited: horizonLimited,
-            UsesHardTarget: !evidence.Friendly && !evidence.GroundTargeted && evidence.Range > 0);
+            UsesHardTarget: !evidence.Friendly && !evidence.GroundTargeted && evidence.Range > 0, IsGCD: evidence.Recast > 0);
     }
 
     internal static ExecutionShape? Shape(RsrActionEvidence action, ulong playerId)
@@ -73,7 +79,7 @@ internal static class RsrExecutionCapture
         if (action.GroundTargeted)
             return action.CastType is 1 or 2 && action.EffectRange > 0 ? ExecutionShape.GroundCircle : null;
         if (action.CastType == 1 && action.EffectRange == 0)
-            return ExecutionShape.SingleTarget;
+            return action.Friendly && action.TargetId == playerId ? ExecutionShape.Self : ExecutionShape.SingleTarget;
         if (action.CastType == 3 && action.EffectRange > 0)
             return ExecutionShape.Cone;
         if ((action.CastType == 4 || action.CastType == 1 && !action.Friendly && action.HalfWidth > 0)

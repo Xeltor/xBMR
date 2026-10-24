@@ -8,7 +8,8 @@ using Dalamud.Plugin;
 namespace BossMod.CombatAssistance.Runtime;
 
 internal sealed record MovementCombatIntent(ImmutableArray<PlanningAction> Actions, float UnlockSeconds, bool Enabled,
-    AvailableMobility? Mobility = null, float PositionalBypassUntil = 0, PlanningTravel? Travel = null, float? LateDepartureMargin = null, ForcedMovementChoices? ForcedMovement = null, PlanningFieldPlacement? FieldPlacement = null, string? NativeRecoveryReason = null, bool StationaryOnly = false);
+    AvailableMobility? Mobility = null, float PositionalBypassUntil = 0, PlanningTravel? Travel = null, float? LateDepartureMargin = null, ForcedMovementChoices? ForcedMovement = null, PlanningFieldPlacement? FieldPlacement = null, string? NativeRecoveryReason = null, bool StationaryOnly = false, PlanningRange? RangeRecovery = null,
+    PlanningHealingCoverage? HealingCoverage = null);
 
 // Framework-thread composition of native actors, authority and external action evidence.
 // It does not activate AI, own a preset, publish movement or retain combat history.
@@ -29,6 +30,10 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
     private readonly RsrLeyLinesPlacement _leyLinesPlacement;
     private readonly RsrKnockbackSelection _knockbackSelection;
     private readonly RsrNativeMobilitySelection _mobilitySelection;
+    private readonly RsrRotationalDelivery _rotationalDelivery;
+    private readonly NativeMeleeRecoveryWindow _meleeRecoveryWindow = new();
+    private (MovementPlan Plan, MovementPlanningContext Context, int Stage)? _movementFrame;
+    private DateTime _lastGcdDelivery;
     private DateTime _knockbackFrame;
     private ulong _knockbackActor;
     private BossModule? _knockbackModule;
@@ -98,7 +103,12 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             (error, message) => Service.Logger.Verbose(error, message));
         _zones = new(rotation.WorldState);
         _leyLinesEvents = rotation.WorldState.Actors.CastEvent.Subscribe((actor, cast) =>
-            _leyLinesTiming.ObserveAction(actor.InstanceID, cast.Action, rotation.WorldState.CurrentTime));
+        {
+            _leyLinesTiming.ObserveAction(actor.InstanceID, cast.Action, rotation.WorldState.CurrentTime);
+            _preparation.Observe(actor.InstanceID, cast.Action.ID, cast.MainTargetID, cast.SourceSequence);
+            if (actor.InstanceID == rotation.WorldState.Party.Player()?.InstanceID && ActionDefinitions.Instance[cast.Action]?.IsGCD == true)
+                _lastGcdDelivery = rotation.WorldState.CurrentTime;
+        });
         _evidence = new(plugin, Service.DataManager, Service.Logger);
         _actions.PreserveManualFacing = ManualFacingProtected;
         _camera = new(() => _settings.Preferences, Service.ObjectTable, Service.Logger, Service.Hook, CameraAllowed);
@@ -113,6 +123,10 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         _utilitySelection = new(rsrRuntime, () => SupportAllowed() && _settings.Preferences.ManageTrueNorth
             && _settings.Preferences.ManagePositionals, DeferRotationalTrueNorth);
         _mobilitySelection = new(rsrRuntime, () => MobilityAllowed() && OrdinaryMovementForecastAvailable(), StationaryRotationalMobility);
+        _rotationalDelivery = new(rsrRuntime, actions, _selectionScopes, () => MobilityAllowed() && OrdinaryMovementForecastAvailable()
+            && (AIManager.Instance?.Beh != null || Autorotation.MiscAI.NormalMovement.Instance != null)
+            && _settings.Preferences.UseGapCloser && _rotation.WorldState.Party.Player() is { } current
+            && _settings.Preferences.IsGapCloserJobEnabled((uint)current.Class), DeferMeleeFallback, ApprovePreparation);
         _knockbackSelection = new(rotation, rsrRuntime, () => MobilityAllowed() && _settings.Preferences.ManageKnockback,
             TankArmsLengthUseful, _selectionScopes);
         var modes = _modes = new RsrOperatingMode(plugin, rsrRuntime);
@@ -124,7 +138,8 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         _leyLinesPlacement = new(rotation, actions, rsrRuntime,
             () => SupportAllowed() && _settings.Preferences.ManageMovement && _settings.Preferences.ManageLeylines
                 && _settings.Preferences.PlanLeyLinesPlacement && !CompulsoryMovementProtected && OrdinaryMovementForecastAvailable()
-                && AIManager.Instance?.Beh == null && rotation.WorldState.Party.Player() is { Class: Class.BLM, InCombat: true }, _selectionScopes);
+                && (AIManager.Instance?.Beh != null || Autorotation.MiscAI.NormalMovement.Instance != null)
+                && rotation.WorldState.Party.Player() is { Class: Class.BLM, InCombat: true }, _selectionScopes);
         _targeting = new(rotation, rsrRuntime, () => _settings.Preferences, TargetingAllowed,
             () => !_ai.ManualTarget,
             () => _tankRecovery.LooseEnemyTarget, _selectionScopes);
@@ -162,6 +177,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
 
     internal MovementCombatIntent Capture(WorldState world, AIHints hints, Actor player, NativeKnockbackPlanning? displacement = null)
     {
+        _evidence.ClearHealingDemand();
         // Cast completion is native evidence, including a cast started by another plugin
         // after the last world update. Strict search falls back to native recovery if
         // the cast cannot finish before a mandatory safety departure.
@@ -199,19 +215,16 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             ActionStatus = "Native compulsory march and onward route";
             return new([], unlock, true, Travel: travel, ForcedMovement: forced);
         }
-        if (!enabled || !player.InCombat || _ai.ForbidActions || !_rsr.IsAutorotationActive)
+        if (!enabled || !NativeCombatEngagement.Active(world, hints, player) || _ai.ForbidActions || !_rsr.IsAutorotationActive)
         {
             ActionStatus = "Native rotation goals";
             return new([], unlock, enabled, Travel: travel);
         }
         var evidence = CaptureActionEvidence(world, player);
-        if (evidence == null && _frameImmediateEvidence == null)
-        {
-            ActionStatus = _evidence.Status;
-            return new([], unlock, enabled, Travel: travel);
-        }
+        // No selected attack is expected while out of range. Still capture
+        // independently enabled mobility and the native combat-range objective.
         PlanningAction? action = null;
-        ActionStatus = "Native rotation goals";
+        ActionStatus = evidence == null ? _evidence.Status : "Native rotation goals";
         if (evidence != null)
         {
             var eligible = evidence.Friendly ? world.Party.WithoutSlot().Select(ActorValue).ToArray()
@@ -222,8 +235,11 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             // Existing desired boss orientation remains in its original native goal.
             // Do not invent an angular tolerance or reinterpret that opaque goal as an
             // authored safety constraint. Typed facing requirements carry their own tolerance.
+            var latest = player.Class == Class.NIN && evidence.ActionId == 2267 && player.FindStatus((uint)NIN.SID.Mudra) is { } mudra
+                ? Math.Min(MovementPlanningContext.MaximumHorizonSeconds, Math.Max(0, (float)(mudra.ExpireAt - world.CurrentTime).TotalSeconds))
+                : MovementPlanningContext.MaximumHorizonSeconds;
             action = RsrExecutionCapture.Create(evidence, ActorValue(player), eligible, forbidden,
-                MovementPlanningContext.MaximumHorizonSeconds, positional, null, out var reason, horizonLimited: true,
+                latest, positional, null, out var reason, horizonLimited: true,
                 improveCoverage: !stationaryOnly && (evidence.Friendly ? config.ManageHealerCoverageZone : config.ManageAoePackPositioning),
                 improveTargetChoice: config.PickBetterAoeTarget);
             ActionStatus = $"Selected action {evidence.ActionId}: {reason}; shape {action?.Opportunity?.Shape}, range {evidence.Range}, effect {evidence.EffectRange}, positional {positional}";
@@ -243,24 +259,82 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
                 : new([], unlock, false, Travel: travel, StationaryOnly: true);
         }
         PlanningAction? immediate = null;
+        if (action != MeleeRecoveryPreference.ForPlanning(player.Class, action))
+        {
+            // Ranged fallback cannot reserve a stationary delivery ahead of a
+            // safe melee recovery. RSR retains its normal action selection while
+            // the movement owner restores melee access.
+            action = null;
+            ActionStatus += "; prefer verified melee recovery over ranged fallback";
+        }
         if (_frameImmediateEvidence is { } partyAbility)
         {
             immediate = RsrExecutionCapture.Create(partyAbility, ActorValue(player),
-                world.Party.WithoutSlot().Select(ActorValue).ToArray(), [], MovementPlanningContext.MaximumHorizonSeconds,
+                partyAbility.Friendly ? world.Party.WithoutSlot().Select(ActorValue).ToArray()
+                    : hints.PriorityTargetsSpan.ToArray().Select(e => ActorValue(e.Actor)).ToArray(),
+                partyAbility.Friendly ? [] : hints.ForbiddenTargetsSpan.ToArray().Select(e => ActorValue(e.Actor)).ToArray(), MovementPlanningContext.MaximumHorizonSeconds,
                 Positional.Any, null, out _, horizonLimited: true, improveCoverage: config.ManageHealerCoverageZone);
             if (immediate != null)
             {
                 immediate = immediate with { Timing = CaptureCastTiming(world, player, partyAbility) };
-                ActionStatus += $"; immediate party action {partyAbility.ActionId}, recipients {partyAbility.AffectedRecipients.Length}";
+                ActionStatus += $"; immediate action {partyAbility.ActionId}, recipients {partyAbility.AffectedRecipients.Length}";
             }
         }
         var fieldMayWeave = _evidence.FieldActionMayWeave(player.Class, evidence, _frameImmediateEvidence);
-        return new(NativeActionSequence.Compose(immediate, action), unlock, enabled,
-            NativeMobilityCapture.Capture(world, hints, player, _actions, config, _evidence.EnabledActions(player.Class),
-                _utilitySelection.Available, _mobilitySelection.Owned, travel, _leyLinesTiming.PlanningField(world.CurrentTime),
-                fieldMayWeave, displacement?.Ready == true ? _knockbackSelection.AvailableAction : 0),
+        var healing = config.ManageHealerCoverageZone ? _evidence.CaptureHealingCoverage(world, player) : null;
+        if (player.Role == Role.Healer && config.ManageHealerCoverageZone) ActionStatus += "; " + _evidence.HealingStatus;
+        var prepared = CapturePreparation(world, hints, player, evidence, _evidence.EnabledActions(player.Class, originalIds: true));
+        if (_preparation.Active && !prepared.IsEmpty) { immediate = null; action = null; }
+        var original = NativeActionSequence.Compose(immediate, action);
+        // An already selected setup supplies the same effect; never forecast a duplicate.
+        if (original.Any(a => prepared.Any(p => p.Id == a.Id))) prepared = [];
+        var sequence = original.AddRange(prepared.Select(a => a with
+        { RequiredEarlierActions = (byte)((a.RequiredEarlierActions << original.Length) | NativeActionSequence.CompleteMask(original.Length)) }));
+        var mobility = NativeMobilityCapture.Capture(world, hints, player, _actions, config, _evidence.EnabledActions(player.Class),
+                _utilitySelection.Available, _mobilitySelection.Owned.Union(_rotationalDelivery.Owned), travel, _leyLinesTiming.PlanningField(world.CurrentTime),
+                fieldMayWeave, displacement?.Ready == true ? _knockbackSelection.AvailableAction : 0, sequence);
+        if (!mobility.PreparationAvailable)
+        {
+            sequence = original;
+            mobility = NativeMobilityCapture.Capture(world, hints, player, _actions, config, _evidence.EnabledActions(player.Class),
+                _utilitySelection.Available, _mobilitySelection.Owned.Union(_rotationalDelivery.Owned), travel,
+                _leyLinesTiming.PlanningField(world.CurrentTime), fieldMayWeave,
+                displacement?.Ready == true ? _knockbackSelection.AvailableAction : 0, sequence);
+        }
+        sequence = NativeRotationalPreparation.Apply(sequence, mobility.PreparationGrants, mobility.PreparationCosts)
+            .Select(a => NativeRotationalMobility.WithReadyAlternatives(a, mobility)!).ToImmutableArray();
+        return new(sequence, unlock, enabled, mobility,
             player.FindStatus(1250) is { } trueNorth ? Math.Max(0, (float)(trueNorth.ExpireAt - world.CurrentTime).TotalSeconds) : 0, travel,
-            CaptureDepartureMargin(player, evidence?.Recast ?? 0), FieldPlacement: action != null && fieldMayWeave ? _leyLinesPlacement.Capture() : null);
+            CaptureDepartureMargin(player, evidence?.Recast ?? 0), FieldPlacement: action != null && fieldMayWeave ? _leyLinesPlacement.Capture() : null,
+            RangeRecovery: CaptureCombatRange(hints, player, Math.Max(0, _actions.GCD())), HealingCoverage: healing);
+    }
+
+    internal float FollowTargetRange(Actor player, Actor target, float fixedRange)
+    {
+        // This is the identified generic follow goal, not an encounter or rotation
+        // goal. A melee-only follow radius must not compete with the selected
+        // ranged action. Exact action geometry is captured by the joint planner.
+        if (!_settings.MayAssist || !_settings.Preferences.ManageMovement || _ai.ForbidActions
+            || !_rsr.IsAutorotationActive || !NativeCombatEngagement.Active(_rotation.WorldState, _rotation.Hints, player))
+            return fixedRange;
+        foreach (var enemy in _rotation.Hints.PriorityTargetsSpan)
+            if (enemy.Actor == target)
+                return CombatFollowRange.Resolve(player.Role, fixedRange);
+        return fixedRange;
+    }
+
+    internal static PlanningRange? CaptureCombatRange(AIHints hints, Actor player, float readyIn = 0)
+    {
+        var targetId = hints.ForcedTarget?.InstanceID ?? player.TargetID;
+        foreach (var enemy in hints.PriorityTargetsSpan)
+        {
+            var target = enemy.Actor;
+            if (target.InstanceID != targetId || target.IsDead || target.IsDestroyed || !target.IsTargetable) continue;
+            var range = player.Role is Role.Melee or Role.Tank
+                ? AssistancePreferences.InternalMeleeUptimeRange : AssistancePreferences.InternalRangedUptimeRange;
+            return new(targetId, target.Position, range + player.HitboxRadius + target.HitboxRadius, RecoverExecution: true, RecoveryReadyIn: readyIn);
+        }
+        return null;
     }
 
     private float? CaptureDepartureMargin(Actor player, float gcd)
@@ -294,7 +368,8 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
     internal MovementExecutionObservation Observe(Actor player)
     {
         var last = _rotation.LastCast;
-        return new(player.Rotation, last.Data?.Action.ID ?? 0, last.Data?.MainTargetID ?? 0, last.Time, player.TargetID);
+        return new(player.Rotation, last.Data?.Action.ID ?? 0, last.Data?.MainTargetID ?? 0, last.Time, player.TargetID,
+            _actions.EffectiveAnimationLock > 0);
     }
 
     internal void BeginNativeUpdate()
@@ -353,7 +428,9 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         if (SupportAllowed() && player is { InCombat: true } && _settings.Preferences.ManagePositionals
             && CaptureActionEvidence(_rotation.WorldState, player) is { } selected)
             // Native following and the joint opportunity must use the same GCD.
-            _rotation.Hints.RSRDesiredPositional = selected.Friendly ? Positional.Any : selected.Positional;
+            _rotation.Hints.RSRDesiredPositional = selected.Friendly ? Positional.Any
+                : MeleeRecoveryPreference.DesiredPositional(selected.Positional, selected.ReadyIn + selected.CastTime,
+                    player.FindStatus(1250) is { } north ? (float)(north.ExpireAt - _rotation.WorldState.CurrentTime).TotalSeconds : 0);
     }
 
     private RsrActionEvidence? CaptureActionEvidence(WorldState world, Actor player)
@@ -363,7 +440,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             _evidenceFrame = world.CurrentTime;
             _evidencePlayer = player.InstanceID;
             _frameEvidence = _evidence.Capture(_actions, player.Class);
-            _frameImmediateEvidence = _evidence.CaptureImmediatePartyAction(_actions, player.Class);
+            _frameImmediateEvidence = _evidence.CaptureImmediatePlanningAction(_actions, player.Class);
             _frameComboIntent = player.Class == Class.RDM ? _evidence.CaptureRedMageIntent(_frameEvidence,
                 world.Client.ComboState.Action, world.Client.ComboState.Remaining, world.CurrentZone) : null;
         }
@@ -393,17 +470,20 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
     internal bool ResolveTargetIntent() => _targeting.ResolveTargetIntent();
     internal bool ApplyPlannedTarget(MovementExecution execution, MovementPlan plan, MovementPlanningContext context,
         int stage, out string reason) => _targeting.PublishPlannedTarget(execution, plan, context, stage, out reason);
-    internal void ConsiderPlacement(MovementPlan plan, MovementPlanningContext context)
+    internal void ConsiderPlacement(MovementPlan? plan, MovementPlanningContext context)
     {
         _leyLinesPlacement.Consider(plan, context);
-        _knockbackSelection.Consider(plan, context);
+        if (plan != null) _knockbackSelection.Consider(plan, context);
     }
     internal bool MayCommitPlacement(MovementPlan plan) => _leyLinesPlacement.MayCommit(plan) && _knockbackSelection.MayCommit(plan);
     internal void ObservePlacementExecution(MovementPlan plan, MovementPlanningContext context, int stage, MovementExecution execution)
     {
+        ObserveMovementExecution(plan, context, stage);
         _leyLinesPlacement.ObserveExecution(plan, context, stage, execution);
         _knockbackSelection.ObserveExecution(plan, context, stage, execution);
     }
+    internal void ObserveMovementExecution(MovementPlan plan, MovementPlanningContext context, int stage)
+        => _movementFrame = (plan, context, stage);
     internal string KnockbackSelectionStatus => $"{_knockbackSelection.Status}; tank slow: {_tankArmsLengthStatus}";
     internal string PlacementStatus => _leyLinesPlacement.Status;
     internal Targeting.OffensiveTargetDecision? TargetDecision => _targeting.Decision;
@@ -422,13 +502,14 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         if (!HasMovementAuthority(player, _rotation.Hints)) return "native movement/manual authority";
         if (Service.ClientState.IsPvP) return "PvP";
         if (CompulsoryMovementProtected) return "compulsory movement";
-        return player.InCombat ? null : "native player not in combat";
+        return NativeCombatEngagement.Active(_rotation.WorldState, _rotation.Hints, player) ? null : "no native player or party engagement";
     }
 
     private bool CastControlAllowed()
         => SupportAllowed() && _settings.Preferences.ManageMovement && _settings.Preferences.ManageCastControl
             && !CompulsoryMovementProtected && !Service.ClientState.IsPvP
-            && _rotation.WorldState.Party.Player() is { InCombat: true } player && player.FindStatus(418) == null;
+            && _rotation.WorldState.Party.Player() is { } player
+            && NativeCombatEngagement.Active(_rotation.WorldState, _rotation.Hints, player) && player.FindStatus(418) == null;
 
     private NativeKnockbackAuthority? CaptureKnockbackAuthority(WorldState world, Actor player)
     {
@@ -458,7 +539,8 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
 
     private bool MobilityAllowed()
         => SupportAllowed() && _settings.Preferences.ManageMovement && !CompulsoryMovementProtected && !Service.ClientState.IsPvP
-            && _rotation.WorldState.Party.Player() is { InCombat: true } player && player.FindStatus(418) == null;
+            && _rotation.WorldState.Party.Player() is { } player
+            && NativeCombatEngagement.Active(_rotation.WorldState, _rotation.Hints, player) && player.FindStatus(418) == null;
 
     private bool StationaryRotationalMobility(uint id, object action)
     {
@@ -477,7 +559,9 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
     internal string RotationMode => _modes.Read()?.ToString() ?? "Unavailable";
 
     internal Support.SupportRecipientSnapshot? SupportSnapshot => _support.Snapshot;
-    internal string SupportStatus => _support.Status + "; Ley Lines: " + _leyLinesPlacement.Status;
+    internal string SupportStatus => _support.Status + "; Ley Lines: " + _leyLinesPlacement.Status
+        + "; rotational movement: " + _rotationalDelivery.Status;
+    internal string HealingStatus => _evidence.HealingStatus;
     internal string? SupportAvailability => _support.AvailabilityWarning;
 
     private bool CameraAllowed()
@@ -572,6 +656,9 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
 
     internal void ReleasePresentation()
     {
+        _movementFrame = null; _meleeRecoveryWindow.Reset(); _lastGcdDelivery = default; _preparation.Reset();
+        _rotationalDelivery.ResetPlan();
+        _leyLinesPlacement.RetirePlanning();
         _knockbackSelection.ResetPlan();
         _leyLinesTiming.Reset();
         _pictomancerTiming.Reset();
@@ -582,9 +669,11 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
 
     private bool DowntimeFacingAllowed(Actor player, AIHints hints)
     {
-        var timeline = _rotation.Bossmods.ActiveModule?.StateMachine;
-        var downtime = hints.PriorityTargetsSpan.IsEmpty || timeline?.ActiveState != null
-            && timeline.NextTransitionWithFlag(StateMachine.StateHint.DowntimeEnd) < timeline.NextTransitionWithFlag(StateMachine.StateHint.DowntimeStart);
+        var module = _rotation.Bossmods.ActiveModule;
+        var timeline = module?.StateMachine;
+        var downtime = PartyFacingPreference.EligibleDowntime(module != null, !hints.PriorityTargetsSpan.IsEmpty,
+            timeline?.ActiveState != null ? timeline.NextTransitionWithFlag(StateMachine.StateHint.DowntimeStart) : DateTime.MaxValue,
+            timeline?.ActiveState != null ? timeline.NextTransitionWithFlag(StateMachine.StateHint.DowntimeEnd) : DateTime.MaxValue);
         return _settings.MayAssist && _settings.Preferences.ManageSocialTurning && !_ai.ForbidActions && downtime
             && player.CastInfo == null && player.PendingKnockbacks.Count == 0 && !CompulsoryMovementProtected
             && !hints.ForbiddenDirections.Any(d => d.activation <= _rotation.WorldState.FutureTime(0.5))
@@ -611,6 +700,47 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         }
     }
 
+    internal unsafe bool MaySubmitPlannedAction(MovementExecution execution, MovementPlan plan, MovementPlanningContext context,
+        int stage, out string? rejection)
+    {
+        rejection = null;
+        if (_evidenceFrame == _rotation.WorldState.CurrentTime && _evidence.ImmediateSelection is { } selected
+            && ActionDefinitions.Instance[new(ActionType.Spell, selected.Id)] is { } definition
+            && RsrRotationalDelivery.YieldToCurrent(execution.ActionId, selected.Id, selected.Gcd,
+                _actions.GetActionStatus(new(ActionType.Spell, selected.Id), selected.Target) == 0,
+                definition.InstantAnimLock + _actions.AnimationLockDelayEstimate, execution.DepartureSeconds))
+            return false; // Original RSR delivery gets this still-executable present opportunity; native departure remains binding.
+        return _rotationalDelivery.MaySubmit(execution, plan, context, stage, out rejection);
+    }
+
+    private unsafe bool DeferMeleeFallback(uint id)
+    {
+        if (!SupportAllowed() || !_settings.Preferences.ManageMovement || CompulsoryMovementProtected
+            || _rotation.WorldState.Party.Player() is not { Role: Role.Melee } player
+            || !MeleeRecoveryPreference.IsFallback(player.Class, id) || _movementFrame is not { } frame
+            || !ReferenceEquals(_rotation.MovementPlanning.CurrentPlan, frame.Plan)
+            || _rotation.MovementPlanning.Execution is null or { Kind: MovementExecutionKind.Invalidated }
+            || Service.ObjectTable.LocalPlayer is not { } actual || !actual.IsValid() || actual.Address == 0
+            || actual.GameObjectId != player.InstanceID || _rotation.Hints.ForcedTarget?.InstanceID is { } forced && forced != frame.Context.TargetId
+            || player.TargetID != frame.Context.TargetId)
+            return false;
+        var last = _rotation.LastCast;
+        if (last.Time > _lastGcdDelivery && last.Data is { } data && ActionDefinitions.Instance[data.Action]?.IsGCD == true)
+            _lastGcdDelivery = last.Time;
+        var point = new WPos(actual.Position.X, actual.Position.Z);
+        var arrival = NativeMeleeRecoveryWindow.VerifiedArrival(frame.Plan, frame.Context, frame.Stage, player.TargetID,
+            System.Diagnostics.Stopwatch.GetTimestamp(), point);
+        if (arrival == null) return false;
+        var action = new ActionID(ActionType.Spell, id);
+        var definition = ActionDefinitions.Instance[action];
+        if (definition?.IsGCD != true) return false;
+        var recast = _actions.GetAdjustedRecastTime(action) * .001f;
+        var cast = _actions.GetAdjustedCastTime(action) * .001f;
+        return _meleeRecoveryWindow.Defer(player.InstanceID, player.TargetID, id, _lastGcdDelivery,
+            _rotation.WorldState.CurrentTime, Math.Max(0, _actions.GCD()),
+            Math.Max(recast, cast + (cast > 0 ? definition.CastAnimLock : definition.InstantAnimLock)), arrival.Value, _rotation.MovementPlanning.InputRevision);
+    }
+
     internal bool ApplyPlannedAction(MovementExecution execution, MovementPlan plan, MovementPlanningContext context,
         int stage, Actor player, AIHints hints, out string reason)
     {
@@ -618,7 +748,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         if (!_settings.MayAssist || !_settings.Preferences.ManageMovement || _ai.ForbidActions
             || CompulsoryMovementProtected || !_rsr.IsAutorotationActive || !HasMovementAuthority(player, hints) || execution.Waypoint is not { } landing)
             return false;
-        var checkedRoute = MovementPlanValidation.Validate(plan, context, stage, true);
+        var checkedRoute = MovementPlanValidation.Validate(plan, context, stage, true, continuingCommittedRoute: true);
         if (!checkedRoute.Allowed)
         {
             reason = checkedRoute.Reason;
@@ -655,7 +785,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             return false;
         }
         return _actions.TryExecutePlannedAction(execution, player, context.Origin, ground,
-            plan.Stages[stage].Kind != MovementStageKind.UtilityAction, out reason);
+            plan.Stages[stage].Kind != MovementStageKind.UtilityAction && plan.Stages[stage].From != plan.Stages[stage].To, out reason);
     }
 
     private static ExecutionActor ActorValue(Actor actor)
@@ -685,6 +815,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         _displacementCapture = null;
         _knockbackPhases = null;
         _selectionScopes.Dispose();
+        _rotationalDelivery.Dispose();
         _meleeFallback.Dispose();
         _utilitySelection.Dispose();
         _mobilitySelection.Dispose();

@@ -15,6 +15,7 @@ internal sealed class RsrSelectionScopeOwner(RsrRuntimeAccess runtime, Func<bool
     private DateTime _nextLog;
     private bool _disposed;
     internal string Status { get; private set; } = "inactive";
+    internal bool Available => !_disposed && _lease?.Owned == true && enabled();
 
     internal Registration Register(Func<IDisposable?> enter, Action<Exception> failure, int order = 0)
     {

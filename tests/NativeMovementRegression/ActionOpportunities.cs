@@ -72,6 +72,13 @@ public static partial class Checks
             [new(10, default, 0, 1, true)], positional: Positional.Rear, targetFacing: default);
         Check(rear.Evaluate(new(0, -2)).Allowed && !rear.Evaluate(new(0, 2)).Allowed,
             "The current action's rear requirement is separate from attack range.");
+        var turned = new ExecutionOpportunity(ExecutionShape.SingleTarget, 10, default, 3, 0,
+            [new(10, default, 0, 1, true)], targetFacing: 90.Degrees());
+        var any = new ExecutionOpportunity(ExecutionShape.SingleTarget, 10, default, 3, 0,
+            [new(10, default, 0, 1, true)]);
+        Check(any.SameGeometry(turned) && !rear.SameGeometry(new(ExecutionShape.SingleTarget, 10, default, 3, 0,
+            [new(10, default, 0, 1, true)], positional: Positional.Rear, targetFacing: 90.Degrees())),
+            "A target turning cannot cancel an Any-positional opportunity; actual positional geometry still changes.");
         var tank = new ExecutionOpportunity(ExecutionShape.SingleTarget, 10, default, 3, 0,
             [new(10, default, 0, 1, true)], tankFacing: new(default, 20.Degrees()));
         Check(tank.Evaluate(new(0, 2)).Allowed && !tank.Evaluate(new(0, -2)).Allowed,

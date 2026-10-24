@@ -72,7 +72,6 @@ internal partial class ConfigWindow : UIWindow
     private Vector2? lastVisiblePosition;
     private bool jobGridOpen;
 
-    public Action? OpenPatchNotes { get; set; }
     public Func<IReadOnlyList<PluginConnectionRow>>? PluginConnections { get; set; }
     public Func<string?>? RotationSolverAvailability { get; set; }
     public Func<string?>? SupportRecipientStatus { get; set; }
@@ -221,11 +220,10 @@ internal partial class ConfigWindow : UIWindow
     {
         var origin = ImGui.GetCursorScreenPos();
         var width = ImGui.GetContentRegionAvail().X;
-        var actionSize = M3Widgets.WindowActionsSize(this.OpenPatchNotes == null ? 0 : 1);
-        var action = M3Widgets.WindowActions("window-actions", new Vector2(origin.X + width, origin.Y),
-            this.OpenPatchNotes == null ? [] : [new M3WindowAction("notes", FontAwesomeIcon.History, "Patch notes")], out var closed, fill: MaterialTheme.RaisedSurface);
+        var actionSize = M3Widgets.WindowActionsSize(0);
+        _ = M3Widgets.WindowActions("window-actions", new Vector2(origin.X + width, origin.Y),
+            [], out var closed, fill: MaterialTheme.RaisedSurface);
         if (closed) this.IsOpen = false;
-        if (action == 0) this.OpenPatchNotes?.Invoke();
         ImGui.SetCursorScreenPos(origin + new Vector2(M3.Space2,
             Math.Max(0, actionSize.Y - M3Text.Measure("xBMR · Combat assistance", M3TextStyle.Title).Y) * 0.5f));
         M3Text.Draw("xBMR · Combat assistance", M3TextStyle.Title);

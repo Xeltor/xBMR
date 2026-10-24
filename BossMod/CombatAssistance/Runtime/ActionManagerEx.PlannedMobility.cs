@@ -30,8 +30,9 @@ public sealed unsafe partial class ActionManagerEx
         }
         var action = new ActionID(ActionType.Spell, execution.ActionId);
         var definition = ActionDefinitions.Instance[action];
-        if (definition == null || definition.IsGCD || !definition.IsUnlocked(_ws, expected)
-            || GetAdjustedActionID(action.ID) != action.ID || _inst->GetCurrentCharges(action.ID) == 0)
+        if (definition == null || definition.IsGCD && !NativeRotationalMobility.Contains(action.ID) || !definition.IsUnlocked(_ws, expected)
+            || GetAdjustedActionID(action.ID) != action.ID || !definition.IsGCD && _inst->GetCurrentCharges(action.ID) == 0
+            || definition.IsGCD && (GCD() > 0 || GetAdjustedCastTime(action) != 0))
         {
             reason = "planned action or charge is unavailable";
             return false;

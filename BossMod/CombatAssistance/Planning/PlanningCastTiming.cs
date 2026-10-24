@@ -81,10 +81,7 @@ internal sealed record PlanningCastTiming(float WithoutProc, float UnbuffedUpper
         return false;
     }
 
-    internal static PlanningCastTiming Capture(WorldState world, Actor player, RsrActionEvidence evidence)
-    {
-        var proc = evidence.CastTimeProc;
-        var status = proc switch
+    internal static uint ProcStatus(byte proc) => proc switch
         {
             1 => 165u,
             3 => 167u,
@@ -97,7 +94,12 @@ internal sealed record PlanningCastTiming(float WithoutProc, float UnbuffedUpper
             15 => 2673u,
             19 => 3679u,
             _ => 0u
-        };
+    };
+
+    internal static PlanningCastTiming Capture(WorldState world, Actor player, RsrActionEvidence evidence)
+    {
+        var proc = evidence.CastTimeProc;
+        var status = ProcStatus(proc);
         var until = proc == 0 ? float.MaxValue : status != 0 && player.FindStatus(status) is { } buff
             ? Math.Max(0, (float)(buff.ExpireAt - world.CurrentTime).TotalSeconds) : 0;
         if (proc is 8 or 11)

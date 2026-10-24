@@ -35,13 +35,14 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
     private readonly Dictionary<Type, FieldInfo?> _enabledFields = [];
     internal string Status { get; private set; } = "RSR action evidence not requested";
     internal bool NoSelectedAction { get; private set; }
+    internal (uint Id, ulong Target, bool Gcd)? ImmediateSelection { get; private set; }
 
     internal ulong TargetOf(object action)
         => Read(action, "Target") is { } target && Read(target, "Target") is IGameObject wrapper
             && wrapper.IsValid() && wrapper.Address != 0 ? wrapper.GameObjectId : 0;
 
     internal RsrActionEvidence? Capture(ActionManagerEx manager, Class job) => Capture(manager, job, false);
-    internal RsrActionEvidence? CaptureImmediatePartyAction(ActionManagerEx manager, Class job) => Capture(manager, job, true);
+    internal RsrActionEvidence? CaptureImmediatePlanningAction(ActionManagerEx manager, Class job) => Capture(manager, job, true);
 
     // An elective field move must not take the weave of a selected offensive or
     // unsupported ability whose execution/resource effect is not in this plan.
@@ -65,11 +66,12 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
     }
 
     internal static bool FieldActionMayWeave(uint selected, bool isGcd, uint gcd, uint immediate)
-        => selected != 0 && (isGcd ? selected == gcd : selected == immediate);
+        => selected != 0 && (isGcd ? selected == gcd : selected == immediate || selected == (uint)BLM.AID.LeyLines);
 
     private unsafe RsrActionEvidence? Capture(ActionManagerEx manager, Class job, bool immediate)
     {
         if (!immediate) NoSelectedAction = false;
+        else ImmediateSelection = null;
         if (!Service.Framework.IsInFrameworkUpdateThread)
             throw new InvalidOperationException("RSR evidence must be captured on the framework thread.");
         try
@@ -117,13 +119,15 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
                 Status = "RSR selected action has no supported native definition";
                 return null;
             }
+            if (immediate) ImmediateSelection = (id, targetId, definition.IsGCD);
             // Only RSR's actually selected party ability is added. This is not a
             // scan for hypothetical future heals or a new rotation predictor.
             // Offensive abilities can share mobility gauges; they need explicit
             // resource effects before belonging to a multi-action forecast.
-            if (immediate && (definition.IsGCD || !Planning.NativeActionSequence.IsImmediatePartyHeal(id)
+            if (immediate && (definition.IsGCD || !Planning.NativeRotationalMobility.Contains(id) && !Planning.NativeRotationalPreparation.IsImmediateSetup(id)
+                && (!Planning.NativeActionSequence.IsImmediatePartyHeal(id)
                 || Read(setting, "IsFriendly") is not true || row.CastType != 2
-                || Number(Read(targetInfo, "Range")) != 0 || Number(Read(targetInfo, "EffectRange")) <= 0)) return null;
+                || Number(Read(targetInfo, "Range")) != 0 || Number(Read(targetInfo, "EffectRange")) <= 0))) return null;
             var affected = ImmutableArray.CreateBuilder<ulong>();
             if (Read(targetResult, "AffectedTargets") is IEnumerable targets)
                 foreach (var target in targets)
@@ -136,7 +140,10 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
             var proc = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.CastTimeProc.None;
             var cast = manager.GetAdjustedCastTime(nativeAction, true, &proc) * 0.001f;
             var withoutProc = manager.GetAdjustedCastTime(nativeAction, false) * 0.001f;
-            var recast = definition.IsGCD ? manager.GetAdjustedRecastTime(nativeAction) * 0.001f : 0;
+            var clockId = Planning.NativeRotationalPreparation.SharedClockAction(id);
+            if (!data.GetExcelSheet<Lumina.Excel.Sheets.Action>().TryGetRow(clockId, out var clockRow))
+            { Status = "Selected action shared-clock definition is unavailable"; return null; }
+            var recast = definition.IsGCD ? manager.GetAdjustedRecastTime(new(ActionType.Spell, clockId)) * 0.001f : 0;
             var ready = Math.Max(immediate ? 0 : Number(_remain?.GetValue(null)), manager.EffectiveAnimationLock);
             var total = Number(_total?.GetValue(null));
             var ahead = Number(_ahead?.GetValue(null));
@@ -151,7 +158,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
                 Read(setting, "IsFriendly") is true, Read(targetInfo, "IsTargetArea") is true,
                 row.CastType, range, effect, row.XAxisModifier > 0 ? row.XAxisModifier / 2f : 0,
                 ready, recast, ahead, cast, cast > 0 ? definition.CastAnimLock : definition.InstantAnimLock,
-                (byte)proc, withoutProc, row.Cast100ms * 0.1f, CapturePositional(action, setting, id), definition.IsGCD ? row.Recast100ms * 0.1f : 0);
+                (byte)proc, withoutProc, row.Cast100ms * 0.1f, CapturePositional(action, setting, id), definition.IsGCD ? clockRow.Recast100ms * 0.1f : 0);
             Status = $"RSR selected action {id}; {affected.Count} evidenced recipients";
             return result;
         }
@@ -165,7 +172,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
         }
     }
 
-    internal ImmutableHashSet<uint> EnabledActions(Class job)
+    internal ImmutableHashSet<uint> EnabledActions(Class job, bool originalIds = false)
     {
         if (!Service.Framework.IsInFrameworkUpdateThread)
             throw new InvalidOperationException("RSR action settings require the framework thread.");
@@ -186,7 +193,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
                     _enabledFields[config.GetType()] = field = config.GetType().GetField("_isEnable", BindingFlags.Instance | BindingFlags.NonPublic);
                 if (field?.FieldType == typeof(bool) && field.GetValue(config) is true)
                 {
-                    var id = Convert.ToUInt32(Read(action, "AdjustedID") ?? 0);
+                    var id = Convert.ToUInt32(Read(action, originalIds ? "ID" : "AdjustedID") ?? 0);
                     if (id != 0)
                         result.Add(id);
                 }
@@ -272,6 +279,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
     private static bool FiniteNonnegative(params float[] values) => values.All(v => float.IsFinite(v) && v >= 0);
     private void Reset(string status)
     {
+        ImmediateSelection = null;
         NoSelectedAction = false;
         _assembly = null;
         _nextAction = _nextGcd = _rotation = _remain = _total = _ahead = null;
@@ -284,6 +292,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
         _enabledFields.Clear();
         _comboMembers.Clear();
         Status = status;
+        HealingStatus = status;
     }
     public void Dispose() => Reset("RSR evidence reader disposed");
 }

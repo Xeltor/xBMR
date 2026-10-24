@@ -30,6 +30,20 @@ public static partial class Checks
         Check(RsrExecutionCapture.Create(single, player, [target with { Dead = true }], [], 2, Positional.Any, null, out _) == null,
             "a dead selected target invalidates the current opportunity");
 
+        var soul = single with { ActionId = 16506, TargetId = player.Id, Range = 0, Friendly = false,
+            AffectedRecipients = [player.Id], ReadyIn = 0 };
+        var selfBuff = RsrExecutionCapture.Create(soul, player, [target], [], 5, Positional.Rear,
+            new(default, 10.Degrees()), out _);
+        Check(selfBuff is { UsesHardTarget: false, Opportunity.Shape: ExecutionShape.Self }
+            && selfBuff.Opportunity.Evaluate(new(20, 0)).Allowed
+            && selfBuff.Opportunity.Evaluate(new(20, 0)).Value == 1
+            && !selfBuff.Opportunity.Covers(default, target.Id),
+            "Recorded Umbral Soul with RSR IsFriendly=false remains a self-only opportunity without a capture exception or origin pin.");
+        var release = RsrExecutionCapture.Create(soul with { ActionId = 7389, Recast = 0 }, player, [target], [], 5,
+            Positional.Any, null, out _);
+        Check(release is { IsGCD: false, Opportunity.Shape: ExecutionShape.Self },
+            "Inner Release uses the same native self-only geometry without requiring RSR's friendly selection category.");
+
         var allies = Enumerable.Range(1, 96).Select(i => new ExecutionActor((ulong)i, new(i % 2, 0), 0, 0.5f, default)).ToArray();
         var heal = single with { ActionId = 20, TargetId = 1, Friendly = true, Range = 0, EffectRange = 5,
             AffectedRecipients = allies.Select(a => a.Id).ToImmutableArray() };

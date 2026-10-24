@@ -42,6 +42,7 @@ public static partial class Checks
         Diagnostics();
         RsrEvidence();
         SelectedPartySequence();
+        ConfiguredHealingCoverage();
         RedMageComboRecovery();
         RedMagePreparation();
         Execution();
@@ -63,6 +64,14 @@ public static partial class Checks
         NativeDashSafety();
         MobilityMechanics();
         ResourcePruning();
+        CombatRangeRecovery();
+        EscapeCommitment();
+        GriffinWarningRecovery();
+        MobilityRebinding();
+        CombatFollowRangeTests();
+        RotationalMobility();
+        RotationalPreparation();
+        MeleeRecoveryDelivery();
         UtilityPlanning();
         SprintPlanning();
         Presentation();
@@ -105,7 +114,6 @@ public static partial class Checks
         RsrMeleeFallbackTests.Regression();
         NativeReplayEvidence();
         ProcessingStatusChecks.Run().GetAwaiter().GetResult();
-        PatchNoteHistoryTests.MissedUpdates();
         LinkedRotation();
         Console.WriteLine($"Native movement: {_assertions} assertions passed.");
     }
@@ -570,6 +578,41 @@ public static partial class Checks
         Array.Fill(strict.PixelMaxG, -1);
         Check(snapshot.CopyStrictMap().PixelMaxG.Any(v => v == float.MaxValue), "Returned map cannot mutate captured native safety.");
 
+        var trappedInput = input with { Warnings = [], Obstacles = [new SDCircle(identity.Origin, .6f)] };
+        var trapped = NativeNavigationSnapshot.Capture(trappedInput);
+        var escape = trapped.Recover(new());
+        Check(escape.Publication is { Destination: not null } escapeRoute
+            && trapped.CanExecuteRecovery(escapeRoute, identity.Origin),
+            "A fresh native escape from an occupied blocked raster cell is executable; elective start-cell validation cannot deadlock recovery.");
+        var stuckContext = new MovementPlanningContext(trappedInput.Identity, trapped.CopyStrictMap(), 0, 0,
+            Enumerable.Repeat(true, trapped.Cells).ToArray(), new float[trapped.Cells], [], [], native: trapped);
+        Check(!JointMovementSearch.Search(stuckContext, Exhaustive).HasVerifiedRoute,
+            "Emergency native egress does not authorize elective movement from an impassable start.");
+        var recoveryInput = input with { Warnings = [], Goals = new([point => point.X > 1 && point.Z > 1 ? 10 : 0]) };
+        var recoverySnapshot = NativeNavigationSnapshot.Capture(recoveryInput);
+        var rangeContext = new MovementPlanningContext(recoveryInput.Identity, recoverySnapshot.CopyStrictMap(), 0, 0,
+            Enumerable.Repeat(true, recoverySnapshot.Cells).ToArray(), new float[recoverySnapshot.Cells], [], [], native: recoverySnapshot,
+            range: new(10, new(2.5f, 2.5f), 2, RecoverExecution: true));
+        var rangeRecovery = NativeMovementSearch.Recover(rangeContext, new());
+        Check(NativeMovementHost.CanRecoverCombatRange(rangeContext, rangeRecovery),
+            "Optional optimization cannot stall a complete verified native route restoring melee access.");
+        Check(!NativeMovementHost.CanRecoverCombatRange(stuckContext, rangeRecovery),
+            "Pending melee optimization cannot bypass a changed map or impassable start.");
+        var partialRange = new MovementPlanningContext(recoveryInput.Identity, recoverySnapshot.CopyStrictMap(), 0, 0,
+            Enumerable.Repeat(true, recoverySnapshot.Cells).ToArray(), new float[recoverySnapshot.Cells], [], [], native: recoverySnapshot,
+            range: new(10, new(12.5f, 12.5f), 2, RecoverExecution: true));
+        Check(NativeMovementHost.CanRecoverCombatRange(partialRange, rangeRecovery),
+            "A complete safe native route making real progress toward combat range cannot be frozen until optimization finds an all-the-way endpoint.");
+        var mobilityContext = new MovementPlanningContext(recoveryInput.Identity, recoverySnapshot.CopyStrictMap(), 0, 0,
+            Enumerable.Repeat(true, recoverySnapshot.Cells).ToArray(), new float[recoverySnapshot.Cells], [], [], native: recoverySnapshot,
+            range: new(10, new(2.5f, 2.5f), 1, RecoverExecution: true), resources: 1,
+            mobilityMechanics: [new(7, MobilityMechanic.Target, 20, 0, 0, 0, .1f, 0, [new(10, new(2.5f, 2.5f), 0)])]);
+        var publications = new List<MovementPlan>();
+        NativeMovementSearch.Run(mobilityContext, default, publications.Add);
+        Check(publications.Count > 1 && publications[1].Status == MovementSearchStatus.Searching
+            && publications[1].Stages.Any(s => s.ActionId == 7),
+            "A complete useful dash is published from the initial opportunity pass while its other alternatives are still being searched.");
+
         var urgent = input with { Warnings = [(new SDCircle(identity.Origin, 1.1f), identity.WorldTime.AddSeconds(1.8), 1)],
             Goals = new([point => point.X > 1 ? 10 : 0]) };
         var urgentSnapshot = NativeNavigationSnapshot.Capture(urgent);
@@ -676,13 +719,27 @@ public static partial class Checks
         actor.PosRot = new(-2.5f, 0, -2.5f, 0);
         var hints = new AIHints { PathfindMapBounds = new ArenaBoundsSquare(4, mapResolution: 1) };
         hints.GoalZones.Add(p => p.X > 1 && p.Z > 1 ? 10 : 0);
-        using var host = new NativeMovementHost();
+        using var host = new NativeMovementHost(new MovementPlanningService((context, cancel) =>
+        {
+            cancel.WaitHandle.WaitOne();
+            throw new OperationCanceledException(cancel);
+        }));
         var inspection = new NavigationDecision.Context();
-        NavigationDecision decision = default;
-        Check(SpinWait.SpinUntil(() => (decision = host.Update("normal", world, hints, actor, 6, 0, inspection)).Destination != null, 5000),
-            "Native normal-movement intent receives a result from the shared worker.");
+        var decision = host.Update("normal", world, hints, actor, 6, 0, inspection);
+        Check(decision.Destination != null && host.Execution?.Kind == MovementExecutionKind.Walk,
+            "Native movement recovers in the same frame even when the optimizer never publishes.");
         Check(decision.Publication is { PublishedUtc: not null } && host.CurrentPlan is { Status: MovementSearchStatus.NativeRecovery },
             "Intermediate native-only lifecycle truthfully reports recovery, not completed combat optimization.");
+        hints.GoalZones.Clear();
+        hints.ForbiddenZones.Add((new SDCircle(actor.Position, 1.5f), world.CurrentTime, 0));
+        foreach (var intent in new MovementIntent?[] { null, new(ExplicitDestination: new(2, 2)) })
+        {
+            decision = host.Update("normal", world, hints, actor, 6, 0, inspection, intent);
+            Check(decision.Destination != null && host.Execution?.Kind == MovementExecutionKind.Walk,
+                "A newly active damaging area receives immediate native egress even during optimization while the worker is blocked.");
+        }
+        hints.ForbiddenZones.Clear();
+        hints.GoalZones.Add(p => p.X > 1 && p.Z > 1 ? 10 : 0);
         hints.NoMovementAllowsManualInput = true;
         hints.ImminentSpecialMode = (AIHints.SpecialMode.NoMovement, world.CurrentTime, world.FutureTime(10));
         Check(host.Update("normal", world, hints, actor, 6, 0, inspection).Destination == null && host.CurrentPlan == null,
@@ -692,8 +749,8 @@ public static partial class Checks
         actor.IsDead = true;
         Check(host.Update("follow", world, hints, actor, 6, 0, inspection).Destination == null, "Death cannot submit movement.");
         actor.IsDead = false;
-        Check(SpinWait.SpinUntil(() => host.Update("follow", world, hints, actor, 6, 0, inspection).Destination != null, 5000),
-            "Following after resurrection can acquire the same native planning service.");
+        Check(host.Update("follow", world, hints, actor, 6, 0, inspection).Destination != null,
+            "Following after resurrection recovers immediately while superseded work is still cancelling.");
         host.Release("follow");
         Check(host.CurrentPlan == null, "Follow unload releases its result.");
         var behavior = typeof(AIHints).Assembly.GetType("BossMod.AI.AIBehaviour", true)!;

@@ -30,11 +30,10 @@ public static partial class Checks
             var store = new AssistanceSettingsStore(root, Path.Combine(root, "absent.json"));
             var settings = new AssistanceSettingsSession(store);
             var configOpened = 0;
-            var notesOpened = 0;
             var nativeReads = 0;
             var recordingReads = 0;
             var messages = new List<string>();
-            var commands = new LegacyAssistanceCommands(settings, () => ++configOpened, () => ++notesOpened,
+            var commands = new LegacyAssistanceCommands(settings, () => ++configOpened,
                 () => { ++nativeReads; return "native current state"; },
                 () => { ++recordingReads; return "recording current state"; }, messages.Add);
             try
@@ -63,8 +62,10 @@ public static partial class Checks
                     && !LegacyAssistanceCommands.Usage.Contains("camera", StringComparison.Ordinal),
                     "The removed camera subcommand displays help without changing the saved camera preference or advertising itself.");
                 commands.Execute("config");
+                Check(configOpened == 1, "Legacy config opens the integrated settings.");
                 commands.Execute("notes");
-                Check(configOpened == 1 && notesOpened == 1, "Legacy window commands dispatch to the integrated settings and patch notes.");
+                Check(messages[^1] == LegacyAssistanceCommands.Usage && !LegacyAssistanceCommands.Usage.Contains("notes", StringComparison.Ordinal),
+                    "The removed notes command displays help without advertising an in-client update log.");
                 commands.Execute("check-ipc");
                 commands.Execute("check-recording-ipc");
                 Check(nativeReads == 1 && recordingReads == 1 && messages.TakeLast(2).SequenceEqual(new[] { "native current state", "recording current state" }),
@@ -80,9 +81,8 @@ public static partial class Checks
                 settings.ObserveStandalone(true);
                 commands.Execute("knockback on");
                 commands.Execute("off");
-                commands.Execute("notes");
-                Check(preferences.Enabled && preferences.CombatCamera && notesOpened == 1 && !settings.MayAssist,
-                    "Standalone coexistence blocks compatibility mutations and notes before any reload finishes.");
+                Check(preferences.Enabled && preferences.CombatCamera && !settings.MayAssist,
+                    "Standalone coexistence blocks compatibility mutations before any reload finishes.");
             }
             finally { settings.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
             var restarted = store.Load(false).Document!.Preferences;

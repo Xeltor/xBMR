@@ -53,7 +53,12 @@ internal sealed class MovementPlanningService : IDisposable
         // without tolerances on hazards, recipients or manual authority.
         var carried = CarryVerifiedAlternative(_running, _mailbox?.Read(), _pending)
             ?? CarryVerifiedAlternative(_published, _plan, _pending);
-        if (_running is { } running && !SameIntent(running, _pending))
+        // A utility lock/readiness estimate alone must not starve the search.
+        // No result is executable through this exception: publication must still
+        // pass full route/action/resource validation against the latest capture.
+        if (_running is { } running && !SameIntent(running, _pending)
+            && !(running.Owner == owner && context.SameProblem(running.Context,
+                continuingVerifiedRoute: true, forRevalidation: true)))
             _cancellation?.Cancel();
         if (_published is { } published && !SameIntent(published, _pending))
         {
@@ -73,7 +78,7 @@ internal sealed class MovementPlanningService : IDisposable
         if (source == null || plan is not { HasVerifiedRoute: true } || source.Owner != next.Owner
             || source.Revision == next.Revision || !next.Context.Optimize
             || source.Context.Actions.Length != next.Context.Actions.Length
-            || next.Context.Actions.Length != 0 && plan.DeliveredActions != NativeActionSequence.CompleteMask(next.Context.Actions.Length))
+            || !next.Context.PreservesPresent(plan.DeliveredActions) || !next.Context.CompletePreparation(plan.DeliveredActions))
             return null;
         for (var i = 0; i < next.Context.Actions.Length; ++i)
         {
@@ -144,6 +149,13 @@ internal sealed class MovementPlanningService : IDisposable
                 {
                     _plan = result;
                     _published = _running;
+                    LastFailure = null;
+                }
+                else if (_running != null && _pending != null && _cancellation?.IsCancellationRequested != true
+                    && CarryVerifiedAlternative(_running, result, _pending) is { } carried)
+                {
+                    _plan = carried;
+                    _published = _pending;
                     LastFailure = null;
                 }
             }

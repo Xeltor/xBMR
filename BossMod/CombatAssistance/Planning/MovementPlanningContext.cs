@@ -51,26 +51,31 @@ internal sealed record PlanningTargetChoice(ExecutionOpportunity Opportunity, fl
 
 // Only observed actions belong here. Coverage is per recipient, not a weighted healing score.
 // All arrays are copied at the context boundary; no callback can reach live actors from the worker.
+internal enum PlanningPreparationMode { None, Optional, Committed }
+
 internal sealed record PlanningAction(uint Id, ulong TargetId, float Earliest, float Latest, float CastSeconds, float LockSeconds,
     ulong RequiredRecipients, ulong[] RecipientsByCell, float[] ValueByCell, byte RequiredEarlierActions = 0,
     ImmutableArray<ulong> RecipientIds = default, ExecutionOpportunity? Opportunity = null, bool HorizonLimited = false, PlanningCastTiming? Timing = null,
-    ImmutableArray<PlanningTargetChoice> TargetChoices = default, bool UsesHardTarget = false);
+    ImmutableArray<PlanningTargetChoice> TargetChoices = default, bool UsesHardTarget = false, bool IsGCD = false,
+    ImmutableArray<PlanningMovingAlternative> MovingAlternatives = default, ulong ResourceCost = 0, ulong GrantedResources = 0, PlanningPreparationMode Preparation = PlanningPreparationMode.None);
 
 internal sealed record FrozenPlanningAction(uint Id, ulong TargetId, float Earliest, float Latest, float CastSeconds, float LockSeconds,
     ulong RequiredRecipients, ImmutableArray<ulong> RecipientsByCell, ImmutableArray<float> ValueByCell, byte RequiredEarlierActions,
     ImmutableArray<ulong> RecipientIds, ExecutionOpportunity? Opportunity, bool HorizonLimited, PlanningCastTiming? Timing,
-    ImmutableArray<PlanningTargetChoice> TargetChoices = default, bool UsesHardTarget = false)
+    ImmutableArray<PlanningTargetChoice> TargetChoices = default, bool UsesHardTarget = false, bool IsGCD = false,
+    ImmutableArray<PlanningMovingAlternative> MovingAlternatives = default, ulong ResourceCost = 0, ulong GrantedResources = 0, PlanningPreparationMode Preparation = PlanningPreparationMode.None)
 {
     internal float CastAt(WPos position, float start, bool enteredFieldByAbility = false, PlanningPersonalField? field = null, bool fieldBenefitAllowed = true)
         => Timing?.Seconds(CastSeconds, position, start, enteredFieldByAbility, field, fieldBenefitAllowed) ?? CastSeconds;
 }
 
 internal sealed record PlannedActionEvidence(uint Id, ulong TargetId, ImmutableArray<ulong> RequiredRecipientIds, float Value,
-    int SourceActionIndex = -1, float CastSeconds = float.NaN, PlanningCastTiming? Timing = null, float RecastSeconds = float.NaN);
+    int SourceActionIndex = -1, float CastSeconds = float.NaN, PlanningCastTiming? Timing = null, float RecastSeconds = float.NaN, PlanningPreparationMode Preparation = PlanningPreparationMode.None);
 
 internal sealed record PlanningMobility(int SourceCell, int DestinationCell, MovementStageKind Kind, uint ActionId,
     ulong AnchorId, Angle? Facing, float SetupSeconds, float TravelSeconds, float LockSeconds, int Resource, int Charges = 1,
-    WPos? SourcePosition = null, WPos? LandingPosition = null, float ReadyIn = 0, ulong AdditionalResourceCost = 0)
+    WPos? SourcePosition = null, WPos? LandingPosition = null, float ReadyIn = 0, ulong AdditionalResourceCost = 0,
+    bool IsGCD = false, float RecastSeconds = 0, byte RequiredEarlierActions = 0, float AvailableUntil = float.MaxValue)
 {
     internal ulong ResourceCost => ((ulong)Charges << (4 * Resource)) | AdditionalResourceCost;
 }
@@ -119,6 +124,7 @@ internal sealed class MovementPlanningContext
     internal int Width => _map.Width;
     internal int Height => _map.Height;
     internal ImmutableArray<FrozenPlanningAction> Actions => _actions;
+    internal PlanningHealingCoverage? HealingCoverage { get; }
     internal bool HasTargetChoices { get; }
     internal FrozenPlanningAction? ResolveTarget(FrozenPlanningAction action, ulong target)
     {
@@ -137,12 +143,44 @@ internal sealed class MovementPlanningContext
         => observed == stage.AnchorId && stage.SourceActionIndex >= 0 && stage.SourceActionIndex < _actions.Length
             && _actions[stage.SourceActionIndex].Id == stage.ActionId && _actions[stage.SourceActionIndex].TargetId == observed;
 
+    internal byte PresentActionsMask { get; }
+    internal byte PreparationMask { get; }
+    internal bool PreparationCommitted { get; }
+    internal bool PreservesPresent(byte delivered) => (delivered & PresentActionsMask) == PresentActionsMask;
+    internal bool CompletePreparation(byte delivered) => (delivered & PreparationMask) == PreparationMask
+        || !PreparationCommitted && (delivered & PreparationMask) == 0;
+
+    internal bool PreparationLocksActions(byte delivered)
+    {
+        var raiton = -1;
+        byte mudras = 0;
+        for (var i = 0; i < _actions.Length; ++i)
+        {
+            if (_actions[i].Preparation == PlanningPreparationMode.None) continue;
+            if (_actions[i].Id == 2267) raiton = i;
+            if (_actions[i].Id is 2259 or 18806) mudras |= (byte)(1 << i);
+        }
+        return raiton >= 0 && (delivered & (1 << raiton)) == 0 && (PreparationCommitted || (delivered & mudras) != 0);
+    }
+
     internal FrozenPlanningAction? ActionFor(MovementStage stage)
     {
         var action = stage.SourceActionIndex >= 0
             ? stage.SourceActionIndex < _actions.Length ? _actions[stage.SourceActionIndex] : null
-            : _actions.FirstOrDefault(a => a.Id == stage.ActionId && a.TargetId == stage.AnchorId);
-        return action?.Id == stage.ActionId ? ResolveTarget(action, stage.AnchorId) : null;
+            : _actions.FirstOrDefault(a => a.TargetId == stage.AnchorId && (a.Id == stage.ActionId
+                || a.MovingAlternatives.Any(m => m.ActionId == stage.ActionId)));
+        return action == null ? null : stage.Kind == MovementStageKind.Cast
+            ? action.Id == stage.ActionId ? ResolveTarget(action, stage.AnchorId) : null
+            : ResolveMovingAction(action, stage.ActionId, stage.AnchorId);
+    }
+
+    internal FrozenPlanningAction? ResolveMovingAction(FrozenPlanningAction source, uint actualAction, ulong target)
+    {
+        var action = ResolveTarget(source, target);
+        if (action == null || action.Id == actualAction) return action;
+        var alternative = action.MovingAlternatives.FirstOrDefault(m => m.ActionId == actualAction && m.Opportunity.TargetId == target);
+        return alternative == null ? null : action with { Id = actualAction, Opportunity = alternative.Opportunity,
+            CastSeconds = 0, LockSeconds = alternative.LockSeconds, Timing = alternative.Timing, MovingAlternatives = [], TargetChoices = [] };
     }
     internal ImmutableArray<PlanningMobility> Mobility => _mobility;
     internal ImmutableArray<MobilityMechanics> MobilityMechanics { get; }
@@ -155,6 +193,9 @@ internal sealed class MovementPlanningContext
         _presentation = source._presentation;
         _actions = source._actions;
         HasTargetChoices = source.HasTargetChoices;
+        PresentActionsMask = source.PresentActionsMask;
+        PreparationMask = source.PreparationMask;
+        PreparationCommitted = source.PreparationCommitted;
         _mobility = source._mobility;
         Identity = source.Identity;
         Native = source.Native;
@@ -163,6 +204,7 @@ internal sealed class MovementPlanningContext
         StationaryOnly = source.StationaryOnly;
         Range = source.Range;
         PartyContact = source.PartyContact;
+        HealingCoverage = source.HealingCoverage;
         ComboRecovery = source.ComboRecovery;
         ExecutionRules = source.ExecutionRules;
         Utilities = source.Utilities;
@@ -209,7 +251,7 @@ internal sealed class MovementPlanningContext
         IEnumerable<PlanningZone>? zones = null, IEnumerable<PlanningRecharge>? recharges = null, bool cooldownEvidenceLimited = false,
         IEnumerable<PlanningTeleport>? teleports = null, ForcedMovementChoices? forcedMovement = null, PlanningRange? partyContact = null,
         PlanningComboRecovery? comboRecovery = null, PlanningPersonalField? personalField = null, PlanningFieldPlacement? fieldPlacement = null, NativeKnockbackPhases? knockbackPhases = null, bool stationaryOnly = false,
-        Knockback.KnockbackCompletionEvidence? knockbackCompletion = null)
+        Knockback.KnockbackCompletionEvidence? knockbackCompletion = null, PlanningHealingCoverage? healingCoverage = null)
     {
         StationaryOnly = stationaryOnly;
         ForcedMovement = forcedMovement;
@@ -231,6 +273,7 @@ internal sealed class MovementPlanningContext
         Optimize = optimize;
         Range = range;
         PartyContact = partyContact;
+        HealingCoverage = healingCoverage;
         ComboRecovery = comboRecovery;
         ExecutionRules = executionRules ?? PlanningExecutionRules.None;
         Utilities = utilities?.ToImmutableArray() ?? [];
@@ -273,7 +316,14 @@ internal sealed class MovementPlanningContext
         _actions = actions.Select(a => new FrozenPlanningAction(a.Id, a.TargetId, a.Earliest, a.Latest, a.CastSeconds, a.LockSeconds,
             a.RequiredRecipients, a.RecipientsByCell.ToImmutableArray(), a.ValueByCell.ToImmutableArray(), a.RequiredEarlierActions,
             a.RecipientIds.IsDefault ? [] : a.RecipientIds, a.Opportunity, a.HorizonLimited, a.Timing,
-            a.TargetChoices.IsDefault ? [] : a.TargetChoices.ToImmutableArray(), a.UsesHardTarget)).ToImmutableArray();
+            a.TargetChoices.IsDefault ? [] : a.TargetChoices.ToImmutableArray(), a.UsesHardTarget, a.IsGCD,
+            a.MovingAlternatives.IsDefault ? [] : a.MovingAlternatives.ToImmutableArray(), a.ResourceCost, a.GrantedResources, a.Preparation)).ToImmutableArray();
+        for (var i = 0; i < _actions.Length; ++i)
+        {
+            if (_actions[i].Preparation != PlanningPreparationMode.Optional) PresentActionsMask |= (byte)(1 << i);
+            if (_actions[i].Preparation != PlanningPreparationMode.None) PreparationMask |= (byte)(1 << i);
+        }
+        PreparationCommitted = _actions.Any(a => a.Preparation == PlanningPreparationMode.Committed);
         HasTargetChoices = _actions.Any(a => !a.TargetChoices.IsDefaultOrEmpty);
         if (PersonalField != null && _actions.Any(a => a.Timing is { ObservedFieldCast: not null } timing
             && (timing.HasteCenter != PersonalField.Center || timing.HasteUntil > PersonalField.EndsIn + 0.01f)))
@@ -282,14 +332,20 @@ internal sealed class MovementPlanningContext
         if (_allowedDestinations.Length != Cells || _presentation.Length != Cells || _actions.Length > MaximumActions
             || range is { Valid: false } || partyContact is { Valid: false } || comboRecovery is { Valid: false }
             || _presentation.Any(v => !float.IsFinite(v)) || _map.PixelPriority.Take(Cells).Any(v => !float.IsFinite(v))
-            || _actions.Any(a => a.Id == 0 || a.Opportunity == null && (a.RecipientsByCell.Length != Cells || a.ValueByCell.Length != Cells)
+            || _actions.Any(a => !Enum.IsDefined(a.Preparation) || a.Id == 0 || a.Opportunity == null && (a.RecipientsByCell.Length != Cells || a.ValueByCell.Length != Cells)
                 || a.Opportunity != null && (a.Opportunity.TargetId != a.TargetId || a.RequiredRecipients != 0
+                    || a.Opportunity.Shape == ExecutionShape.Self && a.TargetId != Identity.ActorId
                     || !a.RecipientsByCell.IsEmpty || !a.ValueByCell.IsEmpty || !a.RecipientIds.IsEmpty)
                 || a.RecipientIds.Length > 64 || a.RecipientIds.Any(id => id == 0) || a.RecipientIds.Distinct().Count() != a.RecipientIds.Length
                 || a.RecipientIds.Length < 64 && ((a.RequiredRecipients >> a.RecipientIds.Length) != 0 || a.RecipientsByCell.Any(mask => (mask >> a.RecipientIds.Length) != 0))
                 || !float.IsFinite(a.Earliest) || !float.IsFinite(a.Latest) || a.Earliest < 0 || a.Latest < a.Earliest || a.Latest > MaximumHorizonSeconds
                 || !float.IsFinite(a.CastSeconds) || a.CastSeconds < 0 || !float.IsFinite(a.LockSeconds) || a.LockSeconds < 0
                 || a.Timing is { Valid: false }
+                || a.MovingAlternatives.Any(m => !m.Preserves(a) || !MobilityMechanics.Any(native => native.ActionId == m.ActionId
+                    && native.IsGCD && native.ResourceCost == a.ResourceCost && native.RecastSeconds == m.Timing.NativeRecast
+                    && native.Anchors.Any(anchor => anchor.Id == a.TargetId && anchor.Position == m.Opportunity.Anchor
+                        && native.Range + native.PlayerRadius + anchor.Radius == m.Opportunity.CastReach)))
+                || a.MovingAlternatives.Select(m => m.ActionId).Distinct().Count() != a.MovingAlternatives.Length
                 || a.ValueByCell.Any(v => !float.IsFinite(v) || v < 0))
             || _mobility.Any(m => m.SourceCell < 0 || m.SourceCell >= Cells || m.DestinationCell < 0 || m.DestinationCell >= Cells
                 || m.ActionId == 0 || m.Kind == MovementStageKind.TargetDash && m.AnchorId == 0
@@ -297,6 +353,8 @@ internal sealed class MovementPlanningContext
                 || m.Kind is MovementStageKind.Walk or MovementStageKind.Wait or MovementStageKind.Cast or MovementStageKind.Target
                 || m.Resource is < 0 or > 15 || m.Charges is < 1 or > 15
                 || (m.AdditionalResourceCost & (15ul << (4 * m.Resource))) != 0
+                || !float.IsFinite(m.RecastSeconds) || (m.IsGCD ? m.RecastSeconds <= 0 : m.RecastSeconds != 0)
+                || !float.IsFinite(m.AvailableUntil) || m.AvailableUntil < 0
                 || !float.IsFinite(m.SetupSeconds) || m.SetupSeconds < 0 || !float.IsFinite(m.TravelSeconds) || m.TravelSeconds <= 0
                 || !float.IsFinite(m.LockSeconds) || m.LockSeconds < 0 || !float.IsFinite(m.ReadyIn) || m.ReadyIn < 0))
             throw new ArgumentException("Incomplete planning evidence.");
@@ -315,6 +373,13 @@ internal sealed class MovementPlanningContext
         for (var i = 0; i < _actions.Length; ++i)
             if ((_actions[i].RequiredEarlierActions & ~((1 << i) - 1)) != 0)
                 throw new ArgumentException("Action dependencies must refer to earlier evidenced actions.");
+        if (MobilityMechanics.Any(m => (m.RequiredEarlierActions & ~NativeActionSequence.CompleteMask(_actions.Length)) != 0)
+            || _mobility.Any(m => (m.RequiredEarlierActions & ~NativeActionSequence.CompleteMask(_actions.Length)) != 0)
+            || _actions.Any(a => Recharges.Any(r => ChargeCount(a.GrantedResources, r.Resource) != 0)))
+            throw new ArgumentException("A preparation grant needs evidenced actions and a distinct non-replenishing resource.");
+        for (var resource = 0; resource < 16; ++resource)
+            if (ChargeCount(Resources, resource) + _actions.Sum(a => ChargeCount(a.GrantedResources, resource)) > 15)
+                throw new ArgumentException("Action grants exceed the represented resource capacity.");
         foreach (var movement in _mobility)
             if (Cell(MobilityOrigin(movement)) != movement.SourceCell || Cell(MobilityLanding(movement)) != movement.DestinationCell)
                 throw new ArgumentException("Mobility cell does not contain its executable position.");
@@ -328,11 +393,14 @@ internal sealed class MovementPlanningContext
     internal WPos Point(int cell) => _map.GridToWorld(cell % Width, cell / Width, 0.5f, 0.5f);
     internal WPos MobilityOrigin(PlanningMobility mobility) => mobility.SourcePosition ?? Point(mobility.SourceCell);
     internal WPos MobilityLanding(PlanningMobility mobility) => mobility.LandingPosition ?? Point(mobility.DestinationCell);
-    internal IEnumerable<PlanningMobility> MobilityFrom(WPos position, Func<ulong, bool>? canSpend = null, PlanningPersonalField? relocatedField = null)
+    internal IEnumerable<PlanningMobility> MobilityFrom(WPos position, Func<ulong, bool>? canSpend = null, PlanningPersonalField? relocatedField = null, bool includeSpatial = true)
         => _mobility.Where(m => MobilityOrigin(m).AlmostEqual(position, 0.001f) && (canSpend?.Invoke(m.ResourceCost) ?? true)
                 && !(m.ActionId == 7419 && relocatedField != null))
             .Concat(MobilityMechanics.Where(m => canSpend?.Invoke(m.ResourceCost) ?? true)
-                .SelectMany(m => m.From(this, position, m.ActionId == 7419 ? relocatedField?.Center : null)))
+                .SelectMany(m => includeSpatial || m.Mechanic is MobilityMechanic.Target or MobilityMechanic.FixedTowardTarget or MobilityMechanic.TargetBackstep or MobilityMechanic.Return
+                    ? m.From(this, position, m.ActionId == 7419 ? relocatedField?.Center : null)
+                    : Range is { RecoverExecution: true } range && m.Toward(this, position, range.Center) is { } aimed
+                        ? [aimed] : []))
             .Where(m => !RejectedMobility.Any(rejected => rejected.Matches(this, m)));
     internal PlanningMobility? ResolveMobility(WPos position, MovementStage stage, PlanningPersonalField? relocatedField = null)
         => _mobility.Where(m => m.ActionId != 7419 || relocatedField == null)
@@ -340,6 +408,9 @@ internal sealed class MovementPlanningContext
             .FirstOrDefault(m => m.Kind == stage.Kind && m.ActionId == stage.ActionId && m.AnchorId == stage.AnchorId
                 && m.Facing == stage.Facing && MobilityOrigin(m).AlmostEqual(position, 0.01f)
                 && MobilityLanding(m).AlmostEqual(stage.To, 0.01f) && !RejectedMobility.Any(r => r.Matches(this, m)));
+    // Necessary, not sufficient, for any permanent endpoint in this raster cell.
+    // Exact traversal, footprint, projection and assignment checks still apply.
+    internal bool HasPermanentCell(int cell) => _map.PixelMaxG[cell] == float.MaxValue;
     internal bool DestinationAllowed(int cell) => _allowedDestinations[cell];
     internal float NativePriority(int cell) => _map.PixelPriority[cell];
     internal float Presentation(int cell) => _presentation[cell];
@@ -380,10 +451,12 @@ internal sealed class MovementPlanningContext
 
     // Compare actual captured values, never delegate/object identity or a hash used as proof.
     // Time limits are relative to capture: equivalent countdown observations do not restart work.
-    internal bool SameProblem(MovementPlanningContext previous, bool continuingVerifiedRoute = false, bool ignoreRejections = false)
-        => ProblemChange(previous, continuingVerifiedRoute, ignoreRejections) == null;
+    internal bool SameProblem(MovementPlanningContext previous, bool continuingVerifiedRoute = false, bool ignoreRejections = false,
+        bool forRevalidation = false)
+        => ProblemChange(previous, continuingVerifiedRoute, ignoreRejections, forRevalidation) == null;
 
-    internal string? ProblemChange(MovementPlanningContext previous, bool continuingVerifiedRoute = false, bool ignoreRejections = false)
+    internal string? ProblemChange(MovementPlanningContext previous, bool continuingVerifiedRoute = false, bool ignoreRejections = false,
+        bool forRevalidation = false)
     {
         var age = (float)(Identity.WorldTime - previous.Identity.WorldTime).TotalSeconds;
         if (age < 0) return "age";
@@ -392,7 +465,11 @@ internal sealed class MovementPlanningContext
         if (Identity.ContentId != previous.Identity.ContentId) return "Identity.ContentId";
         if (Identity.ProjectionLayer != previous.Identity.ProjectionLayer) return "Identity.ProjectionLayer";
         if (TargetId != previous.TargetId) return "TargetId";
-        if (PartyContact != previous.PartyContact) return "party contact region";
+        if ((PartyContact == null) != (previous.PartyContact == null) || PartyContact != null
+            && !(forRevalidation ? PartyContact with { Center = previous.PartyContact!.Center } : PartyContact).Same(previous.PartyContact!, age))
+            return "party contact region";
+        if (HealingCoverage == null ? previous.HealingCoverage != null
+            : previous.HealingCoverage == null || !HealingCoverage.Same(previous.HealingCoverage, forRevalidation)) return "configured healing need";
         if ((ComboRecovery == null) != (previous.ComboRecovery == null)
             || ComboRecovery != null && !ComboRecovery.Same(previous.ComboRecovery!, age)) return "observed combo recovery";
         if (FieldPlacement == null ? previous.FieldPlacement != null : previous.FieldPlacement == null || !FieldPlacement.Same(previous.FieldPlacement, age))
@@ -416,7 +493,9 @@ internal sealed class MovementPlanningContext
         if (Recharges.Where((r, i) => !r.Same(previous.Recharges[i], age)).Any()) return "resource recharge";
         if (Utilities.Length != previous.Utilities.Length) return "Utilities.Length";
         for (var i = 0; i < Utilities.Length; ++i)
-            if (!Utilities[i].Same(previous.Utilities[i], age))
+            if (!(forRevalidation ? Utilities[i] with { ReadyIn = previous.Utilities[i].ReadyIn,
+                    LockSeconds = previous.Utilities[i].LockSeconds } : Utilities[i])
+                .Same(previous.Utilities[i], forRevalidation ? 0 : age))
             {
                 var current = Utilities[i];
                 var prior = previous.Utilities[i];
@@ -431,7 +510,8 @@ internal sealed class MovementPlanningContext
         if (LateDepartureMargin != previous.LateDepartureMargin) return "LateDepartureMargin";
         if ((ArrivalDeadline == float.MaxValue || previous.ArrivalDeadline == float.MaxValue
                 ? ArrivalDeadline != previous.ArrivalDeadline : Math.Abs(ArrivalDeadline - Math.Max(0, previous.ArrivalDeadline - age)) > 0.002f)) return "ArrivalDeadline";
-        if (Range != previous.Range) return "Range";
+        if ((Range == null) != (previous.Range == null) || Range != null
+            && !(forRevalidation ? Range with { Center = previous.Range!.Center } : Range).Same(previous.Range!, age)) return "Range";
         if (!ExecutionRules.SameRules(previous.ExecutionRules, age)) return "execution constraint";
         if (Radius != previous.Radius) return "Radius";
         if (!continuingVerifiedRoute && !Origin.AlmostEqual(previous.Origin, 0.25f)) return "origin";
@@ -442,11 +522,11 @@ internal sealed class MovementPlanningContext
         if (_map.Rotation != previous._map.Rotation) return "_map.Rotation";
         if (_map.Resolution != previous._map.Resolution) return "_map.Resolution";
         if (!_allowedDestinations.AsSpan().SequenceEqual(previous._allowedDestinations)) return "allowed destinations";
-        if (!_map.PixelPriority.AsSpan(0, Cells).SequenceEqual(previous._map.PixelPriority.AsSpan(0, Cells))) return "native goal field";
+        if (!forRevalidation && !_map.PixelPriority.AsSpan(0, Cells).SequenceEqual(previous._map.PixelPriority.AsSpan(0, Cells))) return "native goal field";
         if (!_mobility.SequenceEqual(previous._mobility)) return "mobility edges";
         if (_actions.Length != previous._actions.Length) return "_actions.Length";
         if (MobilityMechanics.Length != previous.MobilityMechanics.Length) return "MobilityMechanics.Length";
-        if (MobilityMechanics.Where((m, i) => !m.SameMechanics(previous.MobilityMechanics[i], age)).Any()) return "mobility mechanics";
+        if (MobilityMechanics.Where((m, i) => !m.SameMechanics(previous.MobilityMechanics[i], age, forRevalidation)).Any()) return "mobility mechanics";
         if ((Native == null) != (previous.Native == null)) return "Native";
         if (Native != null && !Native.SameTransitions(previous.Native!)) return "Native";
 
@@ -469,13 +549,17 @@ internal sealed class MovementPlanningContext
             if (now.UsesHardTarget != before.UsesHardTarget || now.TargetChoices.Length != before.TargetChoices.Length
                 || now.TargetChoices.Where((choice, index) => choice.SetupSeconds != before.TargetChoices[index].SetupSeconds
                     || choice.VerticalOffset != before.TargetChoices[index].VerticalOffset
-                    || !choice.Opportunity.SameGeometry(before.TargetChoices[index].Opportunity)).Any()) return "action target choices";
-            if (now.Id != before.Id || now.TargetId != before.TargetId || now.CastSeconds != before.CastSeconds
+                    || !(forRevalidation ? choice.Opportunity.SameBinding(before.TargetChoices[index].Opportunity)
+                        : choice.Opportunity.SameGeometry(before.TargetChoices[index].Opportunity))).Any()) return "action target choices";
+            if (now.MovingAlternatives.Length != before.MovingAlternatives.Length || now.MovingAlternatives.Where((m, index) =>
+                !m.Same(before.MovingAlternatives[index], age, forRevalidation)).Any()) return "moving action alternatives";
+            if (now.Id != before.Id || now.TargetId != before.TargetId || now.IsGCD != before.IsGCD || now.ResourceCost != before.ResourceCost
+                || now.GrantedResources != before.GrantedResources || now.Preparation != before.Preparation || now.CastSeconds != before.CastSeconds
                 || (now.Timing == null) != (before.Timing == null) || now.Timing != null && !now.Timing.Same(before.Timing!, age)
-                || now.LockSeconds != before.LockSeconds || now.RequiredRecipients != before.RequiredRecipients
+                || !forRevalidation && now.LockSeconds != before.LockSeconds || now.RequiredRecipients != before.RequiredRecipients
                 || now.RequiredEarlierActions != before.RequiredEarlierActions || !now.RecipientIds.SequenceEqual(before.RecipientIds)
                 || (now.Opportunity == null) != (before.Opportunity == null)
-                || now.Opportunity != null && !now.Opportunity.SameGeometry(before.Opportunity!)
+                || now.Opportunity != null && !(forRevalidation ? now.Opportunity.SameBinding(before.Opportunity!) : now.Opportunity.SameGeometry(before.Opportunity!))
                 || !now.RecipientsByCell.SequenceEqual(before.RecipientsByCell) || !now.ValueByCell.SequenceEqual(before.ValueByCell)
                 || now.HorizonLimited != before.HorizonLimited
                 || Math.Abs(now.Earliest - Math.Max(0, before.Earliest - age)) > 0.01f
@@ -499,6 +583,9 @@ internal sealed record MovementPlan(NavigationIdentity Input, MovementSearchStat
     ulong RemainingResources, byte DeliveredActions, ImmutableArray<float> ExecutionValues, float NativePriority,
     int ExpandedStates, double SearchMilliseconds, string Evidence)
 {
+    internal PlanningHealingCoverage? HealingCoverage { get; init; }
+    internal PlanningRangeAccess? RangeAccess { get; init; }
+    internal float EndGcdReadyAt { get; init; }
     internal ulong TargetId { get; init; }
     internal PlanningFieldPlacement? FieldPlacement { get; init; }
     internal float FieldPlacementGain { get; init; }

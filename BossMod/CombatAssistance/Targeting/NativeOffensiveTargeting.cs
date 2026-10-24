@@ -83,7 +83,7 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
         if (player.TargetID != _observedTarget)
         {
             if (player.TargetID != _expectedTarget && (player.TargetID != 0
-                || world.Actors.Find(_observedTarget) is { IsDead: false, IsDestroyed: false }))
+                || world.Actors.Find(_observedTarget) is { IsTargetable: true, IsDead: false, IsDestroyed: false }))
                 // Existing player/external target handoff, not an IPC timeout.
                 _manualUntil = world.CurrentTime.AddSeconds(3);
             _observedTarget = player.TargetID;
@@ -127,8 +127,10 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
     }
     private object? Center(string name) => _center?.GetProperty(name, Static)?.GetValue(null);
     private bool Manual() => _force?.GetValue(null) is true || _preview?.GetValue(null) is true
-        || Center("CurrentInterceptedAction") != null
-        || RsrCommandPolicy.HasExplicitCommand(Center("CommandStatus") as Enum, Center("SpecialType") as Enum);
+        // CurrentInterceptedAction is historical and survives expired commands.
+        // Only the live queue may hold target ownership beyond the mode gates.
+        || RsrCommandPolicy.HasExplicitCommand(Center("CommandStatus") as Enum, Center("SpecialType") as Enum,
+            Center("CommandNextAction") != null);
     private bool Fresh(object rotation) => !_disposed && _allowed() && ReferenceEquals(_rotation, rotation)
         && ReferenceEquals(Center("CurrentRotation"), rotation)
         && Stopwatch.GetElapsedTime(_worldObserved).TotalSeconds is >= 0 and < 0.25;
@@ -337,27 +339,35 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
             || _manager.HasAutomaticTargetModule && _manager.Hints.AutomaticRetargetingAllowed == null) return false;
         try
         {
-            if (!Prepare() || _rotation == null || !Fresh(_rotation) || !SelectionFresh() || Manual()
+            if (!Prepare() || _rotation == null || !Fresh(_rotation) || Manual()
                 || !SelectionMode() || CaptureFrame() is not { } frame) return false;
+            var current = _manager.WorldState.Actors.Find(frame.Current);
+            var acquisition = frame.MissingTargetAcquisition(current is { IsTargetable: true, IsDead: false, IsDestroyed: false });
+            if (acquisition != 0 && _manager.Hints.ForcedTarget == null)
+                return PublishTarget(frame, acquisition, 0, "Reacquire a permitted native combat target; awaiting original RSR action selection");
+            if (!SelectionFresh()) return false;
             var selection = ReadSelection();
             if (!SameSelection(selection, _observedSelection)) return false;
             var target = selection.Target != 0 && selection.Target != frame.Player.Id ? selection.Target : 0;
             if (target != 0 && _currentActions.TryGetValue(selection.Action, out var selectedAction)
                 && !frame.AllowsNative(selectedAction.Geometry, target)) return false;
-            // Acquisition follows RSR's actual validated choice. Do not pick a
-            // nearest fallback outside its action/status/config checks.
-            if (target == 0) return false;
+            // Changes to a usable target still require RSR's original validated
+            // action, geometry and recipient evidence.
             if (target == 0 || frame.Current == 0 && !frame.Acquire && _manager.Hints.ForcedTarget == null) return false;
-            var actor = _manager.WorldState.Actors.Find(target);
-            if (actor is not { IsTargetable: true, IsDead: false, IsDestroyed: false }
-                || !frame.Eligible(target) || _manager.Hints.ForcedTarget?.InstanceID == target
-                || !_manager.Hints.TrySetAssistedTarget(actor)) return false;
-            _expectedTarget = target;
-            Decision = new(target, actor.PosRot.XYZ(), selection.Action, selection.Target == 0 ? "Reacquire a permitted native combat target"
-                : "Current RSR action and native movement share the selected target", true, DateTime.UtcNow);
-            return true;
+            return PublishTarget(frame, target, selection.Action, "Current RSR action and native movement share the selected target");
         }
         catch (Exception error) { Failed(error); return false; }
+    }
+
+    private bool PublishTarget(OffensiveTargetFrame frame, ulong target, uint action, string reason)
+    {
+        var actor = _manager.WorldState.Actors.Find(target);
+        if (actor is not { IsTargetable: true, IsDead: false, IsDestroyed: false }
+            || !frame.Eligible(target) || _manager.Hints.ForcedTarget?.InstanceID == target
+            || !_manager.Hints.TrySetAssistedTarget(actor)) return false;
+        _expectedTarget = target;
+        Decision = new(target, actor.PosRot.XYZ(), action, reason, true, DateTime.UtcNow);
+        return true;
     }
 
     private static ExecutionActor Value(Actor actor) => new(actor.InstanceID, actor.Position, actor.PosRot.Y,

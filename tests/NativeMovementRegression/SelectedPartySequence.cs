@@ -35,5 +35,17 @@ public static partial class Checks
             "Missing or repeated action evidence never invents a second rotation delivery.");
         Check(NativeActionSequence.CompleteMask(0) == 0 && NativeActionSequence.CompleteMask(8) == 255,
             "The complete publication mask supports the full existing evidenced-action model.");
+        var lockMap = Grid(3, 1);
+        lockMap.PixelPriority[2] = 1;
+        var first = Action(lockMap, 5, 0, [0, 0, 0], [1, 1, 1]) with { LockSeconds = 2 };
+        var next = Action(lockMap, 5, 0, [0, 0, 0], [1, 1, 1]) with { Id = 2, RequiredEarlierActions = 1 };
+        var lockInput = Context(lockMap, 0, [first, next]);
+        var moving = JointMovementSearch.Search(lockInput, Exhaustive);
+        Check(moving.DeliveredActions == 3 && moving.DeliveryTimes[0] == 0 && moving.DeliveryTimes[1] == 2
+            && moving.Stages.First(s => s.Kind == MovementStageKind.Walk).StartSeconds == 0
+            && moving.Stages.First(s => s.Kind == MovementStageKind.Cast).EndSeconds == 0,
+            "Ordinary walking proceeds during an instant attack's animation lock while the next action still waits for that lock.");
+        Check(MovementPlanValidation.Validate(moving, lockInput, 0, true, lockInput.Identity.CapturedTimestamp).Allowed,
+            "Final route validation preserves separate movement and action clocks.");
     }
 }

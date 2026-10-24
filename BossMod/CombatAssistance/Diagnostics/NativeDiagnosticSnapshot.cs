@@ -39,7 +39,8 @@ internal sealed class NativeDiagnosticSnapshot
         Support.TankRecoveryDecision? tankRecovery = null, string? tankRecoveryStatus = null, string? rotationMode = null, string? inputChange = null,
         Func<NativeActionTimingObservation?>? readTiming = null,
         Targeting.OffensiveTargetDecision? targeting = null, string? targetingStatus = null,
-        Knockback.NativeKnockbackObservationStatus? knockbackObservation = null, NativeDisplacementStatus? displacement = null, string? knockbackSelection = null)
+        Knockback.NativeKnockbackObservationStatus? knockbackObservation = null, NativeDisplacementStatus? displacement = null, string? knockbackSelection = null,
+        string? healingStatus = null)
     {
         if (!frameworkThread)
             return Failure("framework_thread_required");
@@ -127,6 +128,7 @@ internal sealed class NativeDiagnosticSnapshot
                     position = new { x = targeting.Position.X, y = targeting.Position.Y, z = targeting.Position.Z }
                 },
                 targetingStatus,
+                healingStatus,
                 castControl = control == null ? null : new
                 {
                     control.Target,
@@ -170,6 +172,7 @@ internal sealed class NativeDiagnosticSnapshot
             execution.Reason,
             execution.ActionId,
             execution.TargetId,
+            execution.SubmissionPending,
             facing = execution.Facing?.Rad,
             departureSeconds = FiniteDeadline(execution.DepartureSeconds)
         },
@@ -188,7 +191,16 @@ internal sealed class NativeDiagnosticSnapshot
         plan.OriginPresentation,
         plan.DestinationPresentation,
         priorDestination = plan.PriorDestination is { } prior ? Position(prior) : null,
+        rangeAccess = plan.RangeAccess is { } access ? new
+        { readyAt = FiniteDeadline(access.ReadyAt), loss = FiniteDeadline(access.Loss), at = FiniteDeadline(access.At) } : null,
         partyContact = plan.PartyContact is { } contact ? new { contact.TargetId, center = Position(contact.Center), contact.Radius } : null,
+        healingCoverage = plan.HealingCoverage?.Requirements.Take(displayedRecipients).Select(r => new
+        {
+            r.RecipientId, r.HealthRatio, position = Position(r.Position),
+            covered = r.Loss(plan.UsefulDestination) <= MovementPlanValidation.ArrivalTolerance,
+            alternatives = r.Alternatives.Take(displayedStages).Select(a => new { a.ActionId, a.Radius, kind = a.Kind.ToString() })
+        }),
+        healingRequirementCount = plan.HealingCoverage?.Requirements.Length ?? 0,
         comboRecovery = plan.ComboRecovery is { } combo ? new
         {
             combo.TargetId,
@@ -213,6 +225,7 @@ internal sealed class NativeDiagnosticSnapshot
         actionEvidence = plan.ActionEvidence.Select(a => new
         {
             a.Id,
+            preparation = a.Preparation.ToString(),
             a.TargetId,
             requiredRecipientIds = a.RequiredRecipientIds.Take(displayedRecipients),
             recipientCount = a.RequiredRecipientIds.Length,

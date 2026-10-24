@@ -2,8 +2,8 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>7.5.6.3519</Version>
-    <InformationalVersion>7.5.6.35.19</InformationalVersion>
+    <Version>7.5.6.3520</Version>
+    <InformationalVersion>7.5.6.35.20</InformationalVersion>
     <Description>Xel's Boss Mods Reborn (xBMR).</Description>
     <Copyright></Copyright>
     <PackageProjectUrl></PackageProjectUrl>
@@ -132,7 +132,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Pathfinding\ObstacleMaps\*" />
-    <EmbeddedResource Include="CombatAssistance/UI/PatchNotes.json" LogicalName="BossMod.CombatAssistance.PatchNotes.json" />
   </ItemGroup>
 
   <ItemGroup>

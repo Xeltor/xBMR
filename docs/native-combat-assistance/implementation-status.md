@@ -6,12 +6,36 @@ All 72 provenance-identified XCAI-only integration registrations have been
 removed. The 67 upstream endpoint names remain. Cutover is not yet complete:
 remaining behavioral parity and live validation are recorded below.
 
+## Repair release candidate — 2026-10-24
+
+Release candidate `7.5.6.35.20` includes the repaired native targeting, combat
+range, configured healing demand, rotational mobility/preparation, Sprint and
+escape commitment. The pre-version-bump implementation builds and passes 43,081
+native assertions, installed RSR contracts and nine repository tests. The dated
+regression record identifies the exact loaded development artifacts and the
+completed NPC comparisons. The maintainer reports substantially improved
+similarity to XCAI; the latest Griffin recording confirms delivered movement
+actions and scoped mechanic avoidance. The first-boss hide recurrence, remaining
+avoidable Talons, caster interruptions, out-of-range healing recovery and
+micro-stepping remain in TODO.md. This is a practical repair release, not a claim
+of universal mechanic, role or mobility parity. Keep further changes tied to
+concrete failures or an evidence-backed micro-stepping diagnosis.
+
+The first maintainer Mistwake run failed gameplay acceptance: active-mechanic
+movement, acquisition, range/mobility recovery and out-of-combat facing regressed.
+Use the current, shortened `TODO.md` for actual priorities. Its explicit deferred
+tuning and ordinary-play checks are not blanket release gates. The new repairs
+have source and offline regression evidence; the failed run is not acceptance of
+those repairs. Older matrices below are history, not additional required work.
+See [the repair record](regressions-2026-10-24.md).
+
 ## Current completion pass — 2026-10-24
 
 TODO.md is the authoritative current checklist. The following chronology records
-older checkpoints and does not reopen superseded requirements. All feature
-families have native implementations and explicit source/settings responsibility
-mappings (385 sources, 100 settings). Source mapping does not assert that every
+older checkpoints and does not reopen superseded requirements. Feature families have explicit source/settings responsibility mappings
+(385 sources, 100 settings), but the subsequent fight analysis found omitted
+rotational mobility and proactive configured healing need; those mappings do
+not establish implementation completeness or gameplay parity. Source mapping does not assert that every
 standalone helper was copied. First walking publication now includes useful
 post-action friendly-field recovery rather than stopping before that continuation.
 The old unassigned DeferLeyLinesPlacement callback is replaced by direct original
@@ -25,8 +49,9 @@ to invent geometry. Remaining feature acceptance belongs to dungeon/lifecycle
 checks. Final managed build, 42,863 native assertions, all 19 broader suites, installed
 RSR contracts and nine repository tests passed. The actual newer-upstream merge
 also built and passed the same native/broader checks. See handoff.md and
-validation-current.json for exact identities. No final deployment or gameplay
-acceptance was performed. Stop at this handoff for user dungeon testing.
+validation-current.json for exact identities. That earlier checkpoint performed no final deployment or gameplay acceptance.
+It is superseded by the maintainer's subsequent active gameplay repair goal;
+see TODO.md and the dated regression record for current implementation/testing.
 
 ## Scope change — 2026-10-23
 
@@ -203,8 +228,7 @@ requires a refreshed final trial; no upstream adoption or release was performed.
   Healer-selection and Ley Lines placement adapters still need policy wiring.
 - Native replay decoding through typed operations, archive format/privacy
   compatibility, and opt-in sharing with the existing custody receipts.
-- Material patch-note history retaining imported acknowledgment IDs, and current
-  native plan/support overlays using the existing drawing primitives.
+- Current native plan/support overlays using the existing drawing primitives.
 - Stable party-facing finishes an arrived plan only during downtime. Formation
   memory and deterministic party lanes participate before the first safety move,
   after combat, native goals, resources and continuity. Extra AoE/heal coverage

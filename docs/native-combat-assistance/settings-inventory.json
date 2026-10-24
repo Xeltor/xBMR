@@ -11,14 +11,14 @@
     {
       "name": "AcknowledgedPatchNotes",
       "type": "string[]?",
-      "destination": "Native Material patch-note history; original acknowledgment IDs retained",
-      "status": "implemented; live validation pending"
+      "destination": "Retired with the excluded in-client update log; original legacy file retained",
+      "status": "intentionally excluded"
     },
     {
       "name": "PatchNotesBaselineVersion",
       "type": "string?",
-      "destination": "Native Material patch-note history; original acknowledgment IDs retained",
-      "status": "implemented; live validation pending"
+      "destination": "Retired with the excluded in-client update log; original legacy file retained",
+      "status": "intentionally excluded"
     },
     {
       "name": "SettingsWindowPosition",

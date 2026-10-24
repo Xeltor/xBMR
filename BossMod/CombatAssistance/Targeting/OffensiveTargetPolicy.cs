@@ -31,6 +31,13 @@ internal sealed record OffensiveTargetFrame(ExecutionActor Player, ulong Current
         .ThenBy(a => (a.Actor.Position - Player.Position).LengthSq())
         .ThenBy(a => a.Actor.Id).Select(a => a.Actor.Id).FirstOrDefault();
 
+    // Acquiring a hard target is not an action approval. Henched RSR needs the
+    // hard target before it can produce any action/recipient evidence at all.
+    // Never replace a usable player target or an authored/manual instruction here.
+    internal ulong MissingTargetAcquisition(bool currentTargetUsable)
+        => !currentTargetUsable && Acquire && !RetainSelection && Forced == 0 && Valid(Player)
+            ? Acquisition : 0;
+
     // Constraints shared by original RSR selection and publication. This is not
     // a replacement rotation: single-target status/resource ordering stays in RSR.
     internal bool AllowsNative(OffensiveActionGeometry action, ulong candidate)

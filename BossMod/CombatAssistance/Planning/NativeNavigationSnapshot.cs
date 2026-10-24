@@ -78,11 +78,15 @@ internal sealed class NativeNavigationSnapshot
     internal float[] CopyPresentation() => _presentation.ToArray();
 
     internal bool SameFrozenMap(NativeNavigationSnapshot other)
+        => SameSafetyMap(other) && _map.PixelPriority.AsSpan(0, Cells).SequenceEqual(other._map.PixelPriority.AsSpan(0, Cells));
+
+    // Rotation goals may change during a committed escape. Only changed native
+    // geometry, deadlines or transitions can retire that mechanic commitment.
+    internal bool SameSafetyMap(NativeNavigationSnapshot other)
     {
         var age = (float)(Identity.WorldTime - other.Identity.WorldTime).TotalSeconds;
         if (age < 0 || _map.Width != other._map.Width || _map.Height != other._map.Height || _map.Center != other._map.Center
             || _map.Rotation != other._map.Rotation || _map.Resolution != other._map.Resolution
-            || !_map.PixelPriority.AsSpan(0, Cells).SequenceEqual(other._map.PixelPriority.AsSpan(0, Cells))
             || !SameTransitions(other)) return false;
         for (var i = 0; i < Cells; ++i)
         {
@@ -97,6 +101,13 @@ internal sealed class NativeNavigationSnapshot
     internal bool CanExecuteRecovery(NavigationPublication publication, WPos current)
     {
         if (publication.Destination is not { } destination) return true;
+        // Recover already searched THIS frozen map from THIS exact position.
+        // Native ThetaStar deliberately permits egress from an occupied blocked
+        // raster cell (including obstacle inflation or an out-of-bounds start).
+        // Applying elective traversal to that freshly computed recovery would
+        // reject the starting cell and permanently suppress native escape.
+        // The caller still checks real collision and execution authority.
+        if (publication.Source == Identity && current == Identity.Origin) return true;
         var duration = (destination - current).Length() / Identity.Speed;
         // Emergency egress may intentionally be the least harmful route from an
         // already unsafe position. Physical obstructions still remain binding.
@@ -109,6 +120,25 @@ internal sealed class NativeNavigationSnapshot
         var map = new Map();
         map.Init(_map, _map.Center);
         return map;
+    }
+
+    // A mobility landing inside a warning is useful only with a complete escape.
+    // Reuse native ThetaStar to supply an early witness; the joint search must
+    // re-prove it with the route's actual travel, action and assignment state.
+    internal WPos[] ContinuationWitness(WPos origin, float elapsed, System.Threading.CancellationToken cancellation, float? speed = null)
+    {
+        var movementSpeed = speed ?? Identity.Speed;
+        if (HasTeleporters || !float.IsFinite(elapsed) || elapsed < 0 || !float.IsFinite(movementSpeed) || movementSpeed <= 0)
+            return [];
+        var map = CopyStrictMap();
+        for (var cell = 0; cell < Cells; ++cell)
+            if (map.PixelMaxG[cell] is >= 0 and < float.MaxValue)
+                map.PixelMaxG[cell] = Math.Max(0, map.PixelMaxG[cell] - elapsed);
+        map.MaxG = Math.Max(0, map.MaxG - elapsed);
+        var search = new ThetaStar();
+        search.Start(map, origin, 1f / movementSpeed);
+        var index = search.ExecuteCancellable(cancellation);
+        return NavigationDecision.CopyWitness(search, index, origin, out var complete) is { } witness && complete ? witness : [];
     }
 
     internal NavigationDecision Recover(NavigationDecision.Context context, System.Threading.CancellationToken cancellation = default)

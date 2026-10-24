@@ -67,7 +67,10 @@ internal partial class ConfigWindow
         this.Checkbox("Follow target", () => native.FollowTarget, NativeDefaults.FollowTarget,
             value => this.NativeChange(() => native.FollowTarget = value));
         this.NativeNumber("Distance to leader", native.MaxDistanceToSlot, value => native.MaxDistanceToSlot = value);
-        this.NativeNumber("Distance to target", native.MaxDistanceToTarget, value => native.MaxDistanceToTarget = value);
+        this.Checkbox("Use combat positioning range", () => native.UseCombatPositioningRange, NativeDefaults.UseCombatPositioningRange,
+            value => this.NativeChange(() => native.UseCombatPositioningRange = value),
+            "Native combat assistance uses the job's reach while RotationSolver is active. The selected action and mechanics determine the useful position. Disable for fixed-distance target following.");
+        this.NativeNumber("Fixed distance to target", native.MaxDistanceToTarget, value => native.MaxDistanceToTarget = value);
         this.NativeNumber("Minimum target distance", native.MinDistance, value => native.MinDistance = value);
         this.Combo("Following positional", () => native.DesiredPositional, NativeDefaults.DesiredPositional,
             value => this.NativeChange(() => native.DesiredPositional = value));

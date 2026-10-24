@@ -82,5 +82,55 @@ public static partial class Checks
             finish.Set();
             Check(completed.Wait(1000), "Cancelled test worker exits before its fixtures are disposed.");
         }
+        UtilityTimingChurn();
+    }
+
+    private static void UtilityTimingChurn()
+    {
+        var map = Grid(3, 1);
+        map.PixelPriority[2] = 1;
+        var identity = Context(map, 0).Identity;
+        MovementPlanningContext Input(float actionLock, bool blocked = false)
+        {
+            if (blocked) map.PixelMaxG[1] = -1;
+            return new(identity, map, 0, 0, [true, true, true], [0, 0, 0], [], [], 1,
+                utilities: [new(7546, PlanningUtilityEffect.IgnorePositional, 10, actionLock, 0, 0)]);
+        }
+        var original = Input(0.6f);
+        var result = JointMovementSearch.Search(original, Exhaustive);
+        using var started = new ManualResetEventSlim();
+        using var finish = new ManualResetEventSlim();
+        using var exited = new ManualResetEventSlim();
+        CancellationToken observed = default;
+        using var service = new MovementPlanningService((context, cancel, publish) =>
+        {
+            if (!ReferenceEquals(context, original)) return JointMovementSearch.Search(context, Exhaustive);
+            observed = cancel;
+            started.Set();
+            finish.Wait();
+            exited.Set();
+            return result;
+        }, () => identity.CapturedTimestamp);
+        service.Submit("normal", 1, original);
+        Check(started.Wait(1000), "Timing-churn worker started.");
+        try
+        {
+            var refreshed = Input(0.601f);
+            Check(!refreshed.SameProblem(original), "The changed lock estimate remains a changed planning input.");
+            service.Submit("normal", 2, refreshed);
+            Check(!observed.IsCancellationRequested,
+                "A utility lock estimate does not cancel a worker before it can produce a fully revalidated route.");
+            finish.Set();
+            Check(exited.Wait(1000), "Timing-churn worker completed.");
+            MovementPlan? carried = null;
+            Check(SpinWait.SpinUntil(() => (carried = service.Poll("normal", 2, identity.WorldTime)) != null, 1000)
+                && carried!.Input == result.Input && carried.Status == MovementSearchStatus.Bounded,
+                "Completed work survives timing-only revisions with original timestamps and honest bounded status.");
+            service.Submit("normal", 3, Input(0.602f, blocked: true));
+            Check(service.Poll("normal", 3, identity.WorldTime)?.UsefulDestination != result.UsefulDestination,
+                "A real new hazard still invalidates a route under timing churn.");
+            service.Release("normal");
+        }
+        finally { finish.Set(); }
     }
 }

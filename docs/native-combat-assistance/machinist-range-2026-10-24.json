@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scenario": "Mistwake Treno Catoblepas, Machinist Duty Support",
+  "sampleSeconds": 0.25,
+  "distance": "Horizontal centre separation minus 0.5y player and 4.5y boss hitboxes; clamped to zero",
+  "method": "Seed boss pose from OpCreate and use each actor's latest preceding OpMove at each sample. Compare matched local OpActionRequest and player OpCastEvent by action ID/source sequence. GCD IDs come from native MCH action definitions.",
+  "before": {
+    "recordingId": "0c382de7a3f4f002648b0e3c",
+    "sha256": "765a306f9f356363905fdc0cb320aff4b02fa8bb9ac3638862c4a2e0f02d2b67",
+    "mvid": "4dea0f76-7d79-4dd5-a939-2070b981d9ab",
+    "utcWindow": [
+      "2026-10-24T13:54:24.887Z",
+      "2026-10-24T13:56:51.172Z"
+    ],
+    "spacing": {
+      "samples": 586,
+      "sampleStepSeconds": 0.25,
+      "under3Fraction": 0.7542662116040956,
+      "median": 1.8491035504492253,
+      "p90": 9.755445499490527,
+      "max": 15.27500693246244,
+      "durationSeconds": 146.285
+    },
+    "actions": {
+      "requests": 112,
+      "matched": 112,
+      "gcds": 67,
+      "maxGap": 2.624,
+      "over4": 0,
+      "ids": {
+        "7411": 10,
+        "7412": 10,
+        "7413": 10,
+        "16498": 7,
+        "16500": 3,
+        "25788": 3,
+        "36978": 20,
+        "36981": 3,
+        "36982": 1
+      }
+    },
+    "gcdPerSecond": 0.45801004887719177
+  },
+  "after": {
+    "recordingId": "644d03fe9109a0ebc2c313d1",
+    "sha256": "d301f856cc2b1fcc4908f8e57bac900ff513e8b273da3ca5046b58d6057bc71b",
+    "mvid": "eb746a24-6184-4abe-999b-2b5383c91f2e",
+    "utcWindow": [
+      "2026-10-24T14:20:07.033Z",
+      "2026-10-24T14:22:43.494Z"
+    ],
+    "spacing": {
+      "recording": "644d03fe9109a0ebc2c313d1",
+      "sha256": "d301f856cc2b1fcc4908f8e57bac900ff513e8b273da3ca5046b58d6057bc71b",
+      "localStart": "2026-10-24T16:20:07.033",
+      "localEnd": "2026-10-24T16:22:43.494",
+      "samples": 626,
+      "sampleStepSeconds": 0.25,
+      "under3Fraction": 0.34345047923322686,
+      "median": 8.225515484551057,
+      "p90": 12.142303065352692,
+      "max": 17.612519709937754,
+      "method": "Latest recorded OpMove for each actor at 250ms intervals, boss OpCreate seeds stationary pose, subtract player and target hitboxes; first-boss local combat interval. Not mechanic-adjusted."
+    },
+    "actions": {
+      "requests": 125,
+      "matched": 125,
+      "gcds": 72,
+      "maxGap": 3.981,
+      "over4": 0,
+      "ids": {
+        "7411": 9,
+        "7412": 9,
+        "7413": 9,
+        "16498": 8,
+        "16500": 4,
+        "25788": 3,
+        "36978": 25,
+        "36981": 3,
+        "36982": 2
+      }
+    },
+    "gcdPerSecond": 0.4601785748525191
+  },
+  "limitations": [
+    "First-boss comparison, not whole-role or migration acceptance.",
+    "No normalization for mechanic movement or exact pattern differences.",
+    "After recording has an incomplete compressed tail later at 14:27:01 UTC; the complete first-boss window precedes that tail.",
+    "GCD request cadence and matched effects are not a potency/damage comparison or server snapshot proof."
+  ]
+}

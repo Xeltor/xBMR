@@ -25,9 +25,27 @@ public static partial class Checks
         var input = Input();
         var plan = JointMovementSearch.Search(input, Exhaustive);
         Check(plan.DeliveredActions == 1 && plan.Stages.Any(s => s is { Kind: MovementStageKind.UtilityAction, ActionId: 3 })
-            && Math.Abs(plan.DeliveryTimes[0] - 9.6f) < 0.001f, "Sprint belongs to the first complete useful route when walking misses the action");
+            && Math.Abs(plan.DeliveryTimes[0] - 9f) < 0.001f, "Sprint releases walking immediately while retaining its lock on the next action");
         Check(MovementPlanValidation.Validate(plan, input, 0, true, input.Identity.CapturedTimestamp).Allowed,
             "execution validates the same speed expiry and complete onward route");
+        var sprintStage = plan.Stages.First(s => s.ActionId == 3);
+        Check(sprintStage.EndSeconds == sprintStage.StartSeconds && sprintStage.ActionLockUntil == sprintStage.StartSeconds + .6f
+            && plan.Stages.First(s => s.Kind == MovementStageKind.Walk).StartSeconds < sprintStage.ActionLockUntil,
+            "Sprint's animation lock is retained without inventing a stationary movement lock.");
+        var moved = new MovementPlanningContext(input.Identity with { Origin = input.Origin + new WDir(.15f, 0) }, map, 0, 0,
+            Enumerable.Repeat(true, 21).ToArray(), new float[21], [action], [], 1, utilities: input.Utilities);
+        var executor = new MovementPlanExecutor();
+        var rebound = executor.RebindInitialMobility(plan, moved);
+        Check(executor.Advance(rebound, moved, default, true, input.Identity.CapturedTimestamp).Kind == MovementExecutionKind.Action,
+            "A Sprint plan can submit from the current running position without waiting at a stale worker point.");
+        var nearby = Grid(3, 1);
+        var nearOrigin = Context(nearby, 0, speed: 6);
+        var nearRange = new MovementPlanningContext(nearOrigin.Identity, nearby, 0, 0, [true, true, true], new float[3], [], [], 1,
+            range: new(10, Point(nearby, 2), 0, RecoverExecution: true),
+            utilities: [new(3, PlanningUtilityEffect.MovementSpeed, 10, .6f, 0, 0, 7.8f)]);
+        var nearPlan = JointMovementSearch.Search(nearRange, Exhaustive);
+        Check(nearPlan.RemainingResources == 1 && nearPlan.Stages.All(s => s.ActionId != 3),
+            "Sprint cannot claim earlier melee execution inside its own action lock when walking would attack sooner.");
         Check(JointMovementSearch.Search(Input(duration: 2), Exhaustive).DeliveredActions == 0,
             "a short boost cannot be credited for the rest of a long route");
         Check(!MovementPlanValidation.Validate(plan, Input(resources: 0), 0, true, input.Identity.CapturedTimestamp).Allowed,

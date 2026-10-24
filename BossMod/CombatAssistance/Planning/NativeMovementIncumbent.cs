@@ -3,21 +3,22 @@ using BossMod.Pathfinding;
 namespace BossMod.CombatAssistance.Planning;
 
 // Native safety recovery is computed independently of the additional optimization budget.
-// Only a complete, unrelaxed, revalidated native witness can seed elective optimization.
+// Only a complete witness re-proved on the unrelaxed map can seed elective optimization.
 internal static class NativeMovementIncumbent
 {
     internal static MovementPlan? Capture(MovementPlanningContext context, NavigationPublication publication)
     {
-        if (publication.Source != context.Identity || !publication.WitnessComplete || publication.NativeRelaxedWarnings || publication.HasTeleporters)
+        if (publication.Source != context.Identity || !publication.WitnessComplete || publication.HasTeleporters)
             return null;
         return CaptureRoute(context, publication.CopyWitness());
     }
 
-    internal static MovementPlan? CaptureRoute(MovementPlanningContext context, ReadOnlySpan<WPos> witness)
+    internal static MovementPlan? CaptureRoute(MovementPlanningContext context, ReadOnlySpan<WPos> witness, float departure = 0)
     {
         if (witness.IsEmpty || !witness[0].AlmostEqual(context.Origin, 0.001f))
             return null;
-        var time = context.UnlockSeconds;
+        if (!float.IsFinite(departure) || departure < 0 || departure > MovementPlanningContext.MaximumHorizonSeconds) return null;
+        var time = Math.Max(context.UnlockSeconds, departure);
         var slack = float.MaxValue;
         var stages = ImmutableArray.CreateBuilder<MovementStage>();
         if (time > 0)

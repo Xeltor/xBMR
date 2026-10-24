@@ -5,7 +5,7 @@ using CSActionType = FFXIVClientStructs.FFXIV.Client.Game.ActionType;
 namespace BossMod.CombatAssistance.Planning;
 
 internal sealed record AvailableMobility(ImmutableArray<MobilityMechanics> Actions, ulong Resources, ImmutableArray<PlanningUtility> Utilities = default, ImmutableArray<PlanningRecharge> Recharges = default, bool CooldownEvidenceLimited = false,
-    PlanningPersonalField? PersonalField = null)
+    PlanningPersonalField? PersonalField = null, ImmutableArray<PreparationGrant> PreparationGrants = default, ImmutableArray<PreparationCost> PreparationCosts = default, bool PreparationAvailable = true)
 {
     internal static readonly AvailableMobility None = new([], 0, [], []);
 }
@@ -14,7 +14,7 @@ internal sealed record AvailableMobility(ImmutableArray<MobilityMechanics> Actio
 // action can be used for escape, recovery or coverage; the joint search decides why.
 internal static class NativeMobilityCapture
 {
-    internal sealed record Definition(uint Id, MobilityMechanic Mechanic, float Distance = 0, uint ReturnObject = 0, bool Phantom = false);
+    internal sealed record Definition(uint Id, MobilityMechanic Mechanic, float Distance = 0, uint ReturnObject = 0, bool Phantom = false, bool Rotational = false);
     internal static readonly ImmutableArray<Definition> Definitions =
     [
         new(16461, MobilityMechanic.Target), new(7386, MobilityMechanic.Target),
@@ -35,41 +35,103 @@ internal static class NativeMobilityCapture
         new(46604, MobilityMechanic.Target, Phantom: true)
     ];
 
+    internal static IEnumerable<Definition> AllDefinitions => Definitions.Concat(NativeRotationalMobility.Definitions);
+
     internal static unsafe AvailableMobility Capture(WorldState world, AIHints hints, Actor player, ActionManagerEx manager,
         AssistancePreferences settings, ImmutableHashSet<uint> enabledActions, bool utilitySelectionOwned = false,
         ImmutableHashSet<uint>? ownedMobility = null, PlanningTravel? travel = null, PlanningPersonalField? personalField = null,
-        bool fieldActionMayWeave = false, uint immunityAction = 0)
+        bool fieldActionMayWeave = false, uint immunityAction = 0, ImmutableArray<PlanningAction> setupActions = default)
     {
         if (!Service.Framework.IsInFrameworkUpdateThread)
             throw new InvalidOperationException("Mobility capture requires the framework thread.");
         var native = CSActionManager.Instance();
         if (native == null || player.PendingKnockbacks.Count != 0
-            || player.Statuses.Any(s => s.ID is 496 or 1186 or 1317 && s.ExpireAt > world.CurrentTime))
+            || player.Statuses.Any(s => s.ID is 1186 or 1317 && s.ExpireAt > world.CurrentTime))
             return AvailableMobility.None;
+        var mudra = player.FindStatus((uint)NIN.SID.Mudra) is { } activeMudra && activeMudra.ExpireAt > world.CurrentTime;
         var actions = ImmutableArray.CreateBuilder<MobilityMechanics>();
         var utilities = ImmutableArray.CreateBuilder<PlanningUtility>();
+        var grants = ImmutableArray.CreateBuilder<PreparationGrant>();
+        var costs = ImmutableArray.CreateBuilder<PreparationCost>();
+        var preparationAvailable = true;
         var resources = new Dictionary<int, (int Slot, uint Charges)>();
+        var hostileAnchors = hints.PriorityTargetsSpan.ToArray().Select(t => t.Actor.InstanceID).ToHashSet();
         var recharges = new Dictionary<int, PlanningRecharge>();
         var cooldownEvidenceLimited = false;
         // Gyoten and Yaten consume the same gauge as well as their distinct cooldowns.
         // One unit represents ten Kenki; remainder cannot buy another movement action.
         if (player.Class == Class.SAM)
             resources.Add(-1, (0, (uint)(world.Client.GetGauge<FFXIVClientStructs.FFXIV.Client.Game.Gauge.SamuraiGauge>().Kenki / 10)));
-        foreach (var entry in Definitions)
+        for (var index = 0; index < (setupActions.IsDefault ? 0 : setupActions.Length); ++index)
         {
-            if (hints.ForbidDashes || !EnabledBySettings(entry, settings, player.Class)
+            var setup = setupActions[index];
+            if (setup.Preparation == PlanningPreparationMode.None || setup.Id is not (2259 or 7389 or 3555)) continue;
+            var definition = ActionDefinitions.Instance[new(ActionType.Spell, setup.Id)];
+            if (definition == null || !ObserveResource(definition, native->GetCurrentCharges(setup.Id),
+                out var resource, out _, out var extra, sharedGcd: definition.IsGCD))
+            { preparationAvailable = false; break; }
+            costs.Add(new(index, (1ul << (resource.Slot * 4)) | extra));
+        }
+        foreach (var entry in AllDefinitions)
+        {
+            if (hints.ForbidDashes && (!entry.Rotational || entry.Mechanic != MobilityMechanic.Target) || !EnabledBySettings(entry, settings, player.Class)
+                || mudra && !NativeRotationalPreparation.MayFinishMudra(player.Class, entry.Id, setupActions,
+                    player.InstanceID, hints.ForcedTarget?.InstanceID ?? player.TargetID)
                 || !enabledActions.Contains(entry.Id) || ownedMobility?.Contains(entry.Id) != true)
                 continue;
             var id = new ActionID(ActionType.Spell, entry.Id);
             var definition = ActionDefinitions.Instance[id];
-            if (definition == null || definition.IsGCD || !definition.IsUnlocked(world, player)
+            var nativeStatus = native->GetActionStatus(CSActionType.Action, entry.Id, checkRecastActive: false, checkCastingActive: false);
+            var setupIndex = NativeRotationalPreparation.PreparationIndex(player.Class, entry.Id, setupActions,
+                player.InstanceID, hints.ForcedTarget?.InstanceID ?? player.TargetID, nativeStatus == 0, mudra);
+            bool HasProc(uint status) => player.FindStatus(status) is { } observed && observed.ExpireAt > world.CurrentTime;
+            var missingProc = setupIndex >= 0 && (entry.Id switch
+            {
+                25777 => !HasProc(2690),
+                25753 => !HasProc(2624),
+                25835 => !HasProc(2724),
+                16480 => world.Client.GetGauge<FFXIVClientStructs.FFXIV.Client.Game.Gauge.DragoonGauge>().LotdTimer == 0,
+                _ => false
+            });
+            var castProc = CSActionManager.CastTimeProc.None;
+            var castTime = manager.GetAdjustedCastTime(id, true, &castProc);
+            if (definition == null || definition.IsGCD && !entry.Rotational || !definition.IsUnlocked(world, player)
                 || native->GetAdjustedActionId(entry.Id) != entry.Id
-                || native->GetActionStatus(CSActionType.Action, entry.Id, checkRecastActive: false, checkCastingActive: false) != 0)
+                || castTime != 0
+                || nativeStatus != 0 && (setupIndex < 0 || !missingProc))
                 continue;
+            float Remaining(uint status) => player.FindStatus(status) is { } observed
+                ? Math.Max(0, (float)(observed.ExpireAt - world.CurrentTime).TotalSeconds) : 0;
+            var availableUntil = setupIndex >= 0 ? float.MaxValue : entry.Id switch
+            {
+                25777 => Remaining(2690),
+                25753 => Remaining(2624),
+                25835 => Remaining(2724),
+                16480 => world.Client.GetGauge<FFXIVClientStructs.FFXIV.Client.Game.Gauge.DragoonGauge>().LotdTimer * 0.001f,
+                _ => float.MaxValue
+            };
+            var instantCost = 0ul;
+            if (manager.GetAdjustedCastTime(id, false) > 0)
+            {
+                // BLU's casted movement requires the actual instant-cast effect,
+                // not just today's observed zero cast time. One Swiftcast cannot
+                // support two different movements or an earlier selected spell.
+                if (player.Class != Class.BLU || PlanningCastTiming.ProcStatus((byte)castProc) != 167
+                    || Remaining(167) <= 0 || !setupActions.IsDefaultOrEmpty && setupActions.Any(a => a.Id != entry.Id
+                        && a.CastSeconds == 0 && a.Timing is { WithoutProc: > 0 })) continue;
+                if (!resources.TryGetValue(-167, out var instant))
+                {
+                    if (resources.Count >= 16) continue;
+                    resources.Add(-167, instant = (resources.Count, 1));
+                }
+                instantCost = 1ul << (instant.Slot * 4);
+                availableUntil = Math.Min(availableUntil, Remaining(167));
+            }
+            if (availableUntil <= 0) continue;
             var charges = native->GetCurrentCharges(entry.Id);
             if (charges > 15 || definition.MainCooldownGroup < 0)
                 continue;
-            ulong additionalCost = 0;
+            ulong additionalCost = instantCost;
             if (entry.Id is 7492 or 7493)
             {
                 if (!resources.TryGetValue(-1, out var kenki) || kenki.Charges == 0)
@@ -86,8 +148,11 @@ internal static class NativeMobilityCapture
                     eligible = eligible.Concat(world.Party.WithoutSlot(excludeAlliance: (definition.AllowedTargets & ActionTargets.Alliance) == 0));
                 anchors = eligible.DistinctBy(a => a.InstanceID)
                     .Where(a => a.InstanceID != player.InstanceID && !a.IsDead && !a.IsDestroyed && a.IsTargetable)
+                    .Where(a => !hints.ForbidDashes || NoDisplacement(entry, player.Position, player.HitboxRadius, a.Position, a.HitboxRadius))
                     .Where(a => LegalNativeAnchor(entry.Id, a.InstanceID))
-                    .Select(a => CaptureAnchor(entry.Id, definition, player, a, hints))
+                    .Select(a => CaptureAnchor(entry.Id, definition, player, a, hints) is { } anchor
+                        ? anchor with { MinimumTravel = AnchorMinimumTravel(settings, entry.Rotational,
+                            hostileAnchors.Contains(a.InstanceID)) } : null)
                     .OfType<MobilityAnchor>().ToImmutableArray();
                 if (anchors.IsEmpty)
                     continue;
@@ -107,20 +172,50 @@ internal static class NativeMobilityCapture
                     returnPosition = returns[0].Position;
                 }
             }
-            if (!ObserveResource(definition, charges, out var resource, out var readyIn, out var extraCost)) continue;
+            (int Slot, uint Charges) resource;
+            float readyIn;
+            ulong extraCost;
+            if (definition.IsGCD)
+            {
+                // A currently legal proc/GCD opportunity is consumable once.
+                // Its GCD clock is readiness, not a forecast of another charge.
+                if (resources.Count >= 16) continue;
+                resource = (resources.Count, setupIndex >= 0 ? 0u : 1u);
+                resources.Add(-checked((int)entry.Id) - 100, resource);
+                readyIn = Math.Max(0, manager.GCD()); extraCost = 0;
+            }
+            else if (!ObserveResource(definition, charges, out resource, out readyIn, out extraCost)) continue;
+            if (setupIndex >= 0)
+            {
+                ulong granted;
+                if (definition.IsGCD) granted = 1ul << (resource.Slot * 4);
+                else
+                {
+                    // A stance/proc grant cannot reset the dive's own observed
+                    // cooldown. Keep that clock and use a separate conditional unit.
+                    if (resources.Count >= 16) continue;
+                    var procSlot = resources.Count;
+                    resources.Add(-checked((int)entry.Id) - 100, (procSlot, 0));
+                    granted = 1ul << (procSlot * 4);
+                    additionalCost |= granted;
+                }
+                grants.Add(new(setupIndex, granted));
+            }
             // Native action definitions provide the observed animation-lock estimate.
             // Full traversal is conservative for teleports until a native transition
             // proves which intervening geometry may be skipped.
             actions.Add(new(entry.Id, entry.Mechanic, definition.Range, entry.Distance, player.HitboxRadius, 0,
                 Math.Max(0.1f, definition.InstantAnimLock + manager.AnimationLockDelayEstimate), resource.Slot, anchors,
-                returnPosition, readyIn: Math.Max(readyIn, manager.EffectiveAnimationLock), minimumTravel: entry.Id == 7419 ? 0 : settings.MinimumGapCloserDistance,
-                additionalResourceCost: additionalCost | extraCost));
+                returnPosition, readyIn: Math.Max(readyIn, manager.EffectiveAnimationLock),
+                additionalResourceCost: additionalCost | extraCost, allowStationary: entry.Rotational,
+                isGCD: definition.IsGCD, recastSeconds: definition.IsGCD ? manager.GetAdjustedRecastTime(id) * 0.001f : 0,
+                requiredEarlierActions: setupIndex < 0 ? (byte)0 : (byte)(1 << setupIndex), availableUntil: availableUntil));
         }
         var trueNorth = ActionDefinitions.Instance[ActionID.MakeSpell(ClassShared.AID.TrueNorth)];
         // Speed forecasts are supported for the observed ordinary running
         // baseline (including the ninja trait). Slow/heavy/unknown baselines
         // require new evidence; never assume a boost will override a debuff.
-        if (settings.UseSprint && travel is { Baseline: >= 5.99f and <= 6.61f })
+        if (!mudra && settings.UseSprint && travel is { Baseline: >= 5.99f and <= 6.61f })
             foreach (var (id, cap, multiplier) in new (uint, float, float)[] { (3, 7.8f, 1.3f), (41646, 12, 2) })
             {
                 var definition = ActionDefinitions.Instance[new(ActionType.Spell, id)];
@@ -136,7 +231,7 @@ internal static class NativeMobilityCapture
                     Math.Max(0.1f, definition.InstantAnimLock + manager.AnimationLockDelayEstimate), Math.Max(readyIn, manager.EffectiveAnimationLock),
                     resource.Slot, Math.Min(cap, travel.Baseline * multiplier), extraCost));
             }
-        if (utilitySelectionOwned && settings.ManageTrueNorth && settings.ManagePositionals && enabledActions.Contains((uint)ClassShared.AID.TrueNorth)
+        if (!mudra && utilitySelectionOwned && settings.ManageTrueNorth && settings.ManagePositionals && enabledActions.Contains((uint)ClassShared.AID.TrueNorth)
             && trueNorth != null && trueNorth.IsUnlocked(world, player) && resources.Count < 16
             && !player.Statuses.Any(s => s.ID is 496 or 1186 or 1317 && s.ExpireAt > world.CurrentTime)
             && native->GetActionStatus(CSActionType.Action, (uint)ClassShared.AID.TrueNorth, checkRecastActive: false, checkCastingActive: false) == 0
@@ -149,7 +244,7 @@ internal static class NativeMobilityCapture
         }
         const uint retraceId = 36988;
         var retrace = ActionDefinitions.Instance[new(ActionType.Spell, retraceId)];
-        if (fieldActionMayWeave && RetraceEnabled(settings, player.Class) && personalField != null && ownedMobility?.Contains(retraceId) == true
+        if (!mudra && fieldActionMayWeave && RetraceEnabled(settings, player.Class) && personalField != null && ownedMobility?.Contains(retraceId) == true
             && enabledActions.Contains(retraceId) && retrace != null && retrace.IsUnlocked(world, player)
             && resources.Count < 16 && native->GetAdjustedActionId(retraceId) == retraceId
             && native->GetActionStatus(CSActionType.Action, retraceId, checkRecastActive: false, checkCastingActive: false) == 0
@@ -161,7 +256,7 @@ internal static class NativeMobilityCapture
                 Math.Max(0.1f, retrace.InstantAnimLock + manager.AnimationLockDelayEstimate),
                 Math.Max(retraceReady, manager.EffectiveAnimationLock), retraceResource.Slot,
                 AdditionalResourceCost: retraceExtra, Field: personalField));
-        if (settings.ManageKnockback && immunityAction is 7548 or 7559 && enabledActions.Contains(immunityAction)
+        if (!mudra && settings.ManageKnockback && immunityAction is 7548 or 7559 && enabledActions.Contains(immunityAction)
             && ActionDefinitions.Instance[new(ActionType.Spell, immunityAction)] is { IsGCD: false } immunity
             && immunity.IsUnlocked(world, player) && resources.Count < 16
             && native->GetAdjustedActionId(immunityAction) == immunityAction
@@ -179,9 +274,9 @@ internal static class NativeMobilityCapture
         ulong packed = 0;
         foreach (var resource in resources.Values)
             packed |= (ulong)resource.Charges << (resource.Slot * 4);
-        return new(actions.ToImmutable(), packed, utilities.ToImmutable(), recharges.Values.OrderBy(r => r.Resource).ToImmutableArray(), cooldownEvidenceLimited, personalField);
+        return new(actions.ToImmutable(), packed, utilities.ToImmutable(), recharges.Values.OrderBy(r => r.Resource).ToImmutableArray(), cooldownEvidenceLimited, personalField, grants.ToImmutable(), costs.ToImmutable(), preparationAvailable);
 
-        bool ObserveResource(ActionDefinition definition, uint charges, out (int Slot, uint Charges) resource, out float ready, out ulong extraCost)
+        bool ObserveResource(ActionDefinition definition, uint charges, out (int Slot, uint Charges) resource, out float ready, out ulong extraCost, bool sharedGcd = false)
         {
             resource = default;
             ready = 0;
@@ -214,7 +309,7 @@ internal static class NativeMobilityCapture
                     || Math.Abs(prior.NextIn - next) > 0.02f) return false;
             }
             var extraGroup = definition.ExtraCooldownGroup;
-            if (extraGroup >= 0 && extraGroup != group)
+            if (!sharedGcd && extraGroup >= 0 && extraGroup != group)
             {
                 var extra = native->GetRecastGroupDetail(extraGroup);
                 if (extra == null || !float.IsFinite(extra->Total) || !float.IsFinite(extra->Elapsed)) return false;
@@ -264,6 +359,12 @@ internal static class NativeMobilityCapture
         return wrapper != null && wrapper.IsValid() && wrapper.Address != 0 && wrapper.GameObjectId == id
             && CSActionManager.CanUseActionOnTarget(actionId, (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)wrapper.Address);
     }
+
+    // XCAI's uptime, ground and directional checks passed a zero minimum. Its
+    // configured distance belonged to optional friendly escape anchors, not a
+    // blanket rejection before combat execution could be compared with walking.
+    internal static float AnchorMinimumTravel(AssistancePreferences settings, bool rotational, bool hostile)
+        => rotational || hostile ? 0 : settings.MinimumGapCloserDistance;
 
     private static MobilityAnchor? CaptureAnchor(uint id, ActionDefinition definition, Actor player, Actor actor, AIHints hints)
     {

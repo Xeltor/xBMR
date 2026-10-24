@@ -10,8 +10,8 @@ and MVID `87e036f0-cd9d-4a8e-befc-6f56dd10bebd`.
 `PlanningFieldPlacement` represents observed available Ley Lines and an original
 GCD weave deadline. It is neither a fabricated field object nor an assumed haste
 modifier. Native charge/action status, unlock and saved RSR action opt-outs bind
-preparation. The worker receives immutable values only. Normal movement can
-prepare the complete route; it cannot commit a placement-bearing route until
+preparation. The worker receives immutable values only. Both native normal and
+AI-follow movement can prepare the complete route; it cannot commit a placement-bearing route until
 RSR's original CanUse approves that same fresh opportunity. Missing or stale
 preparation leaves the original action and timing intact. No native BMR rotation
 prediction adapter, separate movement goal or external callback transport exists.
@@ -21,9 +21,13 @@ concrete action returned by native CanUse. The scope restores its exact factory;
 foreign replacements retain ownership. Reflection failures return the original
 selection result and yield locally. Field placement is independent of support
 recipient, party and mitigation gates. The dormant former support placement
-adapter was removed. Only native normal movement participates: explicit
-following, destinations, manual control, explicit RSR commands, preview, force
-enable, PvP and unavailable action authority retain their existing semantics.
+adapter was removed. Normal and AI-follow movement participate through the same
+host. Existing follow goals retain their ranking; explicit destinations, manual
+control, queued RSR commands, preview, force enable, PvP and unavailable movement
+authority withhold optional placement. A preset without an active movement owner
+cannot claim placement ownership. The former normal-only restriction was removed
+after the 2026-10-24 caster run exposed it. Historical intercepted-action state
+is not a current command; the live queued command remains authoritative.
 
 `NativePlacementOpportunity` retains the original position and absolute deadline
 across repeated native observations and the committed walk. Polling and CanUse
@@ -94,3 +98,36 @@ continued acceptance. After-action Ley Lines return, complete GreedyLeyLines
 parity and the broader migration/lifecycle checklist remain open. This checkpoint
 establishes native placement implementation and bounded fallback, not complete
 Black Mage or whole-migration acceptance.
+
+
+## Follow-owner repair checkpoint, 2026-10-24
+
+The active caster NPC run on `288ec844-...` reported placement inactive solely
+because BMRAI owned movement. That restriction is removed in source, while
+stationary target-only permission and explicit destinations still cannot fund
+placement. RSR selecting Ley Lines itself is recognized as placement evidence;
+a different unmodeled current ability still retains its weave.
+
+Each fresh context clears prior release authorization; only the current
+executor's exact directive can authorize release. Lost movement authority or
+an explicit destination retires prepared placement without renewing its original
+GCD window. A continuing committed route is proved against fresh native geometry
+before the original RSR callback can release placement.
+
+The current-source managed Release build succeeds with zero errors and six
+existing gauge warnings; 42,989 native assertions, installed RSR contracts and
+nine repository tests pass. MVID `d0045773-32a8-4f88-97f1-3f1ed888ec25`,
+SHA-256 `d58483ce95a580610ea029bebc94fc90d9604a40bb70b226c3230306884a0744`.
+This artifact is isolated while the caster remains in combat; the earlier
+training-dummy results below do not validate this follow-owner change.
+# Current repair checkpoint, 2026-10-24
+
+The former follow-owner restriction, command-history gate and stale placement
+release are repaired in the current development source. The tested
+43,001-assertion artifact (`e68d9e13-a0c5-4028-a057-83980c2f2d6f`) automatically
+loaded at 15:38:30 UTC and ran the NPC-only Black Mage check queued at 15:39:11.
+The first-boss capture shows active original Ley Lines selection under following
+and a real field, with no geometry exception. An optimized placement detour and
+original-weave release still require an observed opportunity; field presence
+alone does not prove those paths. See `regressions-2026-10-24.md` for exact capture
+identity and the subsequent isolated selection-stage artifact.

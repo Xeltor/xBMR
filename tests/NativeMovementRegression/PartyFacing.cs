@@ -8,6 +8,21 @@ public static partial class Checks
         var facing = new PartyFacingPreference();
         var now = DateTime.UtcNow;
         Angle[] allies = [89f.Degrees(), 91f.Degrees()];
+        Check(!PartyFacingPreference.EligibleDowntime(false, false, DateTime.MaxValue, DateTime.MaxValue),
+            "No encounter module means no social facing, even without a target.");
+        Check(PartyFacingPreference.EligibleDowntime(true, false, DateTime.MaxValue, DateTime.MaxValue),
+            "Module-owned immunity downtime permits social facing without requiring the local combat flag or an active timeline state.");
+        Check(PartyFacingPreference.EligibleDowntime(true, true, now.AddSeconds(20), now.AddSeconds(5)),
+            "Authored downtime permits social facing while a boss remains targetable.");
+        Check(!PartyFacingPreference.EligibleDowntime(true, true, now.AddSeconds(5), now.AddSeconds(20))
+            && !PartyFacingPreference.EligibleDowntime(true, true, DateTime.MaxValue, DateTime.MaxValue),
+            "An available combat opportunity or unknown timeline cannot manufacture boss downtime.");
+        Check(facing.Observe(now, PartyFacingPreference.EligibleDowntime(true, false, DateTime.MaxValue, DateTime.MaxValue), allies, 2, default) == null
+            && facing.Observe(now.AddSeconds(.6), PartyFacingPreference.EligibleDowntime(true, false, DateTime.MaxValue, DateTime.MaxValue), allies, 2, default) != null,
+            "Immunity downtime still requires stable party consensus before producing a direction.");
+        Check(facing.Observe(now.AddSeconds(.7), PartyFacingPreference.EligibleDowntime(false, false, DateTime.MaxValue, DateTime.MaxValue), allies, 2, default) == null,
+            "Leaving the encounter module immediately releases an established social direction.");
+        facing.Reset();
         Check(PartyFacingPreference.Consensus([179f.Degrees(), (-179f).Degrees()], 2) is { } wrap
             && wrap.AlmostEqual(180f.Degrees(), 0.01f), "party facing consensus spans circular wrap");
         Check(PartyFacingPreference.Consensus([0f.Degrees(), 90f.Degrees(), 180f.Degrees()], 2) == null,

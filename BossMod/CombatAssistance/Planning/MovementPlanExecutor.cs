@@ -4,9 +4,10 @@ namespace BossMod.CombatAssistance.Planning;
 
 internal enum MovementExecutionKind { Invalidated, Walk, Wait, Face, Action, Arrived, Target }
 internal sealed record MovementExecution(MovementExecutionKind Kind, string Reason, WPos? Waypoint = null,
-    Angle? Facing = null, uint ActionId = 0, ulong TargetId = 0, float DepartureSeconds = 0, bool PresentationFacing = false, bool ForcedMovementFacing = false);
+    Angle? Facing = null, uint ActionId = 0, ulong TargetId = 0, float DepartureSeconds = 0, bool PresentationFacing = false, bool ForcedMovementFacing = false,
+    bool SubmissionPending = false);
 internal readonly record struct MovementExecutionObservation(Angle Facing, uint ActionId = 0, ulong TargetId = 0,
-    DateTime ActionTime = default, ulong CurrentTarget = 0);
+    DateTime ActionTime = default, ulong CurrentTarget = 0, bool ActionLocked = false);
 
 // One framework-thread execution state machine, independent of activation/preset selection.
 // Every directive is checked against a fresh captured context. The caller applies it in
@@ -18,8 +19,68 @@ internal sealed class MovementPlanExecutor
     private (uint Action, ulong Target, WPos Landing, Angle? Facing)? _preparation;
     private long _preparationStarted;
     private (uint Action, ulong Target, DateTime Time)? _consumedAction;
+    private int? _submittedStage;
+    internal bool AwaitingActionEffect => _submittedStage != null;
     internal WPos? CommittedDestination { get; private set; }
     internal int StageIndex => _stage;
+
+    // A still-unsubmitted control must resolve from the CURRENT pose/anchor.
+    // Native recovery may have walked while the worker was finding this route.
+    // Keep the same action/anchor/heading and onward destination, then let Advance
+    // re-prove the entire changed route. Submitted landings are never rebound.
+    internal MovementPlan RebindInitialMobility(MovementPlan plan, MovementPlanningContext current)
+    {
+        if (AwaitingActionEffect || !plan.HasVerifiedRoute) return plan;
+        var index = 0;
+        while (index < plan.Stages.Length && plan.Stages[index].Kind == MovementStageKind.Wait) ++index;
+        if (index == plan.Stages.Length || ReferenceEquals(_plan, plan) && _stage > index) return plan;
+        var stage = plan.Stages[index];
+        var landing = current.Origin;
+        var facing = stage.Facing;
+        if (stage.Kind == MovementStageKind.UtilityAction
+            && current.Utilities.Any(u => u.ActionId == stage.ActionId && u.Effect == PlanningUtilityEffect.MovementSpeed))
+        { }
+        else
+        {
+            if (stage.Kind is not (MovementStageKind.TargetDash or MovementStageKind.DirectionalMovement)) return plan;
+            var mechanic = current.MobilityMechanics.FirstOrDefault(m => m.ActionId == stage.ActionId);
+            if (mechanic?.Resolve(current, current.Origin, stage, exactBinding: false) is not { } bound) return plan;
+            landing = current.MobilityLanding(bound);
+            facing = bound.Facing;
+        }
+        if (stage.From == current.Origin && stage.To == landing && stage.Facing == facing) return plan;
+        var stages = plan.Stages.ToBuilder();
+        for (var i = 0; i < index; ++i)
+            stages[i] = stages[i] with { From = current.Origin, To = current.Origin };
+        stages[index] = stage with { From = current.Origin, To = landing, Facing = facing };
+        for (var i = index + 1; i < stages.Count; ++i)
+        {
+            var next = stages[i];
+            if (next.From != stage.To) break;
+            if (next.Kind is not (MovementStageKind.Walk or MovementStageKind.Wait or MovementStageKind.Cast)) return plan;
+            stages[i] = next with { From = landing, To = next.To == stage.To ? landing : next.To };
+            if (next.Kind == MovementStageKind.Walk) break;
+        }
+        var rebound = plan with
+        {
+            Stages = stages.ToImmutable(),
+            UsefulDestination = plan.UsefulDestination == stage.To ? landing : plan.UsefulDestination,
+            ImmediateWaypoint = plan.ImmediateWaypoint == stage.To ? landing : plan.ImmediateWaypoint,
+            Status = MovementSearchStatus.Bounded,
+            Bound = MovementSearchBound.InputChanged,
+            Evidence = "initial mobility rebound to current pose/anchor; entire remaining route requires fresh validation"
+        };
+        if (ReferenceEquals(_plan, plan)) _plan = rebound;
+        return rebound;
+    }
+
+    internal void ConfirmActionSubmission(MovementPlan plan)
+    {
+        if (ReferenceEquals(plan, _plan) && _stage < plan.Stages.Length
+            && plan.Stages[_stage] is { From: var from, To: var to, Kind: MovementStageKind.TargetDash or MovementStageKind.DirectionalMovement or MovementStageKind.GroundMovement or MovementStageKind.Return }
+            && from != to)
+            _submittedStage = _stage;
+    }
 
     internal MovementExecution AdvanceRecovery(MovementPlan plan, Pathfinding.NavigationIdentity current, bool hasAuthority,
         bool executable, long? timestamp = null)
@@ -43,10 +104,12 @@ internal sealed class MovementPlanExecutor
         var now = timestamp ?? Stopwatch.GetTimestamp();
         if (!hasAuthority)
             return Invalidate("manual or external movement authority");
+        var continuing = ReferenceEquals(plan, _plan);
         if (!ReferenceEquals(plan, _plan))
         {
             _plan = plan;
             _stage = 0;
+            _submittedStage = null;
             // A worker can finish while the previous verified route is being followed.
             // Resume at the actually occupied walking segment, without skipping a wait
             // or action or walking backwards to an already passed waypoint.
@@ -86,11 +149,26 @@ internal sealed class MovementPlanExecutor
                     _consumedAction = actionObservation;
                 ++_stage;
                 _preparation = null;
+                _submittedStage = null;
             }
             else
                 break;
         }
-        var validation = MovementPlanValidation.Validate(plan, current, _stage, true, now);
+        if (_submittedStage == _stage)
+        {
+            if (current.Identity.ActorId != plan.Input.ActorId || current.Identity.ZoneId != plan.Input.ZoneId
+                || current.Identity.ContentId != plan.Input.ContentId)
+                return Invalidate("submitted movement owner or territory changed");
+            // Charges/procs may already be consumed while the native animation
+            // is still carrying the player. Do not submit twice or replace that
+            // flight with a walk. This is pending observation, not a fresh safety
+            // publication; the complete onward route is checked after landing.
+            if (observed.ActionLocked)
+                return new(MovementExecutionKind.Wait, "awaiting submitted movement effect and landing", SubmissionPending: true);
+            return Invalidate("submitted movement was not corroborated by its effect and landing");
+        }
+        var validation = MovementPlanValidation.Validate(plan, current, _stage, true, now,
+            continuingCommittedRoute: continuing);
         if (!validation.Allowed)
             return Invalidate(validation.Reason);
         CommittedDestination = plan.UsefulDestination;
@@ -130,6 +208,23 @@ internal sealed class MovementPlanExecutor
         if (next.Kind == MovementStageKind.Walk)
         {
             _preparation = null;
+            // Grid states establish the complete route, not a requirement to
+            // steer at every cell center. Use the shared native traversal check
+            // to look through a continuous walking run. Never skip a cast, wait,
+            // mobility stage or a corner whose direct chord is unsafe.
+            var lastWalk = _stage;
+            while (lastWalk + 1 < plan.Stages.Length && plan.Stages[lastWalk + 1].Kind == MovementStageKind.Walk)
+                ++lastWalk;
+            for (var candidate = lastWalk; candidate > _stage; --candidate)
+            {
+                var verified = MovementPlanValidation.Validate(plan, current, candidate, true, now,
+                    continuingCommittedRoute: continuing);
+                if (!verified.Allowed) continue;
+                _stage = candidate;
+                next = plan.Stages[_stage];
+                validation = verified;
+                break;
+            }
             return new(MovementExecutionKind.Walk, "fresh complete native route", next.To, DepartureSeconds: validation.DepartureSeconds);
         }
         if (next.Kind == MovementStageKind.Wait)
@@ -190,6 +285,7 @@ internal sealed class MovementPlanExecutor
         _stage = 0;
         _preparation = null;
         _consumedAction = null;
+        _submittedStage = null;
         CommittedDestination = null;
     }
 }

@@ -2,7 +2,7 @@ using BossMod.CombatAssistance.Config;
 
 namespace BossMod.CombatAssistance.Runtime;
 
-internal enum LegacyAssistanceCommandKind { Help, Enabled, Toggle, Config, Notes, Knockback, RetiredParty, NativeStatus, RecordingStatus }
+internal enum LegacyAssistanceCommandKind { Help, Enabled, Toggle, Config, Knockback, RetiredParty, NativeStatus, RecordingStatus }
 internal readonly record struct LegacyAssistanceCommand(LegacyAssistanceCommandKind Kind, bool Value = false)
 {
     internal static LegacyAssistanceCommand Parse(string arguments)
@@ -16,7 +16,6 @@ internal readonly record struct LegacyAssistanceCommand(LegacyAssistanceCommandK
                 "off" => new(LegacyAssistanceCommandKind.Enabled, false),
                 "toggle" => new(LegacyAssistanceCommandKind.Toggle),
                 "config" => new(LegacyAssistanceCommandKind.Config),
-                "notes" => new(LegacyAssistanceCommandKind.Notes),
                 "check-ipc" => new(LegacyAssistanceCommandKind.NativeStatus),
                 "check-recording-ipc" => new(LegacyAssistanceCommandKind.RecordingStatus),
                 _ => new(LegacyAssistanceCommandKind.Help)
@@ -35,10 +34,10 @@ internal readonly record struct LegacyAssistanceCommand(LegacyAssistanceCommandK
 
 // Compatibility for the old assistance switches, not another AI activation owner.
 // Shared preferences and the normal save queue are also used by the Material UI.
-internal sealed class LegacyAssistanceCommands(AssistanceSettingsSession settings, Action openConfig, Action openNotes,
+internal sealed class LegacyAssistanceCommands(AssistanceSettingsSession settings, Action openConfig,
     Func<string> nativeStatus, Func<string> recordingStatus, Action<string> print)
 {
-    internal const string Usage = "Usage: /xcai [on|off|toggle|config|notes|knockback on|knockback off|check-ipc|check-recording-ipc]";
+    internal const string Usage = "Usage: /xcai [on|off|toggle|config|knockback on|knockback off|check-ipc|check-recording-ipc]";
 
     internal void Execute(string arguments)
     {
@@ -69,9 +68,6 @@ internal sealed class LegacyAssistanceCommands(AssistanceSettingsSession setting
         var preferences = settings.Preferences;
         switch (command.Kind)
         {
-            case LegacyAssistanceCommandKind.Notes:
-                openNotes();
-                return;
             case LegacyAssistanceCommandKind.Enabled:
             case LegacyAssistanceCommandKind.Toggle:
                 preferences.Enabled = command.Kind == LegacyAssistanceCommandKind.Toggle ? !preferences.Enabled : command.Value;

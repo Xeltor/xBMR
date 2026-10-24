@@ -129,7 +129,9 @@ public static partial class Checks
             && !NativeMobilityCapture.RetraceEnabled(new(), Class.RDM), "Job and Ley Lines master gates retain authority.");
         Check(RsrActionEvidenceSource.FieldActionMayWeave(100, true, 100, 200)
             && RsrActionEvidenceSource.FieldActionMayWeave(200, false, 100, 200),
-            "An elective field action can coexist only with the actually modeled current GCD or immediate party action.");
+            "An elective field action can coexist with the actually modeled current GCD or immediate party action.");
+        Check(RsrActionEvidenceSource.FieldActionMayWeave(PlanningFieldPlacement.ActionId, false, 100, 0),
+            "RSR selecting Ley Lines itself is direct placement evidence, not an unsupported competing ability that disables its own planning.");
         Check(!RsrActionEvidenceSource.FieldActionMayWeave(300, false, 100, 200)
             && !RsrActionEvidenceSource.FieldActionMayWeave(200, true, 100, 200)
             && !RsrActionEvidenceSource.FieldActionMayWeave(100, false, 100, 200)

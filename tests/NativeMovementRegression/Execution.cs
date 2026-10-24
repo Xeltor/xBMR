@@ -12,8 +12,27 @@ public static partial class Checks
         var plan = JointMovementSearch.Search(context, Exhaustive);
         var executor = new MovementPlanExecutor();
         var movement = executor.Advance(plan, context, default, true, context.Identity.CapturedTimestamp);
-        Check(movement.Kind == MovementExecutionKind.Walk && movement.Waypoint == Point(map, 1), "one executor starts with the first verified waypoint");
+        Check(movement.Kind == MovementExecutionKind.Walk && movement.Waypoint == Point(map, 2),
+            "The executor follows one fully verified straight walking run without steering at each grid center.");
         Check(executor.CommittedDestination == Point(map, 2), "useful destination is retained separately from the immediate waypoint");
+        var laterTick = context.Identity.CapturedTimestamp + Stopwatch.Frequency / 2;
+        var freshWhileMoving = new MovementPlanningContext(context.Identity with
+            { CapturedTimestamp = laterTick, WorldTime = context.Identity.WorldTime.AddSeconds(0.5), Origin = context.Origin + new WDir(0.4f, 0) },
+            map, 0, 0, [true, true, true], [0, 0, 0], [], []);
+        Check(executor.Advance(plan, freshWhileMoving, default, true, laterTick) is { Kind: MovementExecutionKind.Walk, Waypoint: var continued }
+            && continued == Point(map, 2),
+            "An already committed walk is fully re-proved on fresh evidence after 250ms without a stop or waypoint reset.");
+        Check(!MovementPlanValidation.Validate(plan, freshWhileMoving, 0, true, laterTick).Allowed,
+            "The same old worker result cannot be newly committed after its original freshness ceiling.");
+        Check(!MovementPlanValidation.Validate(plan, freshWhileMoving, 0, true, laterTick + Stopwatch.Frequency,
+                continuingCommittedRoute: true).Allowed,
+            "Continuing a walk requires a fresh current safety proof; the old route cannot replace it.");
+        var blockedMap = Grid(3, 1);
+        blockedMap.PixelMaxG[1] = -1;
+        var freshlyBlocked = new MovementPlanningContext(freshWhileMoving.Identity, blockedMap, 0, 0,
+            [true, true, true], [0, 0, 0], [], []);
+        Check(!MovementPlanValidation.Validate(plan, freshlyBlocked, 0, true, laterTick, continuingCommittedRoute: true).Allowed,
+            "An obstacle appearing on a continued route invalidates it immediately on the next fresh proof.");
         var changedTarget = new MovementPlanningContext(context.Identity, map, 0, 0, [true, true, true], [0, 0, 0], [], [], targetId: 123);
         Check(!MovementPlanValidation.Validate(plan, changedTarget, 0, true, context.Identity.CapturedTimestamp).Allowed,
             "a changed target invalidates movement even when no external rotation action was captured");
@@ -39,6 +58,16 @@ public static partial class Checks
         var waitBeforeWalk = plan with { Stages = [new(MovementStageKind.Wait, context.Origin, context.Origin, 0, 1), .. plan.Stages] };
         Check(executor.Advance(waitBeforeWalk, whileWalking, default, true, context.Identity.CapturedTimestamp).Kind == MovementExecutionKind.Invalidated,
             "resuming a walking prefix cannot skip an unexecuted wait or action");
+        var cornerMap = Grid(3, 3);
+        cornerMap.PixelMaxG[4] = -1;
+        cornerMap.PixelPriority[8] = 1;
+        var cornerInput = Context(cornerMap, 0);
+        var cornerPlan = JointMovementSearch.Search(cornerInput, Exhaustive);
+        var cornerMove = executor.Advance(cornerPlan, cornerInput, default, true, cornerInput.Identity.CapturedTimestamp);
+        Check(cornerMove is { Kind: MovementExecutionKind.Walk, Waypoint: { } safeWaypoint }
+            && safeWaypoint != cornerPlan.UsefulDestination
+            && cornerInput.TraverseOrdinary(cornerInput.Origin, safeWaypoint, 0, (safeWaypoint - cornerInput.Origin).Length(), out _),
+            "Walking lookahead keeps a required detour and never shortcuts through a blocked corner.");
 
         var mobility = new PlanningMobility(0, 2, MovementStageKind.DirectionalMovement, 10, 0, 180f.Degrees(), 0.05f, 0.1f, 0, 0);
         var jump = Context(map, 0, mobility: [mobility], resources: 1);

@@ -84,7 +84,6 @@ The old `/xcai` commands remain available after standalone XCAI is removed:
 | `/xcai`, `/xcai toggle` | Toggle the **Combat assistance** setting. |
 | `/xcai on`, `/xcai off` | Enable or disable combat assistance. Native AI activation remains controlled by `/bmrai`. |
 | `/xcai config` | Open the Material settings. |
-| `/xcai notes` | Open patch notes. |
 | `/xcai knockback on`, `/xcai knockback off` | Set the shared knockback immunity preference; the migration's remaining knockback limitations still apply. |
 | `/xcai check-ipc` | Report current native movement/action status. |
 | `/xcai check-recording-ipc` | Report current recording-sharing status. |

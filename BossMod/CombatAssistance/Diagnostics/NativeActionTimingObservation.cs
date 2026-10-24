@@ -22,7 +22,12 @@ internal sealed record NativeActionTimingObservation(DateTime ObservedAt, DateTi
             (uint)BLM.AID.LeyLines, (uint)BLM.AID.BetweenTheLines, (uint)BLM.AID.Retrace],
         Class.PCT => [(uint)PCT.AID.FireInRed, (uint)PCT.AID.StarryMuse, (uint)PCT.AID.LandscapeMotif,
             (uint)PCT.AID.StarrySkyMotif, (uint)PCT.AID.Smudge],
-        Class.DRG => [(uint)DRG.AID.TrueThrust, (uint)DRG.AID.ChaoticSpring],
+        Class.DRG => [(uint)DRG.AID.TrueThrust, (uint)DRG.AID.ChaoticSpring, (uint)DRG.AID.Geirskogul,
+            (uint)DRG.AID.Stardiver, (uint)DRG.AID.DragonfireDive],
+        Class.NIN => [(uint)NIN.AID.Ten1, (uint)NIN.AID.Ten2, (uint)NIN.AID.Chi2,
+            (uint)NIN.AID.Raiton, (uint)NIN.AID.ForkedRaiju, (uint)NIN.AID.FleetingRaiju],
+        Class.WAR => [(uint)WAR.AID.InnerRelease, (uint)WAR.AID.PrimalRend],
+        Class.SMN => [(uint)SMN.AID.SummonIfrit1, (uint)SMN.AID.SummonIfrit2, (uint)SMN.AID.CrimsonCyclone],
         _ => []
     };
 

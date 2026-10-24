@@ -7,10 +7,10 @@ namespace BossMod.CombatAssistance.Planning;
 internal static class MovementPlanValidation
 {
     internal const float ArrivalTolerance = 0.1f;
-    internal sealed record Result(bool Allowed, string Reason, float DepartureSeconds = 0);
+    internal sealed record Result(bool Allowed, string Reason, float DepartureSeconds = 0, float CompletionSeconds = float.NaN);
 
     internal static Result Validate(MovementPlan plan, MovementPlanningContext current, int firstStage,
-        bool hasAuthority, long? timestamp = null, WPos? actualPosition = null)
+        bool hasAuthority, long? timestamp = null, WPos? actualPosition = null, bool continuingCommittedRoute = false)
     {
         if (!hasAuthority)
             return new(false, "manual or external movement authority");
@@ -21,9 +21,16 @@ internal static class MovementPlanValidation
             return new(false, "invalid plan or changed player, territory or projection");
         if (NativeMovementHost.RetiredContact(plan.PartyContact, current.PartyContact))
             return new(false, "party contact objective retired or changed owner");
-        var elapsed = ((timestamp ?? Stopwatch.GetTimestamp()) - plan.Input.CapturedTimestamp) / (double)Stopwatch.Frequency;
+        var now = timestamp ?? Stopwatch.GetTimestamp();
+        var elapsed = (now - plan.Input.CapturedTimestamp) / (double)Stopwatch.Frequency;
         var worldElapsed = (current.Identity.WorldTime - plan.Input.WorldTime).TotalSeconds;
-        if (elapsed is < 0 or >= 0.25 || worldElapsed is < 0 or >= 0.25)
+        // A new worker result must still be younger than the native 250ms ceiling.
+        // A committed route is only a proposal: re-prove its entire remainder on
+        // THIS fresh map each frame. Keep original stage/departure/action times
+        // below, so revalidation cannot renew any old deadline or wait.
+        var proofAge = continuingCommittedRoute ? (now - current.Identity.CapturedTimestamp) / (double)Stopwatch.Frequency : elapsed;
+        if (elapsed < 0 || worldElapsed < 0 || proofAge is < 0 or >= 0.25
+            || !continuingCommittedRoute && worldElapsed >= 0.25)
             return new(false, "stale planning input");
         if (firstStage < 0 || firstStage > plan.Stages.Length)
             return new(false, "invalid execution stage");
@@ -50,6 +57,7 @@ internal static class MovementPlanValidation
         var time = current.UnlockSeconds;
         var inputAge = (float)Math.Max(elapsed, worldElapsed);
         var actionReadyAt = 0f;
+        var gcdReadyAt = 0f;
         var immunityAppliedBy = float.MaxValue;
         var immunityUntil = 0f;
         var immunityPossibleFrom = float.MaxValue;
@@ -60,12 +68,17 @@ internal static class MovementPlanValidation
         var fieldBenefitAllowed = true;
         PlanningPersonalField? relocatedField = null;
         var restrictFieldEntry = current.Actions.Any(a => a.Timing?.FieldEntryByAbility == true);
+        byte completedActions = 0;
         foreach (var stage in plan.Stages.Take(firstStage))
         {
+            if (stage.SourceActionIndex is >= 0 and < MovementPlanningContext.MaximumActions && stage.ActionId != 0 && stage.Kind != MovementStageKind.Target)
+                completedActions |= (byte)(1 << stage.SourceActionIndex);
             if (stage.Utility is { Effect: PlanningUtilityEffect.KnockbackImmunity })
                 return new(false, "immunity submission is not native buff confirmation; replan from observed native status");
             if (float.IsFinite(stage.ActionLockUntil))
                 actionReadyAt = Math.Max(actionReadyAt, Math.Max(0, stage.ActionLockUntil - inputAge));
+            if (stage.PlannedRecastSeconds > 0)
+                gcdReadyAt = Math.Max(gcdReadyAt, Math.Max(0, stage.StartSeconds + stage.PlannedRecastSeconds - inputAge));
             fieldBenefitAllowed = PlanningCastTiming.BenefitAfter(fieldBenefitAllowed, stage, current.Actions);
             if (stage.Kind == MovementStageKind.UtilityAction && stage.ActionId == 36988 && stage.Field is { } moved)
             {
@@ -109,6 +122,9 @@ internal static class MovementPlanValidation
                 slack = Math.Min(slack, animationSlack);
                 time = actionReadyAt;
             }
+            if (current.PreparationLocksActions(completedActions) && stage.ActionId != 0 && stage.Kind != MovementStageKind.Target
+                && (stage.Kind != MovementStageKind.Cast || current.ActionFor(stage)?.Preparation is null or PlanningPreparationMode.None))
+                return new(false, "another action would break the acknowledged mudra sequence");
             switch (stage.Kind)
             {
                 case MovementStageKind.Knockback:
@@ -212,7 +228,8 @@ internal static class MovementPlanValidation
                         if (!relocatedField.LiveAt(time + utility.LockSeconds))
                             return new(false, "personal field expires before relocation finishes");
                     }
-                    duration = utility.LockSeconds;
+                    actionReadyAt = Math.Max(actionReadyAt, time + utility.LockSeconds);
+                    duration = utility.Effect == PlanningUtilityEffect.MovementSpeed ? 0 : utility.LockSeconds;
                     break;
                 case MovementStageKind.FieldPlacement:
                     if (current.FieldPlacement is not { } placement || plan.FieldPlacement is not { } plannedPlacement
@@ -225,11 +242,13 @@ internal static class MovementPlanValidation
                     break;
                 case MovementStageKind.Cast:
                     var action = current.ActionFor(stage);
-                    var actionStart = action == null ? time : Math.Max(time, action.Earliest);
+                    var actionStart = action == null ? time : Math.Max(Math.Max(time, action.Earliest), action.IsGCD ? gcdReadyAt : 0);
+                    if (action != null && !resources.Ready(action.ResourceCost, actionStart, current.Recharges, out actionStart))
+                        return new(false, "selected action resource or proc changed");
                     var castSeconds = action?.CastAt(position, actionStart, fieldEntry, relocatedField, fieldBenefitAllowed) ?? 0;
                     var ignoresPositional = action != null && actionStart + castSeconds < positionalBypassUntil;
                     var coverage = action == null ? default : current.Evaluate(action, position, ignoresPositional);
-                    if (action == null || !coverage.Allowed)
+                    if (action == null || (completedActions & action.RequiredEarlierActions) != action.RequiredEarlierActions || !coverage.Allowed)
                         return new(false, "action, target or required recipients changed");
                     executableFacing = coverage.Facing;
                     var evidence = plan.ActionEvidence.FirstOrDefault(a => a.Id == action.Id && a.TargetId == action.TargetId
@@ -255,23 +274,36 @@ internal static class MovementPlanValidation
                         return new(false, "waiting for the action no longer safe");
                     slack = Math.Min(slack, actionWaitSlack);
                     time = actionStart;
+                    if (action.ResourceCost != 0) resources = resources.Spend(action.ResourceCost, time, current.Recharges);
                     if (time + castSeconds > action.Latest)
                         return new(false, "current action opportunity would be lost");
-                    var overlapsPush = float.IsFinite(stage.ActionLockUntil);
-                    if (overlapsPush && (phaseIndex >= livePushes.Length
-                        || time + castSeconds >= (livePushes[phaseIndex].Timing!.EarliestUtc - current.Identity.WorldTime).TotalSeconds
-                        || Math.Abs(stage.ActionLockUntil - stage.EndSeconds - action.LockSeconds) > 0.001f))
-                        return new(false, "cast delivery or animation lock no longer fits before the native push");
+                    var separateLock = float.IsFinite(stage.ActionLockUntil);
+                    if (separateLock && Math.Abs(stage.ActionLockUntil - stage.EndSeconds - action.LockSeconds) > 0.01f)
+                        return new(false, "captured cast delivery or animation lock changed");
+                    if (phaseIndex < livePushes.Length
+                        && time + castSeconds >= (livePushes[phaseIndex].Timing!.EarliestUtc - current.Identity.WorldTime).TotalSeconds)
+                        return new(false, "cast delivery no longer fits before the native push");
                     actionReadyAt = time + castSeconds + action.LockSeconds;
+                    resources = resources.Grant(action.GrantedResources);
+                    if (stage.SourceActionIndex >= 0) completedActions |= (byte)(1 << stage.SourceActionIndex);
+                    if (action.IsGCD) gcdReadyAt = time + recast;
                     if (actionReadyAt + inputAge > MovementPlanningContext.MaximumHorizonSeconds)
                         return new(false, "action lock exceeds evidenced forecast horizon");
-                    duration = castSeconds + (overlapsPush ? 0 : action.LockSeconds);
+                    duration = castSeconds + (separateLock ? 0 : action.LockSeconds);
                     break;
                 default:
                     var mobility = current.ResolveMobility(position, stage, relocatedField);
-                    if (mobility == null || !resources.Ready(mobility.ResourceCost, Math.Max(time, mobility.ReadyIn), current.Recharges, out var mobilityReady))
+                    var movingAction = current.ActionFor(stage);
+                    if (stage.SourceActionIndex >= 0 && (movingAction == null || !NativeRotationalMobility.Contains(stage.ActionId)))
+                        return new(false, "moving attack identity or target changed");
+                    if (mobility == null || !resources.Ready(mobility.ResourceCost,
+                        Math.Max(Math.Max(Math.Max(time, mobility.ReadyIn), mobility.IsGCD ? gcdReadyAt : 0), movingAction?.Earliest ?? 0), current.Recharges, out var mobilityReady))
                         return new(false, "executable mobility anchor, facing, landing or charges changed");
+                    if ((completedActions & mobility.RequiredEarlierActions) != mobility.RequiredEarlierActions)
+                        return new(false, "movement preparation has not delivered its required action");
                     var setupEnd = mobilityReady + mobility.SetupSeconds;
+                    if (setupEnd > mobility.AvailableUntil)
+                        return new(false, "native movement proc expires before submission");
                     resources = resources.Spend(mobility.ResourceCost, setupEnd, current.Recharges);
                     if (!current.Traverse(position, position, time, setupEnd - time, out var setupSlack))
                         return new(false, "mobility setup no longer safe");
@@ -279,6 +311,26 @@ internal static class MovementPlanValidation
                     time = setupEnd;
                     duration = mobility.TravelSeconds;
                     landingLock = mobility.LockSeconds;
+                    if (movingAction != null)
+                    {
+                        var hit = current.Evaluate(movingAction, stage.To, time + duration < positionalBypassUntil);
+                        var original = plan.ActionEvidence.FirstOrDefault(a => a.SourceActionIndex == stage.SourceActionIndex
+                            && a.Id == stage.ActionId && a.TargetId == stage.AnchorId);
+                        if (movingAction.IsGCD != mobility.IsGCD || movingAction.CastAt(position, time) != 0 || !hit.Allowed
+                            || time + duration > movingAction.Latest
+                            || stage.SourceActionIndex >= 0 && original == null
+                            || original != null && (hit.Value < original.Value
+                                || original.RequiredRecipientIds.Any(id => !current.Covers(movingAction, stage.To, id, time + duration < positionalBypassUntil))
+                                || float.IsFinite(original.RecastSeconds) && mobility.RecastSeconds > original.RecastSeconds + 0.001f))
+                            return new(false, "moving attack timing, value or an individual recipient would be lost");
+                    }
+                    if (movingAction != null && stage.SourceActionIndex >= 0)
+                    {
+                        completedActions |= (byte)(1 << stage.SourceActionIndex);
+                        resources = resources.Grant(movingAction.GrantedResources);
+                    }
+                    actionReadyAt = time + duration + landingLock;
+                    if (mobility.IsGCD) gcdReadyAt = time + mobility.RecastSeconds;
                     if (stage.ActionId == 7419 && (relocatedField ?? current.PersonalField) is { } returnField
                         && !returnField.LiveAt(time + duration + landingLock))
                         return new(false, "owned return field expires before the landing lock clears");
@@ -294,8 +346,9 @@ internal static class MovementPlanValidation
             if (!teleported && !(stationary ? current.Traverse(position, landing, time, duration, out segmentSlack)
                 : current.TraverseOrdinary(position, landing, time, duration, out segmentSlack)))
                 return new(false, "complete executable route no longer clears native deadlines");
-            if (!stationary && stage.Kind is not (MovementStageKind.ForcedMovement or MovementStageKind.Knockback) && !current.ExecutionRules.PermitsMovement(time, time + duration + landingLock)
-                || stage.ActionId != 0 && stage.Kind != MovementStageKind.Target && !current.ExecutionRules.PermitsAction(executableFacing, time, time + duration + landingLock))
+            if (!stationary && position != landing && stage.Kind is not (MovementStageKind.ForcedMovement or MovementStageKind.Knockback) && !current.ExecutionRules.PermitsMovement(time, time + duration + landingLock)
+                || stage.ActionId != 0 && stage.Kind != MovementStageKind.Target && !current.ExecutionRules.PermitsAction(executableFacing, time,
+                    stage.Kind is MovementStageKind.Cast or MovementStageKind.UtilityAction ? Math.Max(time + duration, actionReadyAt) : time + duration + landingLock))
                 return new(false, "authored movement, action or facing prohibition changed");
             slack = Math.Min(slack, segmentSlack);
             time += duration + landingLock;
@@ -307,12 +360,17 @@ internal static class MovementPlanValidation
                 return new(false, "route exceeds evidenced forecast horizon");
             position = landing;
         }
+        if (!current.CompletePreparation(completedActions))
+            return new(false, "preparation sequence lacks its complete evidenced continuation");
         var destination = current.Cell(position);
         if (destination < 0 || !position.AlmostEqual(plan.UsefulDestination, ArrivalTolerance) || !current.DestinationAllowed(destination) || !current.CanRemain(position)
             || !current.DestinationSatisfied(plan.UsefulDestination, time))
             return new(false, "final position needs a different assignment or onward escape");
         if (current.NativePriority(destination) < plan.NativePriority)
             return new(false, "committed destination no longer preserves native goal priority");
+        if (plan.HealingCoverage is { } priorHealing && current.HealingCoverage is { } healing
+            && !healing.Preserves(priorHealing, plan.UsefulDestination, position))
+            return new(false, "configured healing recipient would fall out of range");
         if (plan.ComboRecovery is { } combo && plan.ComboExecutionValue > 0
             && (current.ComboRecovery is not { } freshCombo || !freshCombo.Preserves(combo)
                 || freshCombo.Value(position, time, comboReady, current.ExecutionRules) < plan.ComboExecutionValue
@@ -323,6 +381,6 @@ internal static class MovementPlanValidation
             && z.Benefit == zone.Benefit && z.EffectiveCenter(relocatedField) == zone.Center && z.Contains(plan.UsefulDestination, time, relocatedField))))
             return new(false, "friendly effect no longer covers the executable arrival");
         var departureDeadline = firstDeparture ?? (slack == float.MaxValue ? float.MaxValue : slack + (departure ?? 0));
-        return new(true, "fresh complete executable route", Math.Min(departureDeadline, plan.RemainingDepartureSeconds(timestamp ?? Stopwatch.GetTimestamp())));
+        return new(true, "fresh complete executable route", Math.Min(departureDeadline, plan.RemainingDepartureSeconds(timestamp ?? Stopwatch.GetTimestamp())), time);
     }
 }

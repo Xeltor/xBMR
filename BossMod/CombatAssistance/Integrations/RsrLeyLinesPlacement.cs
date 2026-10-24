@@ -70,8 +70,8 @@ internal sealed class RsrLeyLinesPlacement : IDisposable
     }
     private object? Center(string name) => _center?.GetProperty(name, Static)?.GetValue(null);
     private bool Manual() => _preview?.GetValue(null) is true || _forced?.GetValue(null) is true
-        || Center("CurrentInterceptedAction") != null
-        || RsrCommandPolicy.HasExplicitCommand(Center("CommandStatus") as Enum, Center("SpecialType") as Enum)
+        || RsrCommandPolicy.HasExplicitCommand(Center("CommandStatus") as Enum, Center("SpecialType") as Enum,
+            Center("CommandNextAction") != null)
         || !Targeting.NativeOffensiveTargeting.MayConstrainSelection(Center("IsManual") as bool?, Center("IsHenched") as bool?,
             Center("IsTargetOnly") as bool?, Center("IsPvP") as bool?);
     private bool Fresh() => _allowed() && _rotation != null && ReferenceEquals(Center("CurrentRotation"), _rotation)
@@ -138,7 +138,8 @@ internal sealed class RsrLeyLinesPlacement : IDisposable
             && authorized.Stage < authorized.Plan.Stages.Length
             && authorized.Plan.Stages[authorized.Stage] is { Kind: MovementStageKind.FieldPlacement } stage
             && position.AlmostEqual(stage.To, MovementPlanValidation.ArrivalTolerance)
-            && MovementPlanValidation.Validate(authorized.Plan, authorized.Context, authorized.Stage, true, now, position).Allowed)
+            && MovementPlanValidation.Validate(authorized.Plan, authorized.Context, authorized.Stage, true, now, position,
+                continuingCommittedRoute: true).Allowed)
         {
             _opportunity.Retire(); _authorized = null;
             Status = "native route reached; original RSR Ley Lines selection released";
@@ -154,9 +155,17 @@ internal sealed class RsrLeyLinesPlacement : IDisposable
         { _opportunity.Retire(); _authorized = null; return null; }
         return _opportunity.Capture(player.InstanceID, _manager.WorldState.CurrentZone, player.TargetID, Stopwatch.GetTimestamp());
     }
-    internal void Consider(MovementPlan plan, MovementPlanningContext context)
+    internal void RetirePlanning()
     {
-        if (plan.HasVerifiedRoute && plan.FieldPlacement?.Opportunity == _opportunity.Active
+        _prepared = null; _authorized = null; _opportunity.Retire();
+    }
+    internal void Consider(MovementPlan? plan, MovementPlanningContext context)
+    {
+        _authorized = null; // Only this frame's exact executor directive can release placement.
+        if (context.FieldPlacement?.Opportunity != _opportunity.Active || context.FieldPlacement == null)
+        { RetirePlanning(); return; }
+        _prepared = null;
+        if (plan is { HasVerifiedRoute: true } && plan.FieldPlacement?.Opportunity == _opportunity.Active
             && plan.FieldPlacementGain > 0 && plan.Stages.Any(s => s.Kind == MovementStageKind.FieldPlacement)
             && MovementPlanValidation.Validate(plan, context, 0, true).Allowed)
             _prepared = (plan, context);

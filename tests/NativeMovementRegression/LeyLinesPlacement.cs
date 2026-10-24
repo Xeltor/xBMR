@@ -48,6 +48,35 @@ public static partial class Checks
         Check(context.Excluding([]).FieldPlacement == placement,
             "Local mobility exclusions retain the immutable field-placement opportunity.");
 
+        var selection = (BossMod.CombatAssistance.Integrations.RsrLeyLinesPlacement)System.Runtime.CompilerServices.RuntimeHelpers
+            .GetUninitializedObject(typeof(BossMod.CombatAssistance.Integrations.RsrLeyLinesPlacement));
+        var token = new NativePlacementOpportunity();
+        var instant = Stopwatch.GetTimestamp();
+        var gcdTime = DateTime.UtcNow;
+        var observedPlacement = token.Observe(1, 7, 10, gcdTime, instant, 0, 2, .2f, original.Origin)!;
+        var selectionType = selection.GetType();
+        selectionType.GetField("_opportunity", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(selection, token);
+        var freshIdentity = original.Identity with { CapturedTimestamp = instant, WorldTime = gcdTime };
+        var activeContext = new MovementPlanningContext(freshIdentity, map, 0, 0, [true, true, true, true], [0, 0, 0, 0],
+            [action], [], targetId: 10, fieldPlacement: observedPlacement);
+        var activePlan = JointMovementSearch.Search(activeContext, Exhaustive);
+        selection.Consider(activePlan, activeContext);
+        var prepared = selectionType.GetField("_prepared", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        Check(prepared.GetValue(selection) != null && token.Approve(observedPlacement.Opportunity),
+            "Original RSR selection can approve the exact fresh placement prepared by the native owner.");
+        var authorized = selectionType.GetField("_authorized", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        authorized.SetValue(selection, (activePlan, activeContext, 0));
+        selection.Consider(null, activeContext);
+        Check(prepared.GetValue(selection) == null && authorized.GetValue(selection) == null && token.Approved,
+            "A fresh capture with no executable directive cannot inherit the preceding frame's placement release authority.");
+        selection.Consider(activePlan, activeContext);
+        var explicitContext = new MovementPlanningContext(freshIdentity, map, 0, 0, [true, true, true, true], [0, 0, 0, 0],
+            [action], [], targetId: 10, requiredDestination: Point(map, 1));
+        selection.Consider(null, explicitContext);
+        Check(prepared.GetValue(selection) == null && token.Active == 0 && !token.Approved
+            && token.Observe(1, 7, 10, gcdTime, instant + 1, 0, 2, .2f, original.Origin) == null,
+            "An explicit destination or lost placement authority clears selection preparation without renewing that GCD's retired window.");
+
         foreach (var selfTarget in new[] { context.Identity.ActorId, 0xE0000000ul })
         {
             var selfPlan = new MovementPlan(context.Identity, MovementSearchStatus.Complete,

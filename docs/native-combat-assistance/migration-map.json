@@ -41,7 +41,7 @@
     {
       "date": "2026-10-24",
       "request": "Unknown knockback projection and learning do not need to be migrated",
-      "disposition": "Retired UseLearnedKnockbackFallback, unknown-source inference, geometry classifier, learned-model persistence and legacy knowledge import. Original standalone files remain untouched. Retain authored BMR knockback handling, immunity, landing/recovery and tank Arm’s Length mitigation. Native effect/completion observation is scoped to published sources in the current module session, with no unknown classifier or three-cast prerequisite. General authored planning remains tracked implementation work."
+      "disposition": "Retired UseLearnedKnockbackFallback, unknown-source inference, geometry classifier, learned-model persistence and legacy knowledge import. Original standalone files remain untouched. Retain authored BMR knockback handling, immunity, landing/recovery and tank Arm\u2019s Length mitigation. Native effect/completion observation is scoped to published sources in the current module session, with no unknown classifier or three-cast prerequisite. General authored planning remains tracked implementation work."
     },
     {
       "date": "2026-10-23",
@@ -52,6 +52,11 @@
       "date": "2026-10-24",
       "request": "Stop nitpicking knockbacks; finish the migration",
       "disposition": "Further authored-knockback expansion/polishing is deferred. Keep the verified native implementation and recovery. Finish retained systems, final offline/upstream checks and hand off for dungeon testing; no new generic frameworks or idle experiments."
+    },
+    {
+      "date": "2026-10-24",
+      "request": "Remove the in-client update log and its associated rules",
+      "disposition": "Exclude the XCAI patch-note window, automatic pop-up, embedded history, history button, notes command and acknowledgment state. Remove retention/validation requirements for this feature; release publication metadata remains independent. Original standalone settings remain untouched."
     }
   ],
   "legacyCommandCompatibility": {
@@ -64,16 +69,17 @@
     "commands": {
       "/xcai": "Toggle AssistancePreferences.Enabled; no native AI activation",
       "on/off/toggle": "Shared combat-assistance master switch",
-      "config/notes": "Integrated Material settings and patch notes",
       "knockback on/off": "Shared ManageKnockback preference; policy parity remains separately tracked",
       "party on/off": "Explain user-authorized retirement; no saved field or follow activation",
       "check-ipc": "Current native planner/action status; retired transport probe is not restored",
-      "check-recording-ipc": "Current native recording-sharing status; retired metadata transport probe is not restored"
+      "check-recording-ipc": "Current native recording-sharing status; retired metadata transport probe is not restored",
+      "config": "Integrated Material settings"
     },
     "ownership": "Unhandled native shell fallback only; no /xcai registration that could prevent standalone loading. Existing handlers and standalone detection take precedence.",
     "status": "managed build and native dispatch/shared-settings/persistence/coexistence regressions passed; expanded actual chat/window and load/unload checks remain live-pending",
     "retiredCommands": {
-      "camera on/off": "Removed by explicit user request; camera remains configurable in the Material interface."
+      "camera on/off": "Removed by explicit user request; camera remains configurable in the Material interface.",
+      "notes": "Removed with the in-client update log by explicit user request."
     }
   },
   "completionMeaning": "All settings/source responsibilities are explicitly mapped or retired; runtime acceptance remains in TODO.md."

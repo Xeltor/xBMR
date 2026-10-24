@@ -1,132 +1,90 @@
-# XCAI → xBMR migration handoff checklist
+# xBMR combat assistance — remaining work
 
-Released 7.5.6.35.19 (Dalamud 7.5.6.3519), 2026-10-24. The maintainer explicitly authorized
-commit/push/publication and permanent standalone XCAI retirement; publication
-and anonymous-package validation are complete. The public feed no longer contains
-XCAI, its repository Actions and former release flows are disabled, and all three
-repositories document retirement for future agents. See
-[the publication receipt](docs/native-combat-assistance/release-7.5.6.35.19.json).
-All retained
-systems are implemented; remaining gameplay work is validation/tuning.
+Updated 24 October 2026. XCAI is merged and retired. The current development build
+is loaded and the maintainer reports that it feels much more like XCAI. Keep that
+working behavior; fix concrete problems instead of expanding the migration.
 
-Updated 2026-10-24. Implementation handoff reached; final offline checks and the
-fresh upstream trial passed. The user wants a handoff when only dungeon
-testing/tuning remains. Do not reopen completed imports or deferred enhancements.
+## Fix and check next
 
-2026-10-24 follow-up: mandatory standalone XCAI retirement is now requested.
-The implementation waits for a safe lifecycle handoff, removes the exact XCAI
-installation through Dalamud and preserves legacy settings. A persistent modal
-then confirms completed removal; **Got it** records acknowledgement once and
-does not authorize or delay removal. The
-feed cutover must publish merged xBMR and remove XCAI in the same generated-feed
-update. Retired standalone publishers must not re-add it. Validation of this
-follow-up is recorded separately from the earlier artifact receipts below.
-See [mandatory XCAI retirement](docs/native-combat-assistance/xcai-retirement.md)
-for the successful main-client removal, current artifact and remaining rollout.
+- [ ] **Melee uptime and useful mobility.** Native planning now delivers actual
+  Winged Glides, aimed Elusive Jumps and damaging dives through Griffin mechanics.
+  The completed Support test confirms their effects and melee landings. Sprint's
+  false stationary animation-lock delay is also repaired. A reported first-boss
+  escape/dash reversal is repaired: partial range cannot buy a dash, and an escape
+  already started is retained through the same pending mechanic. The repaired
+  Griffin run also confirms two in-combat Sprint effects. Classify remaining
+  Talons and fix reproduced avoidable
+  losses. Walking must not win when legal mobility or productive setup preserves
+  a melee attack. Keep real mechanics and manual control intact.
+- [ ] **Mechanic movement.** Check the reported late/missed dodges and excessive
+  retreat against the repaired run. Fix any reproduced failure. Warnings should
+  allow safe uptime; active danger still needs an immediate escape. No requirement
+  to certify every encounter or hypothetical hazard combination. Recheck the
+  first boss's hide on the new escape-commitment build; its report predates reload.
+- [ ] **Healer positioning.** When RSR's saved thresholds indicate healing is
+  needed, get the relevant party members in range. The Sage run already shows
+  heals reaching all four party members. Still check a real out-of-range recovery
+  before calling that particular behavior verified.
+- [ ] **Caster uptime.** Review the four interrupted casts found in the repaired
+  BLM recording. Check whether movement required cancellation or whether a cast
+  was started despite a known imminent departure. Fix the latter if confirmed.
+  Check useful Ley Lines placement/return during ordinary play.
+- [ ] **Micro-stepping.** Find the cause, then fix it. This remains an open defect,
+  not accepted behavior. Initial samples show short walks around native goal-field
+  changes; that is a lead, not a diagnosis. Preserve small moves that mechanics
+  actually require.
 
-## Scope and ownership
+## Already repaired or implemented
 
-- One xBMR plugin, one native movement planner/publication/executor. BMR safety,
-  assignments, activation, explicit destinations/presets and manual handoff remain
-  authoritative. Installing assistance does not activate AI.
-- RSR supplies action evidence and original action-selection checks. Native BMR
-  rotations keep their own goals. No new native rotation predictor.
-- User exclusions: ToF companion integration, automatic tank following between
-  pulls, unknown-knockback projection/learning, and the `/xcai camera` subcommand.
-  Camera settings remain in the Material interface; native explicit follow remains.
-- User deferral, 2026-10-24: stop expanding/polishing knockbacks. Keep the verified
-  authored phase/immunity/observation implementation and BMR native recovery for
-  unsupported cases. First-occurrence timing, broad wall/layer/custom projection
-  and additional cast/mobility combinations are deferred enhancements. Do not
-  present those as completed or restart that work during this completion pass.
-- Publishing, public feeds, uninstalling XCAI and watched-DLL deployment/reload are
-  separate actions. No game/idle-client experiments during this completion pass.
+- [x] Automatic target bootstrap, fresh native safety recovery and party-combat
+  continuity; the NPC run now progresses through packs. Reopen for a concrete stall.
+- [x] Machinist's unnecessary melee following. The recorded comparison shows
+  improved spacing without losing its matched attack cadence.
+- [x] Black Mage Umbral Soul capture failure. The later complete caster run has
+  no recurrence and shows Umbral Soul working while movement continues.
+- [x] Native walking/Sprint/mobility planning, damaging movement actions and
+  productive preparations. Short hostile dashes and useful friendly relays no
+  longer inherit the wrong blanket eight-yalm restriction. Actual uptime issues
+  belong in the melee item above.
+- [x] True North positional handling and module-immunity social-facing gate.
+  Watch these during normal play; reopen an observed regression rather than
+  requiring a separate test campaign.
+- [x] Material interface, legacy commands except camera, saved-setting import,
+  support features, diagnostics and standalone XCAI retirement. Preserve the
+  imported settings and opt-outs.
 
-## Implemented systems
+## Keep the scope practical
 
-- [x] Shared native safety/traversal, immutable worker input, one active owner,
-  superseded-worker cancellation, original deadlines and explicit bounded results.
-  The proposed 4 ms / 8,192 quota is removed; freshness/departure and documented
-  memory/evidence limits remain. Independent small-map solver comparisons exist.
-- [x] Current attacks/heals, target/range/positionals and independent recipients;
-  native recovery, route detours, warnings and temporary-stop escape validation.
-- [x] Mobility mechanics, legal targets/facing/returns, charges, locks, original
-  RSR selection, exact pre-execution validation and per-candidate rejection.
-- [x] BLM placement/return/Retrace/Between the Lines, RDM evidenced combo recovery
-  and PCT field/Smudge return. Unknown timing/footprints remain bounded; no
-  invented haste or complete Inspiration radius. The first walking publication
-  now includes useful after-action zone return, preserving the current spell.
-- [x] Utility zones, healing coverage, support recipients, raised-player healing,
-  Kardia/fairy/cards/partner, ranged mitigation, interrupts/stuns, tank stance/
-  recovery and tank Arm's Length mitigation. Actual delivery remains for dungeon testing.
-- [x] Combat-only pull contact: observed advancing multi-enemy pack, role ranges,
-  hysteresis, immediate combat-end retirement and native leader/preset precedence.
-  Native vnavmesh quest/obstacle interfaces remain; no second navigation follower.
-- [x] Social spacing, natural destinations, party/tank facing, boss-center/edge
-  preferences and camera/manual pause. Presentation remains a tie-breaker.
-- [x] Material BMRAI interface, native General/Movement bindings, unchanged `/bmr`,
-  `/bmrai` operational commands and `/xcai` compatibility except retired camera.
-- [x] Separate versioned assistance settings, one-time import/clamping, opt-outs,
-  original rollback file, restoration journals and standalone coexistence gates.
-- [x] Bounded `BossModReborn.DevBridge.GetSnapshot`, existing world-marker overlay,
-  xBMR capture identity, historical XCAI decoding and opt-in fight sharing.
-- [x] Remove all 72 XCAI-only contracts and local serialized transport. Preserve
-  all 67 recorded upstream IPC names. No standalone dependency or internal IPC.
-- [x] Explicit responsibility/retirement mappings for all 100 settings and 385
-  source files in adjacent inventories. This is accounting, not a live parity claim.
+Use the current NPC run and normal gameplay to exercise job-specific actions,
+field returns, support features and lifecycle behavior. Add a task when something
+actually fails or when a specific important behavior has no useful evidence.
+Testing every job, every settings page, every lifecycle permutation or every
+geometry combination is not a blocker for using this plugin.
 
-## Final offline validation
+Micro-stepping is follow-up repair work once diagnosed. UI polish, exhaustive
+feature matrices, repeated inventory audits and another upstream trial merge for
+an unrelated small fix are not current blockers. Keep useful existing tests; do
+not turn this list into another general verification project.
 
-- [x] Build final current source through the managed compilation environment.
-- [x] Run the native/reference suite, installed RSR contracts, broader suites,
-  repository checks and inventory/whitespace verification on the exact artifact.
-- [x] Refresh actual newer-upstream trial, resolve conflicts and validate its
-  native behavior/build. Preserve main working tree, ancestry and version scheme.
-- [x] Write final artifact/validation/upstream identities and dungeon handoff.
+ToF, automatic tank-following between pulls, unknown-knockback learning and the
+camera subcommand stay excluded. Do not restart knockback expansion. Publishing
+is a separate request. Preserve the current build during the active run; the
+maintainer has explicitly authorized development reloads inside the NPC dungeon.
 
-Final evidence: 42,863 native assertions and 19 broader suites pass on both the
-final DLL and actual newer-upstream merge. Nine repository tests and installed RSR
-contracts pass. Exact hashes, source/merge identities and limits are recorded in
-`docs/native-combat-assistance/{handoff.md,validation-current.json}`. The final
-artifact was not deployed during this pass. Stop here for user dungeon testing.
+## Evidence, if needed
 
-## Dungeon and lifecycle acceptance remaining
+The loaded repair DLL is MVID `33a2f701-ded3-42f0-9c58-67d872fd1889`.
+It builds and passes 43,081 native assertions, installed RSR contract checks and
+nine repository tests. Those checks support the repairs; gameplay decides whether
+combat behavior is good enough.
+Loaded provenance, AI following and RSR Henched were verified after reload.
+Dash/backstep/Sprint effects are live-verified. Griffin's repaired run completed;
+the first-boss hide report occurred before this reload and needs its own recheck.
 
-These are testing/tuning, not requests to invent more systems before handoff.
+- [Run findings and build details](docs/native-combat-assistance/regressions-2026-10-24.md)
+- [Machinist spacing comparison](docs/native-combat-assistance/machinist-range-2026-10-24.json)
+- [Earlier migration history](docs/native-combat-assistance/migration-history.md)
 
-- [ ] Melee safe dodge/uptime, blocked-route detour, narrow ranged recovery,
-  target-circle/cone/line coverage, healing recipients and tank-facing behavior.
-- [ ] Successive warnings, temporary stops/onward escape, active/unknown expiry,
-  disconnected/unsupported geometry and no-safe-route recovery.
-- [ ] Target dashes, deliberate-facing backsteps, return anchors, failed setup,
-  locks/cast completion, Sprint/True North and charge preservation. Test supported
-  knockbacks only; deferred expansion is not a blocker for this dungeon handoff.
-- [ ] Stable repeated-frame destinations and invalidation on actual hazard,
-  target/action/recipient changes, manual movement or explicit targeting.
-- [ ] BLM placement/return/relocation, PCT observed-field return/Smudge and RDM
-  ST/AoE continuation. Confirm delivery/timing and tune actual field boundaries.
-- [ ] Combat pull contact, explicit follow/presets, Questionable handoff, RSR
-  unavailable/native rotations, death/resurrection, mounted pause, logout/unload.
-- [ ] All Material pages/shared controls, command behavior, standalone coexistence,
-  repeated startup/import/journal restoration, camera pause, overlay and sharing.
-- [ ] Before any later watched deployment: fresh out-of-combat checks for affected
-  clients, then normal watcher reload and exact loaded provenance/health checks.
-  The last loaded DLL is older than the isolated final candidate. Do not call an
-  isolated build a deployed or live-accepted migration.
-
-DevBridge's command-testing extension has been reported available by its agent.
-Refresh MCP discovery/skill before using `commands` → `composedSnapshot` →
-`action.testPluginCommand` with its single-use tokens. No downstream command or
-live gameplay acceptance is claimed from that report.
-
-## References
-
-- `docs/native-combat-assistance/{settings-inventory,source-inventory,migration-map,constraint-review}.json`
-- `docs/native-combat-assistance/upstream-interfaces.md`
-- `docs/native-combat-assistance/implementation-status.md`
-- `docs/native-combat-assistance/migration-history.md` (superseded chronological
-  checkpoints; do not turn old paragraphs into new implementation requirements).
-
-Branch: `codex/native-combat-assistance`; main source is intentionally uncommitted
-on `f1de3550b1d96bfd8f153d7b4a7ffe53e5e0d530`. Preserve unrelated work. Standalone
-source baseline: `4a0f7968da8a743e8971973821cb9f6f1387198c` (left unchanged).
+The old detailed checklist was consolidated here. Historical notes and old open
+boxes in other documents do not create additional work or release gates. Reopen
+work for a concrete defect, a useful missing check, or a maintainer request.

@@ -40,10 +40,6 @@ internal sealed class AssistancePreferences
 
     public int Version { get; set; } = 30;
 
-    public string[]? AcknowledgedPatchNotes { get; set; }
-
-    public string? PatchNotesBaselineVersion { get; set; }
-
     public System.Numerics.Vector2? SettingsWindowPosition { get; set; }
 
     // Enables assistance only; native AI activation and movement authority remain separate.

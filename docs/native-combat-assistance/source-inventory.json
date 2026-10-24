@@ -913,7 +913,7 @@
       "source": "XelsCombatAI/Combat/KnockbackController.cs",
       "review": "partially replaced by native phase search/RSR role selection/scoped physical observation; general authored projection, current in-progress casts and walking/mobility contingencies remain code work",
       "featureGroup": "knockback-and-forced-march",
-      "reviewedPortion": "Retained native authored phases use one joint search/executor, original RSR role-action approval, independent saved opt-outs, source/cast identity, native-effect timing and physical completion. Tank Arm’s Length mitigation is retained. Unknown inference and learning are retired; there is no native knowledge-file import or geometry classifier. General authored projection, first-event timing, already-in-progress casts and walking/mobility contingencies remain implementation work; actual dungeon delivery is unverified.",
+      "reviewedPortion": "Retained native authored phases use one joint search/executor, original RSR role-action approval, independent saved opt-outs, source/cast identity, native-effect timing and physical completion. Tank Arm\u2019s Length mitigation is retained. Unknown inference and learning are retired; there is no native knowledge-file import or geometry classifier. General authored projection, first-event timing, already-in-progress casts and walking/mobility contingencies remain implementation work; actual dungeon delivery is unverified.",
       "destination": [
         "BossMod/CombatAssistance/Planning/NativeDisplacementInventory.cs",
         "BossMod/CombatAssistance/Planning/NativeKnockbackPhases.cs",
@@ -3957,11 +3957,8 @@
     },
     {
       "source": "XelsCombatAI/Runtime/PatchNoteHistory.cs",
-      "review": "Native adaptation present; feature and live acceptance tracked in settings inventory",
-      "featureGroup": "lifecycle-and-game-evidence",
-      "destination": [
-        "BossMod/CombatAssistance/Runtime/PatchNoteHistory.cs"
-      ]
+      "review": "Retired by explicit user request: in-client update log, automatic display and acknowledgment history are excluded from xBMR.",
+      "featureGroup": "lifecycle-and-game-evidence"
     },
     {
       "source": "XelsCombatAI/Runtime/RuntimeStatus.cs",
@@ -4053,11 +4050,8 @@
     },
     {
       "source": "XelsCombatAI/UI/PatchNotesWindow.cs",
-      "review": "Native adaptation present; feature and live acceptance tracked in settings inventory",
-      "featureGroup": "settings-and-interface",
-      "destination": [
-        "BossMod/CombatAssistance/UI/PatchNotesWindow.cs"
-      ]
+      "review": "Retired by explicit user request: in-client update log, automatic display and acknowledgment history are excluded from xBMR.",
+      "featureGroup": "settings-and-interface"
     },
     {
       "source": "XelsCombatAI/UI/PluginUiVisibility.cs",

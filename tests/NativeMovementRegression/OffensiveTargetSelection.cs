@@ -85,8 +85,46 @@ public static partial class Checks
             "Native acquisition is strictly below fifty yalms while an existing target can be retained.");
         Check(!(acquire with { Actors = [first with { Actor = first.Actor with { Height = float.NaN } }] }).Allows(single, 2),
             "Unknown target geometry cannot become a new native acquisition proof.");
+        MissingTargetRecovery(acquire, first);
         RsrAutomaticTargetScopes();
         NativeTargetIntentOwnership();
+    }
+
+    private static void MissingTargetRecovery(OffensiveTargetFrame missing, OffensiveTargetActor first)
+    {
+        // Reproduce Henched's bootstrap: with no hard target RSR has no selected
+        // action or recipients. Native acquisition must work before that callback.
+        missing = missing with { CurrentAction = 0, RequiredRecipients = default, SelectedTarget = 0 };
+        Check(missing.MissingTargetAcquisition(false) == 2,
+            "Henched missing-target recovery does not wait for an action that requires a hard target.");
+        foreach (var oldTarget in new[] { 0ul, 2ul, 999ul })
+        {
+            var lost = missing with { Current = oldTarget, Actors = missing.Actors.Where(a => a.Actor.Id != oldTarget).ToImmutableArray() };
+            var expected = oldTarget == 2 ? 3ul : 2ul;
+            Check(lost.MissingTargetAcquisition(false) == expected,
+                "Cleared, removed and untargetable old targets can hand off to the remaining engaged pack.");
+            Check(lost.MissingTargetAcquisition(true) == 0,
+                "A usable current hard target, including a manually chosen ally, is never replaced by acquisition.");
+        }
+        var dead = missing with { Current = 2, Actors = [first with { Actor = first.Actor with { Dead = true } }, missing.Actors[1]] };
+        Check(dead.MissingTargetAcquisition(false) == 3,
+            "A dead hard target cannot prevent acquiring the living pack member.");
+        Check((missing with { Acquire = false }).MissingTargetAcquisition(false) == 0
+            && (missing with { RetainSelection = true }).MissingTargetAcquisition(false) == 0
+            && (missing with { Forced = 3 }).MissingTargetAcquisition(false) == 0,
+            "Saved opt-out, manual retention and authored target ownership prevent bootstrap acquisition.");
+        Check((missing with { Actors = [first with { Priority = AIHints.Enemy.PriorityForbidden }] }).MissingTargetAcquisition(false) == 0
+            && (missing with { Actors = [first with { Engaged = false }] }).MissingTargetAcquisition(false) == 0
+            && (missing with { Actors = [] }).MissingTargetAcquisition(false) == 0,
+            "Missing-target recovery cannot pull idle enemies, select forbidden targets or fabricate a target.");
+        Check((missing with { Actors = [first, missing.Actors[1] with { Priority = 2 }] }).MissingTargetAcquisition(false) == 3
+            && (missing with { Actors = [first with { Actor = first.Actor with { Position = new(50, 0) } }] }).MissingTargetAcquisition(false) == 0,
+            "Bootstrap acquisition preserves native encounter priority and the actual target-selection distance limit.");
+        var acquired = missing.MissingTargetAcquisition(false);
+        var resumed = missing with { Current = acquired, CurrentAction = 100, RequiredRecipients = [acquired], SelectedTarget = acquired };
+        Check(resumed.MissingTargetAcquisition(true) == 0
+            && resumed.AllowsNative(new(100, 1, 25, 0, 0, false, false, false), acquired),
+            "After acquisition, original action validation resumes and equivalent frames do not reacquire.");
     }
 
     private static void InstalledTargetScopeContract(string directory)
@@ -112,6 +150,8 @@ public static partial class Checks
         if (new[] { "IsManual", "IsHenched", "IsTargetOnly", "IsPvP" }
             .Any(name => center.GetProperty(name, flags)?.PropertyType != typeof(bool)))
             throw new InvalidOperationException("RSR native target ownership mode contract changed");
+        if (center.GetProperty("CommandNextAction", flags)?.PropertyType != basic.GetType("RotationSolver.Basic.Actions.IAction", true))
+            throw new InvalidOperationException("RSR live command queue contract changed");
         var commandType = center.GetProperty("CommandStatus", flags)?.PropertyType;
         var specialType = center.GetProperty("SpecialType", flags)?.PropertyType;
         if (commandType?.IsEnum != true || specialType?.IsEnum != true

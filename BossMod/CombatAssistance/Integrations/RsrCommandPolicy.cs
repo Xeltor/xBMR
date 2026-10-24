@@ -5,9 +5,9 @@ namespace BossMod.CombatAssistance.Integrations;
 // manual authority. Unknown contracts remain conservative.
 internal static class RsrCommandPolicy
 {
-    internal static bool HasExplicitCommand(Enum? status, Enum? special)
+    internal static bool HasExplicitCommand(Enum? status, Enum? special, bool queuedAction = false)
     {
-        if (status == null || special == null || !Enum.IsDefined(special.GetType(), special)) return true;
+        if (queuedAction || status == null || special == null || !Enum.IsDefined(special.GetType(), special)) return true;
         var bits = Convert.ToUInt64(status);
         if (bits == 0) return false;
         if (special.ToString() == "Burst") return true;

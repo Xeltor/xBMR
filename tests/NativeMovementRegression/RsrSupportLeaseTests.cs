@@ -156,6 +156,17 @@ internal static class RsrSupportLeaseTests
             var basic = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(directory, "RotationSolver.Basic.dll"));
             var actionUpdaterType = assembly.GetType("RotationSolver.Updaters.ActionUpdater", true)!;
             const BindingFlags selectionFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+            var healingUpdater = assembly.GetType("RotationSolver.Updaters.StateUpdater", true)!;
+            Require(healingUpdater.GetMethod("StatusFromHealing", selectionFlags)?.ReturnType.IsEnum == true
+                && healingUpdater.GetMethods(selectionFlags).Count(m => m.Name == "ShouldHealSingle" && m.GetParameters().Length == 4) == 1,
+                "Installed RSR exposes original range-independent configured healing demand");
+            var healingConfig = basic.GetType("RotationSolver.Basic.Service", true)!.GetProperty("Config", selectionFlags)!.PropertyType;
+            foreach (var name in new[] { "HealthSingleAbility", "HealthSingleAbilityHot", "HealthSingleSpell", "HealthSingleSpellHot",
+                "HealthAreaAbility", "HealthAreaAbilityHot", "HealthAreaSpell", "HealthAreaSpellHot" })
+                Require(healingConfig.GetProperty(name)?.PropertyType == typeof(float), "Installed healing threshold " + name);
+            Require(basic.GetType("RotationSolver.Basic.Actions.ActionBasicInfo", true)!.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Any(m => m.Name == "BasicCheck" && m.GetParameters().Length == 6),
+                "Installed range-independent healing availability contract");
             Require(actionUpdaterType.GetProperty("NextAction", selectionFlags)?.PropertyType.FullName == "RotationSolver.Basic.Actions.IAction"
                 && actionUpdaterType.GetProperty("NextGCDAction", selectionFlags)?.PropertyType.FullName == "RotationSolver.Basic.Actions.IBaseAction",
                 "Installed immediate party-action and GCD evidence contracts");

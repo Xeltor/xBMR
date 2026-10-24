@@ -23,7 +23,8 @@ public static partial class Checks
             && RsrCommandPolicy.HasExplicitCommand(CommandFlags.NoCasting, SpecialCommand.NoCasting)
             && RsrCommandPolicy.HasExplicitCommand((CommandFlags)8, SpecialCommand.None)
             && RsrCommandPolicy.HasExplicitCommand(null, SpecialCommand.None)
-            && RsrCommandPolicy.HasExplicitCommand(CommandFlags.Burst, null),
+            && RsrCommandPolicy.HasExplicitCommand(CommandFlags.Burst, null)
+            && RsrCommandPolicy.HasExplicitCommand(CommandFlags.None, SpecialCommand.None, queuedAction: true),
             "Automatic burst cannot masquerade as manual control; explicit burst, casting commands and unknown contracts retain authority.");
         var player = new ExecutionActor(1, default, 0, 0.5f, default);
         OffensiveTargetActor Enemy(ulong id, float x, int priority = 0, bool engaged = true, bool collateral = false)

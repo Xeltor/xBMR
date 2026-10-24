@@ -69,6 +69,15 @@ internal sealed record PlanningResourceState(ulong Charges, ImmutableArray<float
         return new(state.Charges - cost, next);
     }
 
+    internal PlanningResourceState Grant(ulong grant)
+    {
+        if (grant == 0) return this;
+        for (var slot = 0; slot < 16; ++slot)
+            if (MovementPlanningContext.ChargeCount(Charges, slot) + MovementPlanningContext.ChargeCount(grant, slot) > 15)
+                throw new InvalidOperationException("An action grant exceeds the represented resource capacity.");
+        return new(Charges + grant, Next);
+    }
+
     // Conservative pruning: unequal replenishing inventories remain distinct.
     // Equal counts with an earlier next charge can reproduce the later schedule.
     internal bool Dominates(PlanningResourceState other, float at, ImmutableArray<PlanningRecharge> recharges)

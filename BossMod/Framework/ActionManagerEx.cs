@@ -554,6 +554,7 @@ public sealed unsafe partial class ActionManagerEx : IDisposable
     private bool UseActionDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, uint extraParam, ActionManager.UseActionMode mode, uint comboRouteId, bool* outOptAreaTargeted)
     {
         var action = new ActionID((ActionType)actionType, actionId);
+        if (_automaticDeliveryGate?.Invoke(action) == false) return false;
         //Service.Log($"[AMEx] UA: {action} @ {targetId:X}: {extraParam} {mode} {comboRouteId}");
         action = NormalizeActionForQueue(action);
         var spellId = GetSpellIdForAction(action);
@@ -620,6 +621,7 @@ public sealed unsafe partial class ActionManagerEx : IDisposable
 
     private bool UseActionLocationDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam, byte a7)
     {
+        if (_automaticDeliveryGate?.Invoke(new((ActionType)actionType, actionId)) == false) return false;
         var targetSystem = TargetSystem.Instance();
         var player = GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
         var prevSeq = _inst->LastUsedActionSequence;

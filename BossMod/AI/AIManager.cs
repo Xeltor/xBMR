@@ -12,7 +12,6 @@ sealed class AIManager : IDisposable
     public readonly AIController Controller;
     private static readonly AIConfig _config = Service.Config.Get<AIConfig>();
     private readonly AIManagementWindow _wndAI;
-    private readonly CombatAssistance.UI.PatchNoteController _patchNotes;
     private readonly CombatAssistance.UI.MigrationCommandAlias _migrationAlias;
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
     public AIBehaviour? Beh;
@@ -27,9 +26,7 @@ sealed class AIManager : IDisposable
         Instance = this;
         Autorot = autorot;
         _wndAI = new AIManagementWindow(this, settings);
-        _patchNotes = new(settings);
-        _wndAI.OpenPatchNotes = _patchNotes.Show;
-        var legacyCommands = new CombatAssistance.Runtime.LegacyAssistanceCommands(settings, () => _wndAI.SetVisible(true), _patchNotes.Show,
+        var legacyCommands = new CombatAssistance.Runtime.LegacyAssistanceCommands(settings, () => _wndAI.SetVisible(true),
             () => $"Native movement planning: {Autorot.MovementPlanning.LastFailure ?? "available"}; {Autorot.MovementPlanning.Assistance?.ActionStatus ?? "native rotation goals"}",
             () => _wndAI.FightSharingStatus?.Invoke() ?? "Recording status is not available yet.", message => Service.ChatGui.Print($"[xBMR] {message}"));
         _migrationAlias = new(legacyCommands.Execute);
@@ -55,8 +52,6 @@ sealed class AIManager : IDisposable
 
     internal void UpdateMigrationAlias(bool standaloneLoaded)
     {
-        _patchNotes.Update(!standaloneLoaded && Service.ClientState.IsLoggedIn
-            && WorldState.Party.Player() is { InCombat: false } && !Service.GameGui.GameUiHidden);
         _migrationAlias.Enabled = !standaloneLoaded;
     }
 
@@ -70,7 +65,6 @@ sealed class AIManager : IDisposable
     public void Dispose()
     {
         SwitchToIdle();
-        _patchNotes.Dispose();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
         Service.CommandManager.RemoveHandler("/vbmai");

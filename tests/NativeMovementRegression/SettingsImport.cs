@@ -17,7 +17,7 @@ public static partial class Checks
                  "FixBmrStackSeparation":false,"FixBmrForcedMarchHeading":false,"CombatCamera":true,"ShareFightRecordings":true,
                  "PreferredForbiddenZoneDistance":99,"CameraPanningSpeed":-5,"DecisionOverlayDensity":99,
                  "DisabledEncounterFixes":["saved-opt-out"],"StartRotationSolverAtFateOpener":true,"TrackDungeonParty":true,
-                 "UseLearnedKnockbackFallback":true}
+                 "UseLearnedKnockbackFallback":true,"AcknowledgedPatchNotes":["old-update"],"PatchNotesBaselineVersion":"3.1.7"}
                 """;
             File.WriteAllText(legacy, original);
             var loaded = store.Load(true);
@@ -37,6 +37,9 @@ public static partial class Checks
                 "Import records source identity while retaining the byte-identical rollback file.");
             using (var json = JsonDocument.Parse(File.ReadAllText(store.FilePath)))
             {
+                Check(!json.RootElement.GetProperty("Preferences").TryGetProperty("AcknowledgedPatchNotes", out _)
+                    && !json.RootElement.GetProperty("Preferences").TryGetProperty("PatchNotesBaselineVersion", out _),
+                    "Retired update-log state is not imported or persisted; the original legacy file is preserved.");
                 Check(!json.RootElement.GetProperty("Preferences").TryGetProperty("StartRotationSolverAtFateOpener", out _),
                     "Excluded ToF behavior is not persisted in native preferences.");
                 Check(!json.RootElement.GetProperty("Preferences").TryGetProperty("TrackDungeonParty", out _)

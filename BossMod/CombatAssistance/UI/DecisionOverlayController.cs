@@ -19,7 +19,7 @@ internal sealed partial class DecisionOverlayController(Func<AssistancePreferenc
             if (host.Assistance?.TargetDecision is { Published: true } targeting
                 && DateTime.UtcNow - targeting.ObservedAt < TimeSpan.FromMilliseconds(250))
             {
-                const string label = "Action target";
+                var label = targeting.Action == 0 ? "Acquire target" : "Action target";
                 DrawContextMarker(draw, new(OverlayVisualKind.ContextMarker, OverlayVisualProminence.Preview,
                     DecisionOverlaySource.TargetUptime, DecisionOverlayState.Active, targeting.Position, null, null,
                     new(DecisionOverlayState.Active, targeting.Position, 0.45f, label), label, 0, 1));

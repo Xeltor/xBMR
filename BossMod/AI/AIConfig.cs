@@ -49,6 +49,9 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Max distance to target")]
     public float MaxDistanceToTarget = 2.6f;
 
+    [PropertyDisplay("Use combat positioning range", tooltip: "With native combat assistance and RotationSolver active, use the job's combat reach instead of the fixed follow distance. The selected action, recipients and mechanics still determine the useful position. Disable to request the fixed distance above.")]
+    public bool UseCombatPositioningRange = true;
+
     [PropertyDisplay("Minimum distance to hitbox")]
     public float MinDistance = 0f;
 
