@@ -1,0 +1,43 @@
+{
+  "release": "v7.5.6.35.19",
+  "assemblyVersion": "7.5.6.3519",
+  "sourceCommit": "0c17b96dcceaa78e5736feeae03479bece1c2b07",
+  "zipSha256": "ded413126c7779a8eba91203d0c976a968a99af41e1e6f57cac403ee8d4bd32c",
+  "dllSha256": "71911725a977d0fe558697a71bb7a3225eff808600330ab673890c7906018186",
+  "zipBytes": 21892020,
+  "dlls": {
+    "BossModReborn.dll": "71911725a977d0fe558697a71bb7a3225eff808600330ab673890c7906018186",
+    "RebornMaterial.dll": "0e9c499abb32bc51f438b352557104421e334d9cc7349988899a8e6035de5046"
+  },
+  "xcaiAbsent": true,
+  "unrelatedEntriesPreserved": true,
+  "publicDownloadUnauthenticated": true,
+  "date": "2026-10-24",
+  "state": "Published and anonymous downloads verified; live dungeon acceptance remains separate",
+  "sourceTag": "v7.5.6.35.19",
+  "publicRelease": "https://forge.xel-serv.com/xelsplugins/XelsDalamudRepo/releases/tag/BossModReborn-v7.5.6.35.19",
+  "sourceBuild": "https://github.com/Xeltor/xBMR/actions/runs/40086783798",
+  "publisher": "https://forge.xel-serv.com/xelsplugins/XelsDalamudRepo/actions/runs/313",
+  "feedValidation": "https://forge.xel-serv.com/xelsplugins/XelsDalamudRepo/actions/runs/315",
+  "hostedChecks": "success",
+  "feedCommit": "9ccf776b86d3dfbe58e06c777747586f6706b219",
+  "feedAutomationCommit": "947a8e9b57b503b0abaeae8628450666d81b07bd",
+  "standaloneRetirementCommit": "d94bca0",
+  "standaloneRepositoryActionsEnabled": false,
+  "historicalStandaloneDispatch": "HTTP 404; v3.1.7 release.yml dry-run dispatch rejected after retirement",
+  "publishedDllMvid": "90b8b573-55b7-406c-801c-8c44d1f82e54",
+  "publishedInformationalVersion": "7.5.6.35.19+0c17b96dcceaa78e5736feeae03479bece1c2b07",
+  "downloadedDllNativeAssertions": 42888,
+  "downloadedDllBroaderSuites": 19,
+  "installedRsrContractChecks": "passed against RSR 7.5.7.6; static contracts, not live action delivery",
+  "repositoryPythonTests": 9,
+  "feedRetirementTests": 6,
+  "publicFeedPlugins": [
+    "BossModReborn",
+    "TwistOfFayte",
+    "XelsTweaks"
+  ],
+  "retiredIntegrationEndpoints": 72,
+  "preservedUpstreamEndpointNames": 67,
+  "remainingLiveChecks": "Dungeon movement/action delivery, packaged normal-plugin uninstall/restart cleanup, and independent visual confirmation of the completion modal. Prior disabled-development uninstall/settings preservation was verified; no full dungeon acceptance claim."
+}

@@ -1,7 +1,12 @@
 # XCAI → xBMR migration handoff checklist
 
-Release preparation 7.5.6.35.19, 2026-10-24. The maintainer explicitly authorized
-commit/push/publication and permanent standalone XCAI retirement. All retained
+Released 7.5.6.35.19 (Dalamud 7.5.6.3519), 2026-10-24. The maintainer explicitly authorized
+commit/push/publication and permanent standalone XCAI retirement; publication
+and anonymous-package validation are complete. The public feed no longer contains
+XCAI, its repository Actions and former release flows are disabled, and all three
+repositories document retirement for future agents. See
+[the publication receipt](docs/native-combat-assistance/release-7.5.6.35.19.json).
+All retained
 systems are implemented; remaining gameplay work is validation/tuning.
 
 Updated 2026-10-24. Implementation handoff reached; final offline checks and the

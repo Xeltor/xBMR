@@ -2,7 +2,9 @@
 
 2026-10-24 follow-up, explicitly requested after the implementation handoff.
 Mandatory removal was verified on the development client. The revised completion
-modal and durable acknowledgement pass offline regression checks. It is prepared for the authorized 7.5.6.35.19 stable cutover.
+modal and durable acknowledgement pass offline regression checks. The authorized
+7.5.6.35.19 stable cutover is published and its downloaded package verified.
+See [the final publication receipt](release-7.5.6.35.19.json).
 
 ## Runtime behavior
 
