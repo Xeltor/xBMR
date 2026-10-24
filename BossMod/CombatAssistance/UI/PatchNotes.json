@@ -1,0 +1,590 @@
+[
+  {
+    "id": "release-2-22-0",
+    "version": "2.22.0",
+    "changes": [
+      "Updated support for BossMod and RotationSolver, and improved how melee jobs get into attack range.",
+      "Optional positioning adjustments wait for casts to finish, with slidecast adjustments available for casters and healers.",
+      "Monk and Viper can consider a useful ally hop when it safely sets up a second dash toward an engaged target."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-26-8",
+    "version": "2.26.8",
+    "changes": [
+      "Movement abilities consider safe ways both into and out of melee range, including Red Mage backsteps.",
+      "Low-value dashes are conserved, and unfamiliar mechanics require reliable safety information before extra movement is allowed.",
+      "Automatic acceptance of Raise offers was removed in this release.",
+      "Removed the old FightReview logging tools."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-27-2",
+    "version": "2.27.2",
+    "changes": [
+      "Added an automatic combat camera to help keep the fight in view.",
+      "Improved safe recovery into attack range after movement, including Red Mage melee-combo movement.",
+      "Improved combat target selection and reduced unnecessary movement."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-27-4",
+    "version": "2.27.4",
+    "changes": [
+      "The combat camera frames the party and fight more reliably.",
+      "Improved healer positioning while preserving safe movement and healing coverage."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-28-0",
+    "version": "2.28.0",
+    "changes": [
+      "Improved coordination between tanks and the combat camera’s framing."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-28-1",
+    "version": "2.28.1",
+    "changes": [
+      "When you have aggro, positional movement no longer chases the enemy’s front and keeps turning it."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-29-1",
+    "version": "2.29.1",
+    "changes": [
+      "Improved movement-ability choices and reduced unnecessary tank stance toggling.",
+      "Keeping an enemy facing steady is more reliable when the pack or combat settings change.",
+      "Removed experimental trash-pack corrections that had not been confirmed."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-31-0",
+    "version": "2.31.0",
+    "changes": [
+      "Simplified the settings layout and refreshed the plugin’s appearance.",
+      "Improved safe positioning and coordination between tanks."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-31-1",
+    "version": "2.31.1",
+    "changes": [
+      "Fixed the settings logo staying outdated after a plugin update."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-32-0",
+    "version": "2.32.0",
+    "changes": [
+      "Improved following the party through dungeon pulls and recovering useful combat positions safely."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-34-1",
+    "version": "2.34.1",
+    "changes": [
+      "Added options for choosing recipients of party support abilities.",
+      "Improved combat movement and spacing around other players.",
+      "Added encounter-specific corrections and clearer connection status for required plugins."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-35-1",
+    "version": "2.35.1",
+    "changes": [
+      "Settings now use native FFXIV-style controls.",
+      "Improved melee uptime and the timing of movement abilities between attacks."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-36-1",
+    "version": "2.36.1",
+    "changes": [
+      "Added shared movement planning and cooperative FATE intentions between participating players.",
+      "Reduced repeated AoE repositioning and added checks for movement routes while casting."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-37-0",
+    "version": "2.37.0",
+    "changes": [
+      "Idle bosses are protected from unwanted combat engagement.",
+      "Improved handing movement back when assistance should yield."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-37-1",
+    "version": "2.37.1",
+    "changes": [
+      "Improved getting back into melee range safely instead of staying on ranged filler attacks."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-38-0",
+    "version": "2.38.0",
+    "changes": [
+      "Improved party coordination when players arrive at a fight, use support abilities, or recover tank control."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-38-3",
+    "version": "2.38.3",
+    "changes": [
+      "Brief combat movement no longer cancels auto-run immediately.",
+      "Party coordination preserves local spreading when players need to separate.",
+      "Participating players remain visible to coordination while idle."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-39-0",
+    "version": "2.39.0",
+    "changes": [
+      "Expanded party teamwork while protecting melee jobs’ ability to keep landing weaponskills."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-40-1",
+    "version": "2.40.1",
+    "changes": [
+      "Added coordination for last-chance Rescue requests between participating players.",
+      "Reduced extra coordination work while Rescue participants are idle."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-41-0",
+    "version": "2.41.0",
+    "changes": [
+      "Expanded coordination for party movement and combat responsibilities."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-41-1",
+    "version": "2.41.1",
+    "changes": [
+      "Restored steadier spacing away from the center of ordinary enemies."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-41-2",
+    "version": "2.41.2",
+    "changes": [
+      "Party coordination shares the movement players are actually committed to and preserves safe separation."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-42-1",
+    "version": "2.42.1",
+    "changes": [
+      "Party spacing takes tank, melee, ranged, and healer needs into account when choosing positions and mechanic exits.",
+      "Melee jobs no longer give up useful range for excessive courtesy spacing."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-42-2",
+    "version": "2.42.2",
+    "changes": [
+      "Delayed premature movement away from Barreltender’s cactus mechanic."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-43-0",
+    "version": "2.43.0",
+    "changes": [
+      "Improved interrupts and stuns, including learning which enemies resist stuns and sharing that evidence.",
+      "Combat target selection respects encounter priorities, action restrictions, and manual target changes while avoiding idle enemies.",
+      "Improved shared targeting and reduced unnecessary changes between equally useful combat positions."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-43-1",
+    "version": "2.43.1",
+    "changes": [
+      "All combat assistance pauses while you are mounted."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-44-0",
+    "version": "2.44.0",
+    "changes": [
+      "Nearby participating players can coordinate even when they are not in the same party."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-44-1",
+    "version": "2.44.1",
+    "changes": [
+      "Fixed stun learning failing to recover and preserved coordination for party support abilities."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-44-2",
+    "version": "2.44.2",
+    "changes": [
+      "Reduced repeated small movement corrections when equivalent safe routes are available."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-44-3",
+    "version": "2.44.3",
+    "changes": [
+      "Combat targets recover more reliably without pulling idle enemies into the fight."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-45-0",
+    "version": "2.45.0",
+    "changes": [
+      "Safe gap-closing considers useful attacks and preparation rather than treating every dash the same way."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-45-1",
+    "version": "2.45.1",
+    "changes": [
+      "Movement-ability setup stops waiting on stalled turns and prioritizes useful attacks."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-45-2",
+    "version": "2.45.2",
+    "changes": [
+      "Improved handing control back after movement abilities and maintaining clearance from mechanics."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-45-3",
+    "version": "2.45.3",
+    "changes": [
+      "Cooperative FATE support stays within the active FATE task and handles collected-item hand-ins more reliably."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-46-0",
+    "version": "2.46.0",
+    "changes": [
+      "Black Mage can preserve casts until the last safe movement window when the route and mechanic timing are known.",
+      "Added Ley Lines placement planning to look for more useful casting time.",
+      "Optional Ley Lines greed can use a safe Aetherial Manipulation escape and Between the Lines return. Late movement leaves less margin for latency or a moving party member."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-47-0",
+    "version": "2.47.0",
+    "changes": [
+      "Extra space from AoE edges can refine an already-required dodge while preserving attacks, positionals, and enemies hit.",
+      "Safe mechanic exits consider healer range and party coverage, reducing unnecessary follow-up walking.",
+      "The combat camera prioritizes a clear view of your character and the fight, with smoother framing and room around obstacles."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-47-1",
+    "version": "2.47.1",
+    "changes": [
+      "When dodging a mechanic, safe destinations also consider a useful distance from the boss to reduce immediate follow-up movement."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-48-6",
+    "version": "2.48.6",
+    "changes": [
+      "Combat movement can consider routes around hazards instead of giving up on a useful position behind them.",
+      "Movement abilities only use enemies already engaged with you, your party, or your alliance.",
+      "Improved Forked Tower Ogre Wisp priorities using spawn order, travel time, and eruption timing.",
+      "Added preparation for Ogre movement and maintained clearance from explosions."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "release-2-49-0",
+    "version": "2.49.0",
+    "changes": [
+      "Improved forced-march facing, tower assignments, and movement through sequences of knockbacks.",
+      "Added a correction for Arbatel’s tower mechanic and a hold before re-engaging after Arachne’s funnel mechanic.",
+      "Coordinated Rescue is enabled by default for new configurations; saved choices are preserved."
+    ],
+    "backfilled": true
+  },
+  {
+    "id": "patch-notes-introduction",
+    "version": "2.50.0",
+    "changes": [
+      "Patch notes now open after an update, so you can see what changed before your next fight.",
+      "Skipped a few updates? All patch notes you have missed appear together. You can reopen the full history in General settings or with /xcai notes."
+    ]
+  },
+  {
+    "id": "knockback-learning-and-movement-refinements",
+    "version": "2.51.1",
+    "changes": [
+      "The optional follow-up for non-party players you raise now works outside Occult Crescent and tries Regen or Aspected Benefic first when available.",
+      "Natural movement destinations can settle at a nearby equivalent spot and hold it for a smooth move while BossMod keeps control of the safe route.",
+      "Ranged jobs and healers can use more room during a required dodge when attacks, healing coverage, and every mechanic deadline remain available. Black Mage retains its cast-aware movement rules.",
+      "Added an optional knockback learner for mechanics without a BossMod projection. It requires repeated local evidence and current BossMod route and landing checks. Off by default; live combat testing is still needed.",
+      "Verified learned pushes can compare a useful landing, a short setup move, and Surecast or Arm's Length only when that immunity has been observed preventing the same mechanic.",
+      "The coordinator can share corroborated knockback distance, direction, source, and timing to shorten local learning. Sharing and downloads are enabled by default with separate controls; no character, party, or fight history is sent.",
+      "During Pallmagia's Esoteric Instruction, melee jobs can stay in range until BossMod's verified escape route needs to begin, preserving its arrival reserve.",
+      "Pallmagia's Roulette centre warning now uses the earlier hit timing observed in combat. Other Roulette warnings and BossMod hazard routing remain unchanged.",
+      "During Claret Dragon's three-shield Aetherial Ward, extra positioning preferences yield to BossMod's open-side goal so attacks can reach the ward.",
+      "Improved matching of live resurrection offers. Optional automatic acceptance waits about 0.6 to 1.1 seconds, rechecks the same offer, and responds promptly near expiry.",
+      "Black Mage can replace a required walk with a verified Aetherial Manipulation escape, including outside Ley Lines. Without Ley Lines greed, holding stops at BossMod's walking deadline to retain a fallback.",
+      "After a late Black Mage escape, returning is considered only for active Ley Lines and a BossMod-safe route. A safe landing does not trigger a walk back to the old casting coordinates."
+    ]
+  },
+  {
+    "id": "fate-opener-rotation-start",
+    "version": "2.51.2",
+    "changes": [
+      "FATE openers can now start RotationSolver in Henched mode when a permitted FATE enemy is selected. Enabled by default in General; switching rotations off afterward is respected unless the on/off link is enabled."
+    ]
+  },
+  {
+    "id": "anonymized-fight-evidence-sharing",
+    "version": "2.52.0.245",
+    "changes": [
+      "Added optional anonymized fight sharing for mechanic research. It is off by default, pauses during combat and loading, and keeps your original recordings on this device."
+    ]
+  },
+  {
+    "id": "bmr-7-5-6-34-compatibility",
+    "version": "2.53.0",
+    "changes": [
+      "Optional anonymized fight sharing now works without an account, invitation or access token. Enable it in General; sharing remains off by default and pauses during combat and loading.",
+      "Native knockback constraints with unsupported timing retain BossMod handling instead of being mistaken for no active knockback. Diagnostics explain this limit.",
+      "Supported dodges can finish clear of the boss in one step, preserving attacks, party coverage and BossMod safety. Accepted steps keep their original deadline; the overlay marks clear boss landings.",
+      "Restored compatibility with BossMod Reborn 7.5.6.34 for Pallmagia's earlier Roulette warning, the first Esoteric Instruction melee departure, and Arbatel's living tower-soaker correction. Saved opt-outs remain respected.",
+      "Corrected ranged fallback actions no longer interrupt next-attack prediction. This restores the timing information used for melee recovery, positioning and movement choices.",
+      "Dense groups still defer unnecessary unstacking, but their positions remain available when choosing an equally effective, BossMod-safe arrival during a required escape.",
+      "Required escapes can choose a clearer landing from BossMod's completed navigation result before movement starts. Attack value, assignments, safe routes and deadlines still take priority.",
+      "Combat arrivals can cross successive warning areas when every area can be cleared before activation and the final landing is safe. Attack windows, cast time, movement speed and BossMod's hazard margins still govern the choice.",
+      "Movement-only dashes save their charge when verified walking recovers the attack just as soon, even if both options miss the current attack window. Useful damage attacks and required safety movement retain priority.",
+      "Next-mechanic preparation now recognizes matching cached geometry for ordinary warnings. It still requires BossMod's authored next area and activation time, preserving safety and useful combat positioning.",
+      "Troubleshooting now distinguishes missing next-mechanic timing from unsupported geometry, making movement holds easier to diagnose.",
+      "Arch Kelpie's Storm Wave fix keeps overlapping axes visible with BossMod's shapes and deadlines, clearing matching strips on resolution. Incomplete forecasts still disable advance preparation and Ley Lines holds. Opt-outs are respected.",
+      "Ruin Hound’s clone-circle fix retains the original BossMod circle through a matching fresh clone’s effect or despawn. It uses the existing deadline and routing without guessing expiry; donut follow-ups are unchanged.",
+      "Elm Gigas moving puddles now clear by the caster whose final attack resolves. Other unresolved warnings keep BossMod's native shapes and routing. A mid-pattern reload waits for a fresh cycle.",
+      "Next-mechanic preparation can recover attack range when BossMod's original landing is out of range. Alternatives still need verified routes, unchanged action and mechanic deadlines, and preserved combat and healing coverage.",
+      "Pallmagia diagnostics distinguish an idle Roulette from an unavailable timing contract, without changing its warning timing or movement checks.",
+      "Off-GCD movement setup keeps the rotation running when walking recovers melee sooner. Damaging movement GCDs and useful faster recovery retain their existing checks.",
+      "Tank diagnostics now distinguish actual enemy ownership, BossMod positioning permission and nearby melee players' geometric attack range. Existing tank markers include range context; this does not add automatic enemy dragging.",
+      "Automatically acquired enemies that disengage at full health are released instead of chased when their combat flag returns. Damage or deliberate selection restores normal eligibility; moving enemies that stay engaged are unchanged.",
+      "Tank diagnostics distinguish BMR tank assignment, enemy movement permission and authored positioning. Holding aggro no longer makes an unassigned target appear immovable.",
+      "Automatic target acquisition now respects BossMod's 50-yalm distance, avoiding repeated attempts to reacquire a distant fleeing enemy. Existing selections and nearby attack-range recovery are preserved.",
+      "Removed the online coordinator and its settings. Movement, targeting, support and tank recovery now use local observations without a persistent service connection.",
+      "Stun and knockback knowledge stays on this device across reloads. Community synchronization and shared action reservations have been removed; learned knockback movement remains optional.",
+      "Ranged mitigation can still conserve Tactician, Troubadour or Shield Samba when observed protection covers the party through BossMod’s predicted hit. No action waits for another client."
+    ]
+  },
+  {
+    "id": "encounter-module-migration",
+    "changes": [
+      "Moved encounter correction ownership to xBMR. Use xBMR 7.5.6.35.2 or later for the matching six component corrections.",
+      "Removed all 17 encounter-fix switches, runtime hooks and encounter-specific overlays. Saved encounter settings remain compatible and inert.",
+      "General BMR integration fixes remain available. Unsupported encounter workarounds were retired without speculative replacements; actual-duty validation remains pending."
+    ],
+    "version": "2.53.1"
+  },
+  {
+    "id": "complete-combat-execution-planning",
+    "version": "3.0.0",
+    "changes": [
+      "Combat planning has passed offline policy and installed-plugin contract checks. Representative live combat acceptance remains pending; actual uptime gains and movement quality are not yet measured.",
+      "Stun learning and its enemy list have been removed. Current-fight immunity checks remain; old local data is left on disk but no longer used.",
+      "Settings have clearer navigation and shorter info hovers. Combat assistance is in General; the header and footer take less space. Movement is grouped into Control, Knockbacks and Positioning.",
+      "Settings now use teal Material cards, clearer grouping, readable navigation and aligned switches. Patch notes have a redesigned release history. Native game windows are removed; saved settings and resets are preserved.",
+      "Walking and mobility compare complete execution timing, including supported mechanic waits and cast locks. Current attacks and heals take priority over later recovery; predictions still require fresh safety checks.",
+      "Useful walking destinations can remain stable for supported healing actions while preserving each covered recipient and cast timing. Changed recipients, missing geometry, active casts and manual input release the plan.",
+      "Recovery markers now distinguish walking and dash alternatives. Rejected dashes show the walking return point; unavailable or stale returns have no marker. Setup turns discard earlier prediction credit.",
+      "Equivalent recovery choices use consistent landing order and preserve movement charges. An earlier arrival within the same attack window does not count as an extra attack.",
+      "Required escapes can compare useful safe arrivals for attacks, positionals, AoE coverage, heals and the next cast. BossMod retains routes, deadlines and assignments; accepted steps keep their original action window.",
+      "With Natural party spacing, equivalent required moves can match coherent party movement or observed safe settled positions while keeping your lane and personal space. Split or stale groups earn no preference; stronger execution still wins.",
+      "Corrected a score limit that could hide useful combat and landing differences when several preferences were active. Validated arrivals now retain a small distinction inside the existing advisory budget.",
+      "Fight sharing now sends each recording in one compressed stream. The server stores it promptly and validates and imports it afterward. Status stays at two short lines; completed receipts are kept, and combat and loading still pause sharing.",
+      "Fight sharing follows xBMR’s Anonymize replays setting, allowing recorded names and content IDs when it is off. Uploads hand off to a durable server queue so database importing can continue in the background.",
+      "Fixed sharing stalls caused by dense party updates and older recording layouts. Valid recordings retry after the reader update; damaged originals are reported as unreadable instead of repeatedly retried."
+    ]
+  },
+  {
+    "id": "skip-unsynced-fight-sharing",
+    "version": "3.0.1",
+    "changes": [
+      "Fight sharing skips recordings marked as unrestricted without level sync before processing or uploading them. Normal on-level fights and unrestricted runs with level sync remain eligible; original recordings are kept.",
+      "Sharing status counts skipped unsynced recordings separately from shared and remaining recordings."
+    ]
+  },
+  {
+    "id": "healing-knockback-and-sharing-fixes",
+    "version": "3.0.2",
+    "changes": [
+      "Fight sharing now requires modules marked Work in progress by BossMod. Recordings with other module statuses, mixed completed fights, or no confirmed incomplete module are skipped; originals stay on disk.",
+      "Healers can recover range for injured allies without waiting for a selected heal. Critical injuries take priority over damage range and comfort; BossMod safety and mechanic assignments retain control.",
+      "Required healing movement no longer waits indefinitely behind queued heals or shields. Sage's transformed Eukrasian spells use their correct cast timing; active heals and raises remain protected.",
+      "Knockback planning checks that a usable preparation area remains and preserves damage hazards inside combined shapes. Unsupported or overconstrained cases yield to BossMod instead of adding a landing goal."
+    ]
+  },
+  {
+    "id": "native-xbmr-ipc-integration",
+    "version": "3.0.3",
+    "changes": [
+      "Combat assistance requires xBMR 7.5.6.35.9 or later. Switch prompts appear only for confirmed upstream installations and stay closed during normal reconnects.",
+      "Combat movement, target requirements, mechanic geometry and recording reads use the supported xBMR integration instead of inspecting its private runtime state.",
+      "Optional FATE terrain, dungeon entry, follow braking and hallway-setting corrections retain their controls. BossMod safety, mechanic assignments and manual input remain authoritative.",
+      "Fight sharing includes missing and Work in progress modules. Completed and mixed completed fights remain excluded; original recordings are kept."
+    ]
+  },
+  {
+    "id": "navigation-requests-and-combat-targeting",
+    "version": "3.0.5",
+    "changes": [
+      "Supported automatic group heals and shields can wait up to 2.5 seconds for a short, safe coverage move. Assize now supplies healing coverage intent. Critical patients in reach, manual use and BossMod mechanics retain priority.",
+      "Melee arrival checks can settle at an already effective safe spot instead of taking tiny steps deeper into a positional. Required mechanics, melee range, positionals and accepted arrival steps retain priority.",
+      "Fight sharing follows the active BossMod build after a reload, allowing previously skipped replays to be checked again when their encounter gains a Work in progress module.",
+      "BossMod encounter target requirements now also constrain AoE choices, tank recovery and hostile mobility targets. A temporarily unavailable required target no longer permits switching to a lower-priority enemy.",
+      "Solo and NPC-only duty battles can attack passive objectives assigned by BossMod before the objective gains a combat flag. With other players present, targets must already be engaged. Other idle enemies and forbidden NPCs remain excluded.",
+      "Melee range recovery keeps its range goal when a cleave blocks the direct approach, allowing BossMod to route around it. Attackable boss parts such as Titan's heart now retain normal melee range recovery.",
+      "Combat assistance requires xBMR. With your consent, the automatic switch uninstalls upstream BMR, verifies removal, adds Xel's repository and installs xBMR. Staying on upstream BMR prevents enabling combat assistance.",
+      "Started solo quest battles can acquire BossMod's assigned opening target before combat, without a manual target or first hit. Human-party pulls, NPC dungeon bosses, other idle enemies and BossMod restrictions remain protected.",
+      "Navigation requests use fixed JSON encoding to avoid the converter-creation path seen in a combat crash. AoE positioning and BossMod route validation remain enabled; live confirmation is still pending."
+    ]
+  },
+  {
+    "id": "linked-combat-activation-and-target-recovery",
+    "version": "3.0.6",
+    "changes": [
+      "With combat assistance and RotationSolver sync on, your combat or party/alliance combat keeps RSR on without waiting for a target or movement preset. Selecting yourself or a friendly target no longer blocks enemy target recovery.",
+      "Solo and NPC-only combat continues to permitted scripted enemies without requiring their combat flag or an encounter module. With other players present, new targets must already be engaged with your group.",
+      "RotationSolver mode changes use its supported alternate control when the legacy compatibility endpoint is unavailable, and confirm the resulting mode."
+    ]
+  },
+  {
+    "id": "action-effect-header-compatibility",
+    "version": "3.0.7",
+    "changes": [
+      "Fixed repeated action-effect errors with older ECommons builds that could interrupt tracking of defensive ground zones, knockbacks, cast-control resistance and post-resurrection healing."
+    ]
+  },
+  {
+    "id": "camera-zoom-and-linked-rotation",
+    "version": "3.1.0",
+    "changes": [
+      "Automatic camera can gently zoom out for large bosses and arenas within the normal zoom limit. Zoom out for large fights is on by default beneath Automatic camera and leaves the wider view in place.",
+      "Camera turns and zoom check the full transition and each moving step for obstructions, ground clearance and clear views of your character and the fight. Manual camera input, including mouse-wheel zoom, pauses framing.",
+      "With RotationSolver sync enabled, combat assistance keeps RSR on even outside combat. Disabling assistance stops RSR once, then lets you turn it back on manually. Temporary action pauses and existing safety exclusions remain."
+    ]
+  },
+  {
+    "id": "questionable-handoff-and-engagement-recovery",
+    "version": "3.1.2",
+    "changes": [
+      "Combat assistance yields to Questionable’s overworld, quest-battle and normal-movement presets, then resumes after its request ends. Its decision markers hide during the handoff.",
+      "Already engaged enemies in your current public FATE can be assisted without party membership or personal enmity. Unrelated and idle enemies remain excluded.",
+      "Observed damage exchanged with an exact enemy confirms group involvement, including damage through shields. Pet and companion damage counts; stale evidence and disengaged enemies lose permission.",
+      "While solo outside duties and combat, selecting an enemy with your personal quest marker permits its opening attack. Other idle enemies remain protected.",
+      "Attack-range recovery, AoE positioning and positional movement now share offensive target permissions. Deliberate eligible target selections retain their brief hold; BossMod target requirements still take priority.",
+      "Fight sharing now sends compatible recording evidence and distinguishes acceptance from archive indexing. Later processing failures remain visible while accepted recordings keep their delivery receipts."
+    ]
+  },
+  {
+    "id": "contextual-targeting-and-combat-continuity",
+    "version": "3.1.3",
+    "changes": [
+      "Target selection prioritizes confirmed tank recovery and usable attacks while preserving BossMod encounter targets, manual selection and action locks.",
+      "AoE target choices consider forbidden collateral before extra hits. Equivalent targets stay stable, and the target marker explains recovery and coverage choices.",
+      "Ranged fillers use their actual attack range for targeting while melee movement continues seeking melee range.",
+      "Added a BMR Fixes option to restore the standard target selector when missing from Questionable’s quest-battle preset. Existing targeting settings and quest movement are preserved.",
+      "Corrected movement-arrival comparisons and retained clearer diagnostics when the combat movement connection is rejected."
+    ]
+  },
+  {
+    "id": "combat-diagnostic-continuity",
+    "version": "3.1.4",
+    "changes": [
+      "Improved combat diagnostic capture so unusual timing or navigation values do not discard a snapshot.",
+      "Diagnostic captures now identify slow movement calculations, including after a connection reset, to help investigate combat pauses and stutter."
+    ]
+  },
+  {
+    "id": "stable-movement-scoring-and-less-repeated-work",
+    "version": "3.1.5",
+    "changes": [
+      "Reduced repeated calculations and memory allocation when comparing safe combat positions and routes.",
+      "Preserved combat-value checks along the route while avoiding duplicate checks at the landing.",
+      "Pair with xBMR 7.5.6.35.18 for movement-connection recovery when a positioning calculation exceeds its time budget. BossMod safety and manual control remain authoritative."
+    ]
+  },
+  {
+    "id": "mounted-idle-runtime-maintenance",
+    "version": "3.1.6",
+    "changes": [
+      "Reduced repeated combat checks and cleanup while mounted, including while hovering in flight. Mounting still releases combat control immediately, and dismounting resumes normal checks immediately.",
+      "Reduced duplicate party checks, integration discovery and target calculations while preserving combat response and restrictions on accidental pulls.",
+      "Reduced repeated overlay geometry and diagnostic work while preserving marker detail, camera updates and capture contents.",
+      "Fight sharing reuses recording metadata between periodic scans, reducing repeated disk work while keeping receipt progress current."
+    ]
+  },
+  {
+    "id": "support-recipient-logout-safeguards",
+    "version": "3.1.7",
+    "changes": [
+      "Added safeguards to Kardia and other managed support actions when a party member logs out or becomes unavailable.",
+      "Support actions no longer read a recipient's character data after submitting the action."
+    ]
+  },
+  {
+    "id": "native-combat-assistance-cutover",
+    "version": "Native combat assistance",
+    "changes": [
+      "Combat assistance settings now live in xBMR. Open them with /bmrai or /xcai config.",
+      "Existing activation controls still decide when automatic movement runs. Installing this build does not start it.",
+      "Imported preferences are stored separately from native BMR settings. The original XCAI settings remain available for rollback."
+    ]
+  },
+  {
+    "id": "xbmr-release-7-5-6-35-19",
+    "version": "7.5.6.35.19",
+    "changes": [
+      "XCAI's combat assistance is now integrated into xBMR's native movement planner and Material settings.",
+      "Standalone XCAI is removed automatically when safe. A persistent popup confirms the completed migration; Got it dismisses that notice.",
+      "Saved settings and opt-outs are preserved. Use /bmrai for settings; existing /xcai commands remain available.",
+      "Installation does not activate AI. Native encounter safety, assignments and manual handoff remain authoritative.",
+      "Automatic tank following between pulls, unknown-knockback learning, ToF companion integration and the camera command are retired. Camera settings remain in the interface."
+    ]
+  }
+]

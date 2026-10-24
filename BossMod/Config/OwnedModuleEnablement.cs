@@ -18,6 +18,7 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
         internal string? Owner;
         internal long Expires;
         internal Func<bool>? Live;
+        internal LocalScope? Scope;
         internal int Pins;
     }
     private readonly Dictionary<uint, Watch> _watches = [];
@@ -35,6 +36,9 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
 
     private void Clear(Watch watch)
     {
+        if (watch.Scope != null)
+            watch.Scope.Active = false;
+        watch.Scope = null;
         watch.Owner = null;
         watch.Live = null;
         watch.Expires = 0;
@@ -45,6 +49,7 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
 
     private void CheckOwner(Watch watch)
     {
+        if (watch.Scope is { Active: true }) return;
         if (watch.Owner == null) return;
         var live = false;
         try { live = _clock() < watch.Expires && watch.Live?.Invoke() == true; }
@@ -63,7 +68,7 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
             if (!_watches.TryGetValue(oid, out var watch))
             {
                 if (!track) return null;
-                if (_watches.Count == MaxWatches)
+                if (_watches.Count >= MaxWatches)
                 {
                     foreach (var candidate in _watches.Values) CheckOwner(candidate);
                     var old = _watches.FirstOrDefault(p => p.Value.Owner == null && p.Value.Pins == 0);
@@ -112,7 +117,7 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
         {
             if (!_watches.TryGetValue(oid, out var watch) || string.IsNullOrWhiteSpace(leaseId) || live == null) return false;
             CheckOwner(watch);
-            if (watch.Revision != expectedRevision || watch.Owner != null && watch.Owner != leaseId
+            if (watch.Scope != null || watch.Revision != expectedRevision || watch.Owner != null && watch.Owner != leaseId
                 || watch.Owner == null && _watches.Values.Count(w => w.Owner != null) >= MaxOwners) return false;
             watch.Owner = leaseId;
             watch.Value = enabled;
@@ -132,7 +137,7 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
         {
             if (!_watches.TryGetValue(oid, out var watch)) return false;
             CheckOwner(watch);
-            if (watch.Owner != leaseId || watch.Revision != revision || leaseMs is < 1 or > 2000) return false;
+            if (watch.Scope != null || watch.Owner != leaseId || watch.Revision != revision || leaseMs is < 1 or > 2000) return false;
             watch.Expires = _clock() + (long)(leaseMs / 1000d * _frequency);
             return true;
         }
@@ -142,9 +147,45 @@ internal sealed class OwnedModuleEnablement(Func<long>? clock = null, long frequ
     {
         lock (_gate)
         {
-            if (!_watches.TryGetValue(oid, out var watch) || watch.Owner != leaseId || watch.Revision != revision) return false;
+            if (!_watches.TryGetValue(oid, out var watch) || watch.Scope != null || watch.Owner != leaseId || watch.Revision != revision) return false;
             Clear(watch);
             return true;
+        }
+    }
+
+    // Native lifetime ownership has no consumer renewal, expiry, reflection or IPC owner limit.
+    // The same underlying saved-value and user-revision rules govern both transitional paths.
+    internal sealed class LocalScope(OwnedModuleEnablement owner, uint oid) : IDisposable
+    {
+        internal bool Active { get; set; } = true;
+        public void Dispose()
+        {
+            lock (owner._gate)
+            {
+                if (owner._watches.TryGetValue(oid, out var watch) && ReferenceEquals(watch.Scope, this))
+                    owner.Clear(watch);
+                Active = false;
+            }
+        }
+    }
+
+    internal LocalScope? AcquireLocal(uint oid, bool savedEnabled, bool enabled)
+    {
+        lock (_gate)
+        {
+            if (!_watches.TryGetValue(oid, out var watch))
+                _watches[oid] = watch = new(savedEnabled, ++_revision);
+            else
+                _ = Observe(oid, savedEnabled, false);
+            if (watch.Owner != null)
+                return null;
+            var scope = new LocalScope(this, oid);
+            watch.Scope = scope;
+            watch.Owner = "native:" + Guid.NewGuid().ToString("N"); // transitional external observers see an occupied resource
+            watch.Value = enabled;
+            watch.Revision = ++_revision;
+            Interlocked.Increment(ref _version);
+            return scope;
         }
     }
 

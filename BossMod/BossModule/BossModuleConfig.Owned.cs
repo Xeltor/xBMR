@@ -12,6 +12,9 @@ public sealed partial class BossModuleConfig
     internal OwnedModuleEnablement.State? ObserveModuleEnablement(uint oid)
         => ModuleEnablementOwners.Observe(oid, IsModuleConfiguredEnabled(oid), true);
 
+    internal OwnedModuleEnablement.LocalScope? AcquireModuleScope(uint oid, bool enabled)
+        => ModuleEnablementOwners.AcquireLocal(oid, IsModuleConfiguredEnabled(oid), enabled);
+
     internal void RefreshModuleEnablement()
     {
         var watched = ModuleEnablementOwners.WatchedOids();

@@ -24,7 +24,7 @@ internal sealed record NavigationMapSource(ArenaBounds Bounds, WPos Center, int?
     {
         InitBounds(map, Bounds, Center, ProjectionLayer);
         var count = checked(map.Width * map.Height);
-        var blocks = count is > 0 and <= NavigationRaster.MaxCells ? new byte[count] : null;
+        var blocks = count > 0 ? new byte[count] : null;
         if (blocks != null)
             for (var i = 0; i < count; ++i)
                 blocks[i] = !float.IsFinite(map.PixelMaxG[i]) ? byte.MaxValue : map.PixelMaxG[i] < 0 ? (byte)1 : (byte)0;

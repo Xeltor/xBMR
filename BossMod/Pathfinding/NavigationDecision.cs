@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
-using System.Threading;
 using System.Diagnostics;
+using System.Threading;
 
 namespace BossMod.Pathfinding;
 
@@ -30,32 +30,25 @@ public struct NavigationDecision
 
     public const float ActivationTimeCushion = 1f; // reduce time between now and activation by this value in seconds; increase for more conservativeness
 
-    internal sealed record GoalInput(Func<WPos, float>[] Native, Integration.IntegrationGoalSet.Snapshot? External);
+    internal sealed record GoalInput(Func<WPos, float>[] Native);
 
     internal static GoalInput CaptureGoals(AIHints hints)
     {
         var native = hints.GoalZones.ToArray();
-        return new(native, hints.IntegrationGoals?.Capture(native));
+        return new(native);
     }
 
     internal sealed record CapturedInput(NavigationMapSource MapSource, ShapeDistance[] Obstacles,
         (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] Warnings, GoalInput Goals, bool GoalsEnabled,
-        Teleporter[] Teleporters, NavigationIdentity Identity, bool PublishRaster)
-    {
-        internal (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] OwnedWarnings { get; init; } = [];
-    }
+        Teleporter[] Teleporters, NavigationIdentity Identity, bool PublishRaster);
 
     internal static CapturedInput CaptureInput(DateTime currentTime, AIHints hints, Actor player, float speed = 6f, float cushion = 0f, ushort zoneId = 0, ushort contentId = 0)
     {
-        var source = hints.IntegrationGoals?.Context;
-        var owned = hints.IntegrationConstraints?.CaptureZones() ?? []; // validate paired goals BEFORE capture
-        var obstacles = hints.CaptureIntegrationObstacles();
-        return new(hints.CapturePathfindMapSource(), obstacles, hints.ForbiddenZones.ToArray(),
+        return new(hints.CapturePathfindMapSource(), hints.CaptureNativeObstacles(), hints.ForbiddenZones.ToArray(),
             CaptureGoals(hints), hints.GoalZonesEnabled, hints.Teleporters.ToArray(),
-            new(NavigationPublication.NextGeneration(), source?.InstanceGeneration, source?.FrameId ?? 0, currentTime,
+            new(NavigationPublication.NextGeneration(), currentTime,
                 DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(), player.Position, player.CastInfo != null, speed, cushion,
-                hints.PathfindMapArenaProjectionLayer, player.InstanceID, zoneId, contentId),
-            hints.IntegrationGoals?.NavigationPublicationRequested == true) { OwnedWarnings = owned };
+                hints.PathfindMapArenaProjectionLayer, player.InstanceID, zoneId, contentId), false);
     }
 
     public static NavigationDecision Build(Context ctx, DateTime currentTime, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default)
@@ -68,47 +61,8 @@ public struct NavigationDecision
         if (!float.IsFinite(input.Identity.Speed) || input.Identity.Speed <= 0)
             throw new ArgumentOutOfRangeException(nameof(input), "Navigation speed must be positive and finite.");
         var startTime = Stopwatch.GetTimestamp();
-        byte[]? blocks;
-        if (input.PublishRaster)
-            blocks = input.MapSource.InitForWorker(ctx.Map);
-        else
-        {
-            // Keep native search/deadline identity without allocating and copying a complete
-            // IPC raster every search when no supported consumer is subscribed.
-            input.MapSource.Init(ctx.Map);
-            blocks = null;
-        }
+        var raster = RasterizeInput(ctx.Map, input, false);
         var pos = input.Identity.Origin;
-        var count = checked(ctx.Map.Width * ctx.Map.Height);
-        if (input.Obstacles.Length != 0)
-            RasterizeVoidzones(ctx.Map, input.Obstacles);
-        if (blocks != null)
-            for (var i = 0; i < count; ++i)
-                if (blocks[i] == 0 && ctx.Map.PixelMaxG[i] < 0)
-                    blocks[i] = 3;
-        var relaxed = false;
-        var unrelaxed = input.Warnings.Length == 0 ? null : RasterizeForbiddenZones(ctx.Map, input.Warnings, input.Identity.WorldTime, blocks != null, out relaxed);
-        if (input.OwnedWarnings.Length != 0)
-        {
-            _ = RasterizeForbiddenZones(ctx.Map, input.OwnedWarnings, input.Identity.WorldTime, false, out _, allowRelaxation: false);
-            if (unrelaxed != null)
-                for (var i = 0; i < count; ++i) unrelaxed[i] = Math.Min(unrelaxed[i], ctx.Map.PixelMaxG[i]);
-        }
-        if (input.GoalsEnabled && !input.Identity.Casting)
-        {
-            var gridPos = ctx.Map.WorldToGrid(pos);
-            var inBounds = ctx.Map.InBounds(gridPos.x, gridPos.y);
-            if (!inBounds || ctx.Map.PixelMaxG[ctx.Map.GridToIndex(gridPos)] >= 1f)
-            {
-                // Successful integration ranking already rasterizes every native
-                // goal in its authoritative tier. Do not rasterize them twice.
-                if ((input.Goals.External is not { } external || !Integration.IntegrationGoalSet.Rasterize(ctx.Map, external))
-                    && input.Goals.Native.Length != 0)
-                    RasterizeGoalZones(ctx.Map, input.Goals.Native);
-                if (input.Identity.AvoidanceBuffer > 0f)
-                    AvoidForbiddenZone(ctx.Map, input.Identity.AvoidanceBuffer);
-            }
-        }
         if (input.Teleporters.Length != 0)
             ctx.Map.BuildTeleporterEdges(input.Teleporters);
         var rasterFinish = Stopwatch.GetTimestamp();
@@ -117,20 +71,67 @@ public struct NavigationDecision
         ref var bestNode = ref ctx.ThetaStar.NodeByIndex(bestNodeIndex);
         var waypoints = GetFirstWaypoints(ctx.ThetaStar, ctx.Map, bestNodeIndex, pos);
         var finishTime = Stopwatch.GetTimestamp();
-        var decision = new NavigationDecision { Destination = waypoints.first, NextWaypoint = waypoints.second,
-            LeewaySeconds = bestNode.PathLeeway, TimeToGoal = bestNode.GScore, PathfindTime = finishTime - rasterFinish, RasterizeTime = rasterFinish - startTime };
+        var decision = new NavigationDecision
+        {
+            Destination = waypoints.first,
+            NextWaypoint = waypoints.second,
+            LeewaySeconds = bestNode.PathLeeway,
+            TimeToGoal = bestNode.GScore,
+            PathfindTime = finishTime - rasterFinish,
+            RasterizeTime = rasterFinish - startTime
+        };
         var complete = false;
         var witness = input.PublishRaster ? CopyWitness(ctx.ThetaStar, bestNodeIndex, pos, out complete) : [];
-        decision.Publication = new(input.Identity, blocks == null ? null : new NavigationRaster(ctx.Map, unrelaxed, blocks),
-            witness, complete, relaxed, bestNode.Score, decision, input.Teleporters.Length != 0, input.MapSource);
+        decision.Publication = new(input.Identity, raster.Blocks == null ? null : new NavigationRaster(ctx.Map, raster.Unrelaxed, raster.Blocks),
+            witness, complete, raster.Relaxed, bestNode.Score, decision, input.Teleporters.Length != 0, input.MapSource);
         return decision;
+    }
+
+    // Shared rasterization for native recovery and frozen combat-planning input. The native
+    // caller retains its existing recovery relaxation; elective plans use the unrelaxed limits.
+    internal sealed record RasterizedInput(byte[]? Blocks, float[]? Unrelaxed, bool Relaxed);
+
+    internal static RasterizedInput RasterizeInput(Map map, CapturedInput input, bool captureStrict, bool freezeCallbacks = false)
+    {
+        byte[]? blocks;
+        if (input.PublishRaster)
+            blocks = input.MapSource.InitForWorker(map);
+        else
+        {
+            // Native search needs no additional physical-classification raster unless requested.
+            input.MapSource.Init(map);
+            blocks = null;
+        }
+        var pos = input.Identity.Origin;
+        var count = checked(map.Width * map.Height);
+        if (input.Obstacles.Length != 0)
+            RasterizeVoidzonesCore(map, input.Obstacles, !freezeCallbacks);
+        if (blocks != null)
+            for (var i = 0; i < count; ++i)
+                if (blocks[i] == 0 && map.PixelMaxG[i] < 0)
+                    blocks[i] = 3;
+        var relaxed = false;
+        var unrelaxed = input.Warnings.Length == 0 ? null : RasterizeForbiddenZonesCore(map, input.Warnings, input.Identity.WorldTime, captureStrict || blocks != null, out relaxed, true, !freezeCallbacks);
+        if (input.GoalsEnabled && !input.Identity.Casting)
+        {
+            var gridPos = map.WorldToGrid(pos);
+            var inBounds = map.InBounds(gridPos.x, gridPos.y);
+            if (!inBounds || map.PixelMaxG[map.GridToIndex(gridPos)] >= 1f)
+            {
+                if (input.Goals.Native.Length != 0)
+                    RasterizeGoalZonesCore(map, input.Goals.Native, !freezeCallbacks);
+                if (input.Identity.AvoidanceBuffer > 0f)
+                    AvoidForbiddenZone(map, input.Identity.AvoidanceBuffer);
+            }
+        }
+        return new(blocks, unrelaxed, relaxed);
     }
 
     internal static WPos[] CopyWitness(ThetaStar search, int last, WPos origin, out bool complete)
     {
         var reverse = new List<WPos>();
         var seen = new HashSet<int>();
-        for (var i = 0; i < 256; ++i)
+        while (true)
         {
             if (last == search.StartNodeIndex)
             {
@@ -148,7 +149,7 @@ public struct NavigationDecision
         return [];
     }
 
-    private static void AvoidForbiddenZone(Map map, float forbiddenZoneCushion)
+    internal static void AvoidForbiddenZone(Map map, float forbiddenZoneCushion)
     {
         var clamped = Math.Clamp(forbiddenZoneCushion, 0f, 3f);
         var d = (int)(clamped / map.Resolution);
@@ -243,6 +244,10 @@ public struct NavigationDecision
     }
 
     internal static float[]? RasterizeForbiddenZones(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation = true)
+        => RasterizeForbiddenZonesCore(map, zones, current, captureSafetyLimits, out relaxed, allowRelaxation, true);
+
+    private static float[]? RasterizeForbiddenZonesCore(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones,
+        DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation, bool parallel)
     {
         relaxed = false;
         // very slight difference in activation times cause issues for pathfinding - cluster them together
@@ -280,9 +285,7 @@ public struct NavigationDecision
         var topLeft = map.Center - (width >> 1) * dx - (height >> 1) * dy;
 
         // Partition rows so each worker computes its own local 'top-edge' scratch for rows [ys..ye]
-        var rangePartitioner = Partitioner.Create(0, height);
-
-        Parallel.ForEach(rangePartitioner, range =>
+        RasterRows(height, parallel, range =>
         {
             var ys = range.Item1;
             var ye = range.Item2;
@@ -511,6 +514,9 @@ public struct NavigationDecision
     }
 
     public static void RasterizeGoalZones(Map map, Func<WPos, float>[] goals)
+        => RasterizeGoalZonesCore(map, goals, true);
+
+    private static void RasterizeGoalZonesCore(Map map, Func<WPos, float>[] goals, bool parallel)
     {
         var resolution = map.Resolution;
         var width = map.Width;
@@ -521,11 +527,10 @@ public struct NavigationDecision
         var len = goals.Length;
 
         var globalMaxPriority = float.MinValue;
-        var rangePartitioner = Partitioner.Create(0, height);
         var pixelMaxG = map.PixelMaxG;
         var pixelPriority = map.PixelPriority;
 
-        Parallel.ForEach(rangePartitioner, static () => float.MinValue, (range, loopState, localMax) =>
+        RasterRows(height, parallel, static () => float.MinValue, (range, localMax) =>
             {
                 var ys = range.Item1;
                 var ye = range.Item2;
@@ -615,6 +620,9 @@ public struct NavigationDecision
     }
 
     public static void RasterizeVoidzones(Map map, ShapeDistance[] zones)
+        => RasterizeVoidzonesCore(map, zones, true);
+
+    private static void RasterizeVoidzonesCore(Map map, ShapeDistance[] zones, bool parallel)
     {
         var len = zones.Length;
         var width = map.Width;
@@ -628,11 +636,10 @@ public struct NavigationDecision
         var topLeft = map.Center - (width >> 1) * dx - (height >> 1) * dy;
         var halfdxdy = dx * 0.5f + dy * 0.5f;
 
-        var partitioner = Partitioner.Create(0, height);
         var pixelMaxG = map.PixelMaxG;
         var pixelPriority = map.PixelPriority;
 
-        Parallel.ForEach(partitioner, range =>
+        RasterRows(height, parallel, range =>
         {
             var ys = range.Item1;
             var ye = range.Item2;
@@ -696,7 +703,26 @@ public struct NavigationDecision
         });
     }
 
-    private static (WPos? first, WPos? second) GetFirstWaypoints(ThetaStar pf, Map map, int cell, WPos startingPos)
+    // Framework capture must evaluate opaque callbacks on that thread. The same row
+    // implementation remains parallel for callers that already own immutable evaluators.
+    private static void RasterRows(int height, bool parallel, Action<Tuple<int, int>> body)
+    {
+        if (parallel)
+            Parallel.ForEach(Partitioner.Create(0, height), body);
+        else
+            body(Tuple.Create(0, height));
+    }
+
+    private static void RasterRows(int height, bool parallel, Func<float> initial,
+        Func<Tuple<int, int>, float, float> body, Action<float> aggregate)
+    {
+        if (parallel)
+            Parallel.ForEach(Partitioner.Create(0, height), initial, (range, _, local) => body(range, local), aggregate);
+        else
+            aggregate(body(Tuple.Create(0, height), initial()));
+    }
+
+    internal static (WPos? first, WPos? second) GetFirstWaypoints(ThetaStar pf, Map map, int cell, WPos startingPos)
     {
         ref var startingNode = ref pf.NodeByIndex(cell);
 

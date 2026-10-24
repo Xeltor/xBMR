@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "retiredPlugin": "XelsCombatAI",
+  "replacementPlugin": "BossModReborn",
+  "mandatoryRemoval": true,
+  "preserveConfiguration": true
+}

@@ -68,8 +68,6 @@ public sealed class SmartRotationTweak(WorldState ws, AIHints hints)
                 Add(d);
             }
         }
-        if (hints.IntegrationHeadings is { } contributed)
-            foreach (var d in contributed.Current()) Add(d);
 
         void Add((Angle center, Angle halfWidth, DateTime activation) d)
         {

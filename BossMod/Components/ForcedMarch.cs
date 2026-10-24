@@ -90,8 +90,7 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
 
     public List<MovementProjection>? ProjectFromPose(Actor player, WPos position, Angle facing)
     {
-        if (!float.IsFinite(position.X) || !float.IsFinite(position.Z) || !float.IsFinite(facing.Rad)
-            || (State.GetValueOrDefault(player.InstanceID)?.PendingMoves.Count ?? 0) > 32) return null;
+        if (!float.IsFinite(position.X) || !float.IsFinite(position.Z) || !float.IsFinite(facing.Rad)) return null;
         var result = new List<MovementProjection>();
         ForcedMovements(player, result, position, facing);
         return result;

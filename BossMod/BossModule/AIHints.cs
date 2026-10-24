@@ -111,23 +111,46 @@ public sealed partial class AIHints
     // forced target
     // this should be set only if either explicitly planned by user or by ai, otherwise it will be annoying to user
     public Actor? ForcedTarget;
+    internal bool NativeTargetIntentCollectionRequested;
+    internal bool? AutomaticRetargetingAllowed;
+    private Actor? _automaticTarget;
+    internal bool AssistedTargetApplied { get; private set; }
+    internal Actor? AuthoritativeTarget => ForcedTarget != null
+        && (!NativeTargetIntentCollectionRequested || !ReferenceEquals(ForcedTarget, _automaticTarget)) ? ForcedTarget : null;
+
+    // Public field identity stays compatible. Known automatic writers annotate
+    // their intent; authored/module writers can explicitly retain authority even
+    // when assigning the same actor as the previous automatic suggestion.
+    internal void SetNativeTarget(Actor? target)
+    {
+        ForcedTarget = target;
+        _automaticTarget = null;
+        AssistedTargetApplied = false;
+    }
+
+    internal void SetAutomaticTarget(Actor? target, bool onlyIfUnassigned = false)
+    {
+        if (onlyIfUnassigned && ForcedTarget != null || NativeTargetIntentCollectionRequested && AuthoritativeTarget != null) return;
+        ForcedTarget = _automaticTarget = target;
+        AssistedTargetApplied = false;
+    }
+
+    internal bool TrySetAssistedTarget(Actor target)
+    {
+        if (!NativeTargetIntentCollectionRequested || AuthoritativeTarget != null || AutomaticRetargetingAllowed == false) return false;
+        ForcedTarget = _automaticTarget = target;
+        AssistedTargetApplied = true;
+        return true;
+    }
     public Actor? ForcedFocusTarget;
 
     // low-level forced movement - if set, character will move in specified direction (ignoring casts, uptime, forbidden zones, etc), or stay in place if set to default
     public Vector3? ForcedMovement;
-    internal Integration.IntegrationMovementDecision? IntegrationMovementDecision;
-    internal Integration.IntegrationControllerDecision? IntegrationControllerDecision;
-
+    internal CombatAssistance.Planning.MovementOwnerObservation? MovementOwner;
     internal void ObserveController(WorldState world, Actor actor, string owner, Vector3? destination, Vector3? direction,
         bool wroteMovement, string reason, Pathfinding.NavigationPublication? navigation = null)
-    {
-        if (IntegrationGoals is not { NavigationPublicationRequested: true } integration) return;
-        var context = integration.Context;
-        IntegrationControllerDecision = new(Guid.NewGuid().ToString("N"), context.InstanceGeneration, context.FrameId, owner,
-            actor.InstanceID, world.CurrentTime, System.Diagnostics.Stopwatch.GetTimestamp(), actor.PosRot.XYZ(), destination, direction,
-            wroteMovement, reason, navigation?.Source.Generation, navigation?.Source.HintGeneration,
-            navigation?.Source.IntegrationInstance, navigation?.Destination is { } first ? new Vector2(first.X, first.Z) : null);
-    }
+        => MovementOwner = new(owner, actor.InstanceID, world.CurrentTime, actor.PosRot.XYZ(), destination,
+            direction, wroteMovement, reason, navigation?.Source.Generation);
 
     // which direction should we point during the Spinning status in Alzadaal's Legacy? (yes, this is a bespoke movement gimmick for one dungeon boss)
     public Angle? SpinDirection;
@@ -146,7 +169,6 @@ public sealed partial class AIHints
     public readonly List<Func<WPos, float>> GoalZones = [];
 
     public bool GoalZonesEnabled = true;
-    internal Integration.IntegrationGoalSet? IntegrationGoals;
 
     // AI will treat the pixels inside these shapes as unreachable and not try to pathfind through them (unlike imminent forbidden zones)
     public List<ShapeDistance> TemporaryObstacles = [];
@@ -163,14 +185,13 @@ public sealed partial class AIHints
     // orientation restrictions (e.g. for gaze attacks): a list of forbidden orientation ranges, now or in near future
     // AI will rotate to face allowed orientation at last possible moment, potentially losing uptime
     public readonly List<(Angle center, Angle halfWidth, DateTime activation)> ForbiddenDirections = [];
-    internal Integration.IntegrationHeadingConstraints? IntegrationHeadings;
-    internal Integration.IntegrationConstraints? IntegrationConstraints;
-    internal ShapeDistance[] CaptureIntegrationObstacles() => TemporaryObstacles.ToArray();
-    internal (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] CaptureIntegrationWarnings()
-        => [.. ForbiddenZones, .. IntegrationConstraints?.CaptureZones() ?? []];
+    internal ShapeDistance[] CaptureNativeObstacles() => TemporaryObstacles.ToArray();
+    internal (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] CaptureNativeWarnings()
+        => ForbiddenZones.ToArray();
     internal bool ObstacleMapsDisabled => _config.DisableObstacleMaps;
-    internal Integration.IntegrationStackCorrection? StackCarrierSeparationPolicy;
     internal bool StackCarrierSeparationActive;
+    internal bool NativeStackCarrierSeparationRequested;
+    internal bool NativeFateFrameAlignmentRequested;
 
     // closest special movement/targeting/action mode, if any
     // activation = when the restriction starts (e.g. bomb detonation), finish = when the restriction ends (e.g. pyretic expires)
@@ -227,11 +248,10 @@ public sealed partial class AIHints
         PathfindMapObstacles = default;
         Array.Clear(Enemies);
         PotentialTargets.Clear();
-        ForcedTarget = null;
+        SetNativeTarget(null);
+        AutomaticRetargetingAllowed = null;
         ForcedFocusTarget = null;
         ForcedMovement = null;
-        IntegrationMovementDecision = null;
-        IntegrationControllerDecision = null;
         SpinDirection = null;
         InteractWithTarget = null;
         ForbiddenZones.Clear();
@@ -239,14 +259,12 @@ public sealed partial class AIHints
         ClearProjectionSources();
         GoalZones.Clear();
         GoalZonesEnabled = true;
-        IntegrationGoals = null;
         TemporaryObstacles.Clear();
         Teleporters.Clear();
         RecommendedPositional = default;
         ForbiddenDirections.Clear();
-        IntegrationHeadings = null;
-        IntegrationConstraints = null;
         StackCarrierSeparationActive = false;
+        MovementOwner = null;
         ImminentSpecialMode = default;
         NoMovementAllowsManualInput = false;
         MisdirectionThreshold = 15f.Degrees();
@@ -619,10 +637,7 @@ public sealed partial class AIHints
     }
 
     public static Func<WPos, float> GoalSingleTarget(Actor target, float radius, float weight = 1f)
-    {
-        var effRsq = radius * radius;
-        return p => (p - target.Position).LengthSq() <= effRsq ? weight : default;
-    }
+        => GoalSingleTarget(target.Position, radius, weight);
 
     public Func<WPos, float> GoalSingleTarget(Actor target, Actor player, ActorState actorState, float range, float weight = 1f)
     {

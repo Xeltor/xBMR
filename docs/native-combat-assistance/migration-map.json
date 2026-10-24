@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "complete": true,
+  "sourceRevision": "4a0f7968da8a743e8971973821cb9f6f1387198c",
+  "legacyJsonAliases": [
+    "ManageSurvivabilityZonePositioning",
+    "ManageMultiTargetTargeting",
+    "AoePackPositioningControlRsrTarget",
+    "MoveCloserToTrashPacks",
+    "AoePackPositioningAoeCombatControl",
+    "ManageTrueNorthInRsr",
+    "ManageRange",
+    "HealerPartyCoverage",
+    "ManageHealerAoePositioning",
+    "UseEscapeGapCloser",
+    "EscapeGapCloserMNK",
+    "EscapeGapCloserDRG",
+    "EscapeGapCloserNIN",
+    "EscapeGapCloserSAM",
+    "EscapeGapCloserBRD",
+    "EscapeGapCloserDNC",
+    "EscapeGapCloserRPR",
+    "EscapeGapCloserVPR",
+    "EscapeGapCloserWHM",
+    "EscapeGapCloserBLM",
+    "EscapeGapCloserRDM",
+    "EscapeGapCloserSGE",
+    "EscapeGapCloserPCT",
+    "MinimumReengageGapCloserDistance",
+    "MinimumEscapeGapCloserDistance"
+  ],
+  "nativeUiBindings": [
+    "Activation -> AIManager.SwitchToFollow/SwitchToIdle",
+    "Leader -> AIConfig.FollowSlot",
+    "Following restrictions/distances -> existing AIConfig fields",
+    "Preset -> existing AIManager/PresetDatabase identity",
+    "/bmr -> existing ConfigUI and configuration identities"
+  ],
+  "note": "Source and setting dispositions are maintained in the adjacent dedicated inventories. These mappings are not live acceptance evidence.",
+  "scopeAdjustments": [
+    {
+      "date": "2026-10-24",
+      "request": "Unknown knockback projection and learning do not need to be migrated",
+      "disposition": "Retired UseLearnedKnockbackFallback, unknown-source inference, geometry classifier, learned-model persistence and legacy knowledge import. Original standalone files remain untouched. Retain authored BMR knockback handling, immunity, landing/recovery and tank Arm’s Length mitigation. Native effect/completion observation is scoped to published sources in the current module session, with no unknown classifier or three-cast prerequisite. General authored planning remains tracked implementation work."
+    },
+    {
+      "date": "2026-10-23",
+      "request": "drop follow the tank between pulls",
+      "disposition": "Retire TrackDungeonParty, automatic between-pull tank catch-up, inferred interactions/transitions/transports/stairs/drops, pacing and their private runtime/overlay/diagnostic plumbing. Keep combat MaintainPullContact and explicitly selected native BMR follow. Do not migrate retired behavior into another setting."
+    },
+    {
+      "date": "2026-10-24",
+      "request": "Stop nitpicking knockbacks; finish the migration",
+      "disposition": "Further authored-knockback expansion/polishing is deferred. Keep the verified native implementation and recovery. Finish retained systems, final offline/upstream checks and hand off for dungeon testing; no new generic frameworks or idle experiments."
+    }
+  ],
+  "legacyCommandCompatibility": {
+    "source": "XelsCombatAI/Plugin.cs OnCommand at the pinned source revision",
+    "destination": [
+      "BossMod/CombatAssistance/Runtime/LegacyAssistanceCommands.cs",
+      "BossMod/CombatAssistance/UI/MigrationCommandAlias.cs",
+      "BossMod/AI/AIManager.cs"
+    ],
+    "commands": {
+      "/xcai": "Toggle AssistancePreferences.Enabled; no native AI activation",
+      "on/off/toggle": "Shared combat-assistance master switch",
+      "config/notes": "Integrated Material settings and patch notes",
+      "knockback on/off": "Shared ManageKnockback preference; policy parity remains separately tracked",
+      "party on/off": "Explain user-authorized retirement; no saved field or follow activation",
+      "check-ipc": "Current native planner/action status; retired transport probe is not restored",
+      "check-recording-ipc": "Current native recording-sharing status; retired metadata transport probe is not restored"
+    },
+    "ownership": "Unhandled native shell fallback only; no /xcai registration that could prevent standalone loading. Existing handlers and standalone detection take precedence.",
+    "status": "managed build and native dispatch/shared-settings/persistence/coexistence regressions passed; expanded actual chat/window and load/unload checks remain live-pending",
+    "retiredCommands": {
+      "camera on/off": "Removed by explicit user request; camera remains configurable in the Material interface."
+    }
+  },
+  "completionMeaning": "All settings/source responsibilities are explicitly mapped or retired; runtime acceptance remains in TODO.md."
+}

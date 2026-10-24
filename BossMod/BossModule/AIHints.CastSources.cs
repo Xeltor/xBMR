@@ -2,7 +2,6 @@ namespace BossMod;
 
 public sealed partial class AIHints
 {
-    internal const int MaxCastSources = 128;
     internal readonly record struct CastSource(ActorCastInfo Cast, ActionID Action, ulong TargetId)
     {
         internal CastSource(ActorCastInfo cast) : this(cast, cast.Action, cast.TargetID) { }
@@ -10,7 +9,6 @@ public sealed partial class AIHints
     }
     private readonly record struct ZoneCastSource(ShapeDistance Shape, DateTime Activation, ulong Source, CastSource Cast);
     private readonly List<ZoneCastSource> _zoneCastSources = [];
-    internal bool CastSourcesTruncated { get; private set; }
 
     // Provenance comes from the producer, never from matching a cast's estimated finish time.
     public void AddForbiddenZoneFromCast(ShapeDistance shape, DateTime activation, ulong source, ActorCastInfo cast, int? arenaProjectionLayer = null)
@@ -21,8 +19,7 @@ public sealed partial class AIHints
         var clipped = ClipToArenaProjectionLayer(shape, arenaProjectionLayer);
         ForbiddenZones.Add((clipped, activation, source));
         if (source == 0 || !cast.Unchanged) return;
-        if (_zoneCastSources.Count < MaxCastSources) _zoneCastSources.Add(new(clipped, activation, source, cast));
-        else CastSourcesTruncated = true;
+        _zoneCastSources.Add(new(clipped, activation, source, cast));
     }
 
     internal CastSource? FindCastSource(ShapeDistance shape, DateTime activation, ulong source)
@@ -42,6 +39,5 @@ public sealed partial class AIHints
     private void ClearCastSources()
     {
         _zoneCastSources.Clear();
-        CastSourcesTruncated = false;
     }
 }

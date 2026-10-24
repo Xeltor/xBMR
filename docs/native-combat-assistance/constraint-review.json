@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "complete": false,
+  "constraints": [
+    {
+      "constraint": "4ms / 8192 optimization cutoff",
+      "source": "Framework/Integration/IntegrationCoordinator.cs routeBudgetMs and IntegrationRoutes.Budget",
+      "classification": "IPC query guard, not upstream navigation requirement",
+      "decision": "Removed as production joint-search default. Explicit limits remain injectable for bounded-result tests. Stops use freshness, mandatory departure, cancellation or state memory.",
+      "state": "implemented and tested"
+    },
+    {
+      "constraint": "64 arrival candidates within 12 yalms of a native endpoint",
+      "source": "XCAI Combat/LocalArrivalController.Combat.cs and CombatSafeArrivalPolicy.cs",
+      "classification": "Standalone arrival refinement and bounded query policy",
+      "decision": "Search the supported native map. Include current and committed exact positions; no prior endpoint is required.",
+      "state": "native full-map search and both movement owners wired; live validation pending"
+    },
+    {
+      "constraint": "Native goal matrix maximum 64 goals; raster transport maximum 262144 cells",
+      "source": "Framework/Integration/IntegrationNativeGoals.cs and Pathfinding/NavigationPublication.cs",
+      "classification": "Transport size limits",
+      "decision": "Native goal capture and planning context no longer reuse IPC count limits. Allocation dimensions are checked; resource exhaustion remains explicit.",
+      "state": "implemented and tested; versioned transport removed"
+    },
+    {
+      "constraint": "256 points in copied native witness",
+      "source": "Pathfinding/NavigationDecision.CopyWitness",
+      "classification": "Transport-era route copy guard",
+      "decision": "Copy the complete native parent chain with cycle detection. Former IPC consumers and their transport are retired.",
+      "state": "implemented and tested"
+    },
+    {
+      "constraint": "Reflective geometry object allowlist, depth and element caps",
+      "source": "Framework/Integration/IntegrationShapeSnapshot.cs",
+      "classification": "Reflection copying and remote snapshot validation",
+      "decision": "Native capture rasterizes through the existing BMR implementation on the framework thread. Workers receive owned value arrays. No reflection copying is needed for that native path.",
+      "state": "native snapshot wired and tested; unused reflected shape freezer retired"
+    },
+    {
+      "constraint": "250ms freshness ceiling",
+      "source": "Pathfinding/NavigationPublication.TryRemainingLeeway",
+      "classification": "Conservative fork publication policy introduced with integration; not an upstream BMR or game-mechanic constant",
+      "decision": "Retained provisionally because the approved integration plan explicitly preserves the current ceiling. It needs review once live semantic invalidation and exact route revalidation are wired. Original departure deadlines must always age. Native access alone does not justify extending unverifiable evidence.",
+      "state": "implemented and tested"
+    },
+    {
+      "constraint": "12 second forecast and 8 evidenced actions / phases",
+      "source": "Approved integration plan and XCAI sequence search",
+      "classification": "Explicit initial supported planning model, not claimed as game mechanics or IPC necessity",
+      "decision": "Retained for initial compatibility as requested in the integration plan. No invented action evidence or hazard expiry. Revisit using action evidence, solver complexity and benchmark results; do not describe bounded-model exhaustion as global optimality. A genuinely new sequence excluded by the phase limit explicitly reports SequenceLimit.",
+      "state": "retained with explicit evidence boundary"
+    },
+    {
+      "constraint": "65536 created search states",
+      "source": "New JointMovementSearch.Limits",
+      "classification": "New provisional memory safeguard; not inherited from BMR",
+      "decision": "Explicit StateMemory diagnostic if a relevant label cannot be retained. This number still requires representative load benchmarking; it is not a proven optimum.",
+      "state": "implemented and tested, tuning pending"
+    },
+    {
+      "constraint": "100ms arrival and 250ms runtime policy update intervals",
+      "source": "XCAI LocalArrivalController.Combat.cs and CombatRuntime.cs",
+      "classification": "Standalone scheduling and query load heuristics",
+      "decision": "Do not carry into the native planner by default. Schedule from meaningful input changes and native lifecycle. Benchmark capture cost separately from worker search.",
+      "state": "native capture and single-job scheduling wired; support/ownership refresh intervals remain independent of movement planning"
+    },
+    {
+      "constraint": "Owner leases, capability negotiation, callback budgets, reflected field permissions",
+      "source": "Framework/Integration and XCAI/Integrations",
+      "classification": "Cross-plugin transport and ownership",
+      "decision": "Retire transport; replace necessary ownership/restoration with local scoped services preserving user changes. Keep external RSR/vnavmesh contracts.",
+      "state": "72 integration contracts removed; native scopes wired; external RSR ownership retained where still required"
+    },
+    {
+      "constraint": "Legal anchors/facing/landing, cast locks, manual authority, assignments and warning exit deadlines",
+      "source": "Native encounter and game execution semantics",
+      "classification": "Mechanics and execution safety",
+      "decision": "Retain and revalidate immediately before execution. Direct access removes transport limits, not these requirements.",
+      "state": "solver/validation implemented; complete runtime executor pending"
+    },
+    {
+      "constraint": "March 3 pending moves / 4 legs / 30 seconds / 60 yalms; projection 32 sources; 128 zones; arena 64 parts / 4096 vertices / 5-yalm footprint",
+      "classification": "Former IPC request/response and evaluation bounds",
+      "decision": "Removed from native services. Keep finite arithmetic, cycle detection, exact producer attribution, authored geometry, supported projection semantics and cancellation. A diagnostic inset candidate remains a bounded geometric suggestion, not a route or optimality claim.",
+      "state": "native march and projection count caps removed; arena limit regression validation pending"
+    },
+    {
+      "constraint": "128 cast sources / resisted actors; 500ms cast-control ownership settling",
+      "source": "Former cast-control serialized observation and RSR setting-disable lease",
+      "classification": "Transport/setting propagation guards",
+      "decision": "Native cast identities and current-encounter resistance have no transport count cap. Original-action getter scope replaces saved-setting edits; no propagation sleep. Current cast and native legality are rechecked synchronously.",
+      "state": "implemented; deterministic and installed contract checks passed; live delivery pending"
+    },
+    {
+      "constraint": "Only currently held charges, without recharge or shared repeat timers",
+      "source": "Initial native movement model; native ActionDefinition and ActionManager cooldown groups",
+      "classification": "Incomplete initial action model, not an IPC or game restriction",
+      "decision": "Capture main and secondary shared cooldowns directly, retain distinct charge timelines, and allow a verified wait for a returning charge. Gauge resources do not regenerate without evidenced actions. Unknown secondary repeat duration permits only the verified first use and reports CooldownEvidence. Final action submission still requires actual current native availability.",
+      "state": "implemented; exhaustive spending reference and native route regressions passed; live recharge delivery pending"
+    },
+    {
+      "constraint": "Authored teleporter maps bypass joint search",
+      "source": "Initial NativeMovementSearch and map snapshot transition model",
+      "classification": "Incomplete initial native traversal model, not an IPC or upstream restriction",
+      "decision": "Capture typed entrances, exits, native not-before and transit timing. Search compound approach/transition edges, reject accidental pad crossings and ambiguous overlapping outcomes, and revalidate the native transition before approaching it. Retain native recovery for unsupported or unsafe routes.",
+      "state": "implemented; disconnected geometry, changed exit, entrance deadline and shared executor regressions passed; live transport pending"
+    },
+    {
+      "constraint": "Standalone forced-march heading queries and endpoint correction",
+      "source": "XCAI ForcedMarchController and ForcedMarchHeadingPolicy",
+      "classification": "IPC query limits removed; angular sampling remains a disclosed search approximation",
+      "decision": "Freeze direct authored projections on the framework thread, evaluate complete compulsory routes and onward escape in joint native search, and use the shared executor. Active march has one committed physical heading. Pending alternatives sample 72 headings plus current facing; report HeadingSamples, never exhaustive continuous optimality. Native facing, casting, manual authority and fresh RSR Off readback remain binding. Multiple simultaneous projection owners require authored composition.",
+      "state": "implemented for the protected march window; compulsory authority is independent of optional corrections; 42767 native assertions passed including fixed-heading opt-out and transition cases; longer-horizon cast overlap and live mechanic pending"
+    },
+    {
+      "constraint": "Standalone automatic between-pull dungeon tracking and its transport/reflection guards",
+      "source": "TrackDungeonParty and DutyPartyTrackingController",
+      "classification": "Feature retired by explicit user request on 2026-10-23",
+      "decision": "Remove the feature and its inferred interaction/travel/pacing runtime. Do not transplant its distance/observation caps to native combat contact or explicit following. General native physical entry validation remains.",
+      "state": "retired; managed build, import/restart and combat-only contact regressions passed; no deployment"
+    },
+    {
+      "constraint": "RDM fixed 2.6/4.6-yalm approach ranges and a later correction around the BMR endpoint",
+      "source": "XCAI RedMageMeleeComboController and RedMageMovementPolicy",
+      "classification": "Standalone policy approximation, not action mechanics or native navigation limits",
+      "decision": "Use current supported RSR/native action geometry, exact target hitboxes, configured AoE threshold and independently required recipients. Evaluate positions across the supported native map before committing the walk. Continue to apply native physical/safety checks.",
+      "state": "implemented; native AoE preparation, ST fallback, forbidden-recipient and resource-bound comparisons passed; live pending"
+    },
+    {
+      "constraint": "250ms derived-starter confirmation, cached approach/ranged phase holds and separate optional exit windows",
+      "source": "XCAI RedMageMovementLatch and RedMageMeleeComboController",
+      "classification": "Standalone reflected-sample stabilization and second-stage movement policy",
+      "decision": "Replace with one coherent framework capture, immutable typed intent, semantic invalidation and committed-route continuity. Native combo expiry and the original explicit RSR hold still age. Generic legal mobility competes inside the native search; a cosmetic post-combo jump cannot spend resources ahead of an equivalent combat result.",
+      "state": "implemented for supported current evidence; no arbitrary starter confirmation delay; live resampling/delivery pending"
+    },
+    {
+      "constraint": "Reaching melee range before expiry is sufficient future execution evidence",
+      "source": "Initial native ComboRecovery region",
+      "classification": "Incomplete timing model, not an IPC requirement",
+      "decision": "Track the next GCD slot from the actual selected-action stage start/recast/end, retain it in labels and validation, and check prospective action lock/facing permission. Original combo expiry is distinct from an RSR range-wait deadline and from the disclosed twelve-second starter forecast window. No prospective attack is counted as delivered. Original native enabling-effect expiry separately bounds the observed policy evidence.",
+      "state": "implemented; delayed GCD, expiry, action/facing prohibitions, resource preservation and exact revalidation regressions passed"
+    },
+    {
+      "constraint": "Reject every selected adjusted ID missing from this BMR definition table",
+      "source": "RsrActionEvidenceSource.Capture and upstream ActionQueue/Casters/RDM.cs",
+      "classification": "Concrete RSR/native metadata gap for the three ranged Manafication swords, not a general IPC limit",
+      "decision": "Prefer exact definitions; otherwise borrow only the corresponding original native sword metadata for 45960/45961/45962. Retain actual selected ID, current game cast timing and RSR geometry. Never substitute metadata for arbitrary unknown actions.",
+      "state": "implemented; installed variant identities, direct-definition precedence and unknown-ID rejection passed; actual variant packet animation/delivery pending"
+    },
+    {
+      "constraint": "Fixed Between the Lines approach distance and assumed haste value around a previously chosen destination",
+      "source": "Standalone BlackMageLeyLinesPolicy / PositioningController and generic mobility minimum distance",
+      "classification": "Standalone movement policy approximation; not an inherent native navigation or game restriction",
+      "decision": "For Between the Lines, compare the actual legal owned return, locks, safe route and selected-spell delivery. Remove the generic distance threshold for this action. Credit no fixed haste multiplier: require paired native no-proc cast/recast observations for the same action, stats, level, element and other modifier identities. Preserve original effect/modifier deadlines, saved mobility opt-outs, abilities-only mode and native/manual authority. Do not delay a safely available current cycle merely for a weaker field-speed gain.",
+      "state": "native timing/expiry/resource/ability-entry/unsafe-landing checks passed. Live inside/outside native cast/recast, actual return landing and 0.8s effect corroborated. Placement, after-action and integrated combat parity remain pending."
+    },
+    {
+      "constraint": "Retrace minimum four-yalm distance and a separate optional-weave writer",
+      "source": "Standalone BlackMageLeyLinesPositioningController.ShouldUseRetrace / TryUseRetrace",
+      "classification": "Standalone heuristic and separate executor; not inherent native mechanics",
+      "decision": "Represent relocation as a resource/lock-bearing typed utility stage. Compare selected-spell delivery and own GCD recovery with walking/return using shared native traversal. Keep the field identity and original lifetime; update the return anchor after relocation. Preserve independent saved opt-outs, native/manual authority and unmodeled current RSR ability selection. The actual ground object may be replaced; continuity requires the observed owned action and unique replacement, never an inferred renewed lifetime.",
+      "state": "managed build, exact route/executor, replacement/lifecycle and 144-map reference checks passed; live native relocation, remaining duration and 0.6s effect corroborated; integrated combat delivery remains pending"
+    },
+    {
+      "constraint": "An instant cast has no execution benefit from returning to Ley Lines",
+      "source": "Initial native cast-only comparison; official Black Mage job guide and native per-action recast API",
+      "classification": "Incomplete cost model; Ley Lines affects the selected spell recast as well as its cast",
+      "decision": "Read native adjusted recast for the selected action. Keep per-action recovery times after required recipients/current delivery/value and before resources. Calibrate naturally instant spells independently. Bound resource pruning against the full delivery/recovery ceiling. No subsequent attack is invented.",
+      "state": "implemented; instant recast, no-weave, charge preservation, pruning-disabled and exact-readback regressions passed"
+    },
+    {
+      "constraint": "Data-sheet base cast/recast is always a safe outside-field upper bound",
+      "source": "Initial native PlanningCastTiming fallback",
+      "classification": "Unproved under other live speed modifiers",
+      "decision": "A native inside-only observation cannot prove future outside timing. Require matched outside evidence under the same conditions; expired/missing evidence withholds that action timing and reports ActionTimingEvidence. Current supported execution and native safety recovery remain available. Do not apply an assumed haste multiplier.",
+      "state": "implemented for BLM/PCT conditional field timing; actual timing sampling and broader future modifier-transition audit remain open"
+    },
+    {
+      "constraint": "Standalone Pictomancer field-return radius, distance and retry assumptions",
+      "source": "PictomancerStarryMusePositioningController: StarryMuseRadius=30, PreferredEntryRadius=1.25, MinimumStarryMuseSmudgeDistance=8, EstimatedCombatMoveSpeed=6, SmudgeAttemptCooldown=250ms, CachedZoneGrace=1s",
+      "classification": "Mixed gameplay assumption and former controller scheduling; not native navigation limits",
+      "decision": "Do not reuse the party effect radius as Inspiration geometry. Native action capture uses actual speed/locks/charges and shared exact routes; original event expiry has no grace extension. Matched selected-action samples support the directly observed center only, with explicit geometry/timing bounds. The saved Smudge opt-out controls credited field benefit across an entire route without suppressing independent legal safety recovery. No second executor or retry timer.",
+      "state": "native center-only regressions and finite alternatives passed; matching-version samples bracket coverage but complete geometry/actual Smudge acceptance remain pending"
+    },
+    {
+      "constraint": "Standalone two-Boolean RSR automatic-target fallback lease",
+      "source": "RsrAutomaticTargetLease; installed RSR 7.5.7.6 DataCenter.TargetFreelyEnabled, IpcStateOverrides and MajorUpdater.MiscAndTargetFreelyUpdate",
+      "classification": "External RSR targeting ownership boundary, changed by installed contract; not a BMR navigation limit",
+      "decision": "RsrAutomaticTargetScope handles configured/session/optional-record fallback within the single original callback shared with support, restoring unrelated values and foreign replacements. Native original-action predicates and target intent are now connected. The default linked Henched mode owns the hard target, so this is not proof that area-anchor choice is implemented.",
+      "state": "native and installed-contract tests passed; live BLM guard/selected-action evidence corroborated; full native target-choice and lifecycle acceptance remain pending"
+    },
+    {
+      "constraint": "RSR IsManual always means explicit user Manual mode",
+      "source": "RSR 7.5.7.6 RSCommands_StateSpecialCommand.ApplyState and ActionTargetInfo.GetCanTargets",
+      "classification": "External mode semantics; incorrect migrated gate, not a native BMR navigation limit",
+      "decision": "Allow native candidate constraints in Henched, which deliberately sets IsManual to delegate targeting to BMR. Preserve flags and its hard-target candidate restriction. Explicit Manual, TargetOnly, PvP and unknown modes retain control. Full assisted area-anchor choice still requires native target planning rather than clearing IsManual for the callback.",
+      "state": "mode truth table and installed contracts passed; 49-action BLM guard observed live; native area-anchor choice remains open"
+    },
+    {
+      "constraint": "Any nonzero RSR CommandStatus is an explicit command",
+      "source": "RSR 7.5.7.6 StateUpdater.StatusFromCmdOrCondition adds automatic Burst; live client AutoBurst enabled",
+      "classification": "Incorrect migrated reflection interpretation, not manual authority",
+      "decision": "Ignore only automatic Burst when the special command is not Burst; preserve explicit Burst, other command bits, unknown contracts, forced actions, previews and intercepted actions. Share the distinction across offensive targeting and affected tank/support gates.",
+      "state": "native tests and installed enum contracts passed; live BLM selected-action constraints work under automatic burst; party/tank behavior remains in live checklist"
+    },
+    {
+      "constraint": "A planned target setup must happen at the original position before any walking",
+      "source": "Initial native target-choice search design; not an inherited BMR or IPC requirement",
+      "classification": "Unnecessary sequencing restriction",
+      "decision": "Choose the target and useful destination jointly before committing the route, but allow the complete plan to escape a warning first and prepare the chosen target at a later legal safe position. Evaluate its whole stationary setup interval against native exit deadlines and the captured native acquisition envelope. Confirm the actual selected action/target before advancing past that stage.",
+      "state": "native search/executor and independent cell/target/setup/warning oracle passed; live input capture and target owner remain pending"
+    },
+    {
+      "constraint": "Target setup estimate and target eligibility inherited from standalone/reflection access",
+      "source": "RSR 7.5.7.6 ActionTargetInfo.GetCanTargets and original callback observations",
+      "classification": "Native action/target mechanics and measured scheduling evidence; not an IPC optimization quota",
+      "decision": "Use read-only original status/resistance/TTK/restricted-DoT/visibility/CanUseTo/HP/predicate checks. Preserve separate native and RSR marked/icon priorities. Freeze target-circle alternatives into the joint search, estimate setup from observed callback/frame timing, and require fresh original action/recipient confirmation on the original plan deadline. No CanUse forecast or IsManual mutation. Target-only opt-out interactions and representative setup calibration remain open.",
+      "state": "runtime connected; 42515 native assertions and installed binding checks passed; loaded callback/dummy cleanup verified; actual improved-AoE setup pending"
+    },
+    {
+      "constraint": "Ley Lines 1.2-second placement budget, 6-yalm candidate neighborhood, 200ms demand refresh and 2-second retry",
+      "source": "Standalone BlackMageLeyLinesPlanning and BlackMageLeyLinesPolicy at the pinned baseline",
+      "classification": "Standalone placement-refinement scheduling/search policies, not native BMR limits",
+      "decision": "Removed. One native search uses the supported map, observed native action availability, original GCD/animation-lock clocks and original RSR approval. Native opportunity ownership preserves the original comparison point and prevents renewal/rearming on the same GCD. Current execution remains first; stationary-window comparison reuses native timed traversal. Proved pruning completed a synthetic 256-cell case in 19.738ms without a replacement quota.",
+      "state": "implemented, offline validated and loaded; native selection/fallback/cleanup verified, improved live encounter placement pending"
+    },
+    {
+      "constraint": "Ordinary stationary action/route forecast through a published knockback",
+      "source": "CombatAssistanceRuntime.Capture, JointMovementSearch current-action model and native GenericKnockback publications",
+      "classification": "Missing forced-motion model, not an IPC or reflection budget",
+      "decision": "Current source takes native recovery and invalidates old commitment until joint forced movement, landing, immunity and recovery are represented. Actual native immunity is checked only at known activation; source disappearance, unknown activation and native pending-result expiry are not fabricated completion times. Shared scalar native displacement arithmetic is extracted for the full implementation. This temporary fallback must not be accepted as completed migration.",
+      "state": "safety repair built and loaded; 42626 native assertions and exact-artifact broader checks passed; all three knockback policies and actual live acceptance remain pending"
+    },
+    {
+      "constraint": "Better circular-AoE targeting requires movement-coverage optimization",
+      "source": "Initial native NativeOffensiveTargeting.AttachChoices and RsrExecutionCapture recipient values",
+      "classification": "Accidental integration coupling, not a native BMR or IPC limitation",
+      "decision": "Separate preferences. A hostile target-circle may value extra recipients through PickBetterAoeTarget without enabling caster/directional/ground/healing movement coverage. With movement coverage disabled, admit only a strictly better already-executable stationary alternative. Shared search preserves current delivery time, each recipient, native safety and original RSR confirmation. Disable cancels pending setup/restoration. ManageMovement off now freezes stationary-only permission in the same context/search/executor; native recovery wins and the stationary caller cannot execute a recovery walk. Normal/follow owners retain precedence. Actual linked Henched target delivery and setup calibration remain pending.",
+      "state": "implemented, managed/offline validated and automatic watcher reload verified; representative improved-AoE live delivery pending"
+    },
+    {
+      "constraint": "Standalone knockback observation bounds and source casting limit",
+      "source": "KnockbackKnowledge local evidence persistence/observer at the pinned standalone baseline",
+      "classification": "Evidence/storage guards versus a former observation horizon; not IPC route/search quotas",
+      "decision": "Native actor/effect events replace hooks, wrappers, queued cross-thread packets and raw cast reads. Remove the 30-second cast-observation cutoff; forecasts retain the native twelve-second horizon. Preserve explicit 512-entry/8-MiB storage, bounded per-cast/pending/snapshot inputs, 100-ms sampling, fresh/continuous motion, varied models, contradictory evidence, local/party contrast and 30-day trust guards as empirical evidence limits. Native duplicate identity retention is bounded at 4096 keys/six seconds. These are not exhaustive-search proofs or replacement movement budgets. Keep original native cast deadlines; exclude reversed/source-applied effect semantics and clear transient evidence on death, ownership loss and backward clocks. Learned policy admission remains opt-in and incomplete.",
+      "state": "native observer/store/policy implementation built and tested; exact live import and repeated startup verified with three effect-only records, zero models; actual fresh native motion, framework workload and joint forecast use remain open",
+      "scopeUpdate20261024": "Unknown-knockback learning/projection is retired by user. Any earlier learned-fallback implementation statement is historical. Native authored handling remains in scope; no unknown-classifier or three-cast prerequisite is retained."
+    },
+    {
+      "constraint": "Filtered ordinary knockback result is sufficient to prove no authored displacement; preparation rules remain permanent after a push",
+      "source": "NativeKnockbackAuthorityCapture versus raw GenericKnockback/GenericForcedMarch publications and exact AIHints projection provenance",
+      "classification": "Source-presence and phase-semantics requirements, not IPC/search quotas",
+      "decision": "Capture unfiltered registered sources, preparation markers, pending effects and march state. Unknown pose-dependent publishers and uninspected/opaque constraints cannot certify absence. Split only exact pure preparation leaves from union siblings; retain independent hazards and a separate landing-time envelope without inventing a permanent assignment. Preserve native application limits/order and reject ambiguous independent simultaneous owners. Freeze the same native raster for workers. Search/transition/execution support is still required.",
+      "state": "native input capture connected, built and tested; 42761 native assertions and exact broader checks passed; synthetic 1600-cell capture median 0.137ms/max0.365ms; idle reload/diagnostics verified, actual joint knockback behavior remains pending"
+    },
+    {
+      "constraint": "A native source activation is treated as complete displacement timing",
+      "source": "NativeKnockbackPhase, JointMovementSearch and native phase rasters",
+      "classification": "A real missing motion/effect-lifecycle model, not an IPC capacity limit",
+      "decision": "Require an explicit absolute onset/landing window and complete matching native source inventory. Search preparation, forced corridor and onward recovery in one phase-aware label graph; retain separate phase, resource and action states. Use the shared native maps and traversal, preserve authored deadlines, and never invent constant speed or expiry. Keep the execution stage guarded until framework timing/event/completion binding exists.",
+      "state": "supported native timing/cast-generation binding, source/effect transaction and fresh active compulsory prefix implemented; 42856 native assertions and exact-artifact broader/RSR checks passed; idle watcher reload verified; hit-only imports cannot activate; cast-lock overlap, general projection, immunity/fallback and live mechanic acceptance pending"
+    },
+    {
+      "constraint": "Learned preparation radius/rings and 18-cell anchor-cluster limit",
+      "source": "Standalone LearnedKnockbackPreparationPolicy and NativeKnockbackCells",
+      "classification": "Former bounded local advice shape, not native mechanics or a necessary native search bound",
+      "decision": "Removed. A complete native authored-absence inventory admits immutable corroborated learned projection into the same native full-map search, route/landing validation, resources and executor. Preserve original absolute event windows, actual applicability and independent observed immunity trust. Retain source ambiguity and unsupported layer outcomes as explicit native recovery, not false geometry or global optimality.",
+      "state": "implemented; independent route enumeration, native actor/event/clock/ownership fixtures, strict landing and exact-artifact regression checks passed; actual delivery unverified",
+      "scopeUpdate20261024": "Unknown-knockback learning/projection is retired by user. Any earlier learned-fallback implementation statement is historical. Native authored handling remains in scope; no unknown-classifier or three-cast prerequisite is retained."
+    },
+    {
+      "constraint": "32 active native cast observations / 64 session timing records",
+      "source": "CombatAssistance/Knockback/NativeKnockbackObserver.cs",
+      "classification": "New bounded observation memory; not a navigation candidate or IPC limit",
+      "decision": "Only current-module authored BMR publications may enter. At capacity an unrecorded source retains native recovery; never infer absence or a duration. Clear on module/actor/zone/lifecycle scope change; no knowledge-file import or persistence. First-event authored timing remains open.",
+      "state": "implemented; focused native regressions pass; live behavior unverified"
+    }
+  ],
+  "completionMeaning": "Recorded constraints have explicit provenance/decisions. Representative live performance calibration remains testing/tuning; deferred knockback constraints must not reopen implementation."
+}

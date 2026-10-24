@@ -59,7 +59,7 @@ public sealed class AIHintsBuilder : IDisposable
         var player = _ws.Party[playerSlot];
 
         hints.Clear();
-        hints.StackCarrierSeparationActive = hints.StackCarrierSeparationPolicy?.Enabled == true;
+        hints.StackCarrierSeparationActive = hints.NativeStackCarrierSeparationRequested;
         if (moveImminent || player?.PendingKnockbacks.Count > 0)
         {
             hints.MaxCastTime = 0;

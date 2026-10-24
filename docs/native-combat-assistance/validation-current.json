@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-24",
+  "state": "Implementation handoff; live acceptance pending; user-deferred knockback expansion excluded from this checkpoint",
+  "sourceSnapshot": "f8997079ef43c814f0eec739fb0f317f09f1c173",
+  "mainBase": "f1de3550b1d96bfd8f153d7b4a7ffe53e5e0d530",
+  "main": {
+    "sha256": "b30830f7f14deedf057b8af82b176045ddee06ad83ba3daeb4e8b381497f5226",
+    "mvid": "ba9fbd65-74d7-47b9-897e-32e05b8db224",
+    "version": "7.5.6.3518",
+    "buildErrors": 0,
+    "existingWarnings": 6,
+    "nativeAssertions": 42863,
+    "broaderSuites": 19,
+    "exactArtifactReceipts": true
+  },
+  "upstreamTrial": {
+    "upstream": "ae64e3309905dafad0952dbe72680add167591f9",
+    "pinnedBase": "be8ff771cc545f8f8b5b548b5dd7271d80460f89",
+    "merge": "5dfa5ddd72704b8ec3463b33782a5a375269787c",
+    "conflicts": 0,
+    "sha256": "20ea02a893ae02548b3c96311269736b32d6afd26f2c8bf799e4923dc917e899",
+    "mvid": "56547c88-c6c7-4560-a35b-0aa5905b2bff",
+    "buildErrors": 0,
+    "existingWarnings": 6,
+    "nativeAssertions": 42863,
+    "broaderSuites": 19,
+    "exactArtifactReceipts": true,
+    "nativeSourceFilesEquivalent": 229,
+    "sourceComparison": "Text identical after normal Git checkout line-ending conversion; same managed regression harness executed against both exact artifacts."
+  },
+  "otherChecks": {
+    "installedRsrVersion": "7.5.7.6",
+    "installedRsrContracts": "passed; static surface validation, not action delivery",
+    "repositoryTests": 9,
+    "inventories": "parse; all 100 settings and 385 sources explicitly accounted for",
+    "whitespace": "passed",
+    "retiredIntegrationEndpoints": 72,
+    "preservedUpstreamEndpointNames": 67
+  },
+  "deployment": {
+    "performed": false,
+    "liveAcceptance": false,
+    "note": "Isolated builds only. Do not assume the current client is using this artifact; a later watched write requires fresh out-of-combat preflight, normal watcher reload and loaded-provenance verification."
+  },
+  "scope": {
+    "excluded": [
+      "ToF companion integration",
+      "automatic tank following between pulls",
+      "unknown-knockback projection/learning",
+      "camera slash subcommand"
+    ],
+    "deferred": [
+      "further authored-knockback expansion/polishing"
+    ],
+    "separate": [
+      "release/feed publication",
+      "standalone uninstall",
+      "watched deployment/reload",
+      "dungeon/lifecycle acceptance"
+    ]
+  },
+  "releasePreparation": {
+    "tag": "v7.5.6.35.19",
+    "version": "7.5.6.3519",
+    "state": "Maintainer-authorized stable cutover; final managed artifact validated before publication",
+    "sha256": "fcabc4b27aa2054a32363cdfaaa6d1813a45b150b75ec896c5b12caa37e4ae8f",
+    "mvid": "80d4d93a-8b8a-43cc-a8c6-bf18e1a8bcdf",
+    "nativeAssertions": 42888,
+    "broaderSuites": 19,
+    "buildErrors": 0,
+    "existingWarnings": 6,
+    "repositoryTests": 9,
+    "feedRetirementTests": 6,
+    "standaloneActionsDisabled": true,
+    "historicalStandaloneReleaseDispatch": "HTTP 404 after disabling Actions",
+    "note": "Earlier main/upstreamTrial/deployment fields describe the pre-release checkpoint. Published package validation is a separate receipt; no dungeon live-acceptance claim."
+  }
+}

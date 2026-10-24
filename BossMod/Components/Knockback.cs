@@ -70,6 +70,13 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
 
     public bool IsImmune(int slot, DateTime time) => PlayerImmunes[slot].ImmuneAt(time);
 
+    internal bool ParticipantInProjection(Actor actor, in Knockback source)
+        => ArenaProjectionLayerParticipantApplies(actor, source.ArenaProjectionLayer, source.RestrictToArenaProjectionLayer);
+
+    internal bool AppliesToParticipant(int slot, Actor actor, in Knockback source)
+        => ParticipantInProjection(actor, source)
+            && (source.IgnoreImmunes || !PlayerImmunes[slot].ImmuneAt(source.Activation));
+
     public static WPos AwayFromSource(WPos pos, WPos origin, float distance) => pos != origin ? pos + distance * (pos - origin).Normalized() : pos;
     public static WPos AwayFromSource(WPos pos, Actor? source, float distance) => source != null ? AwayFromSource(pos, source.Position, distance) : pos;
 
@@ -187,6 +194,43 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
 
     public List<(WPos from, WPos to)> CalculateMovements(int slot, Actor actor) => CalculateMovements(slot, actor, null);
 
+    // Shared native displacement arithmetic. Wall stops, source applicability,
+    // immunity and encounter destination rules remain with the native component.
+    // The scalar form also permits frozen planning values without live actors.
+    internal static bool TryUnclippedMovement(WPos from, WPos origin, float sourceDistance, Angle sourceDirection,
+        Kind kind, float minimumDistance, out WDir dir, out float distance)
+    {
+        dir = kind switch
+        {
+            Kind.AwayFromOrigin => from != origin ? (from - origin).Normalized() : default,
+            Kind.TowardsOrigin => from != origin ? (origin - from).Normalized() : default,
+            Kind.DirBackward => (sourceDirection + 180f.Degrees()).ToDirection(),
+            Kind.DirForward => sourceDirection.ToDirection(),
+            Kind.DirLeft => sourceDirection.ToDirection().OrthoL(),
+            Kind.DirRight => sourceDirection.ToDirection().OrthoR(),
+            _ => default
+        };
+        distance = sourceDistance;
+        if (dir == default) return false;
+        if (kind == Kind.TowardsOrigin)
+        {
+            distance = Math.Min(distance, (origin - from).Length() - minimumDistance);
+        }
+
+        if (kind == Kind.DirBackward)
+        {
+            var perpendicularDir = sourceDirection.ToDirection().OrthoL();
+            var perpendicularDistance = Math.Abs((from - origin).Cross(perpendicularDir) / perpendicularDir.Length());
+            distance = Math.Min(distance, perpendicularDistance - minimumDistance);
+        }
+
+        if (distance <= 0f)
+        {
+            return false;
+        }
+        return true;
+    }
+
     public readonly record struct MovementProjection(WPos From, WPos To, DateTime Activation, int SourceIndex,
         int? ArenaProjectionLayer, bool? RestrictToArenaProjectionLayer);
 
@@ -205,12 +249,10 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
         if (slot < 0 || slot >= PartyState.MaxAllies || !float.IsFinite(position.X) || !float.IsFinite(position.Z) || !float.IsFinite(facing.Rad)) return null;
         var copy = actor.CopyForProjection(position, facing);
         var published = ActiveKnockbacks(slot, copy);
-        if (published.Length > 32) return null;
         sources = published.ToArray();
-        if (sources.Any(s => s.SafeWalls.Length > 32)) return null;
         var result = new List<MovementProjection>();
         CalculateMovements(slot, copy, null, result, publishedSources: sources);
-        return result.Count <= 32 ? result : null;
+        return result;
     }
 
     // A SimpleKnockbacks publication is independent of the queried actor pose.
@@ -222,7 +264,7 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
     public List<MovementProjection>? ProjectFromPosition(int slot, Actor actor, WPos position)
     {
         if (!SupportsCounterfactualProjection || slot < 0 || slot >= PartyState.MaxAllies
-            || !float.IsFinite(position.X) || !float.IsFinite(position.Z) || ActiveKnockbacks(slot, actor).Length > 32) return null;
+            || !float.IsFinite(position.X) || !float.IsFinite(position.Z)) return null;
         var result = new List<MovementProjection>();
         CalculateMovements(slot, actor, null, result, position);
         return result;
@@ -244,51 +286,14 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
         for (var i = 0; i < len; ++i)
         {
             ref readonly var s = ref activeKnockbacks[i];
-            if (!ArenaProjectionLayerParticipantApplies(actor, s.ArenaProjectionLayer, s.RestrictToArenaProjectionLayer))
-            {
-                continue;
-            }
-            if (!s.IgnoreImmunes && PlayerImmunes[slot].ImmuneAt(s.Activation))
-            {
-                continue; // this source won't affect player due to immunity
-            }
+            if (!AppliesToParticipant(slot, actor, s)) continue;
             if (s.Shape != null && !s.Shape.Check(from, s.Origin, s.Direction))
             {
                 continue; // this source won't affect player due to being out of aoe
             }
 
-            var dir = s.Kind switch
-            {
-                Kind.AwayFromOrigin => from != s.Origin ? (from - s.Origin).Normalized() : default,
-                Kind.TowardsOrigin => from != s.Origin ? (s.Origin - from).Normalized() : default,
-                Kind.DirBackward => (s.Direction + 180f.Degrees()).ToDirection(),
-                Kind.DirForward => s.Direction.ToDirection(),
-                Kind.DirLeft => s.Direction.ToDirection().OrthoL(),
-                Kind.DirRight => s.Direction.ToDirection().OrthoR(),
-                _ => default
-            };
-            if (dir == default)
-            {
-                continue; // couldn't determine direction for some reason
-            }
-
-            var distance = s.Distance;
-            if (s.Kind == Kind.TowardsOrigin)
-            {
-                distance = Math.Min(distance, (s.Origin - from).Length() - s.MinDistance);
-            }
-
-            if (s.Kind == Kind.DirBackward)
-            {
-                var perpendicularDir = s.Direction.ToDirection().OrthoL();
-                var perpendicularDistance = Math.Abs((from - s.Origin).Cross(perpendicularDir) / perpendicularDir.Length());
-                distance = Math.Min(distance, perpendicularDistance - s.MinDistance);
-            }
-
-            if (distance <= 0f)
-            {
-                continue; // this could happen if attract starts from < min distance
-            }
+            if (!TryUnclippedMovement(from, s.Origin, s.Distance, s.Direction, s.Kind, s.MinDistance, out var dir, out var distance))
+                continue;
 
             if (StopAtWall)
             {

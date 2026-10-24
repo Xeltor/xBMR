@@ -29,8 +29,7 @@ public unsafe struct MoveControllerSubMemberForMine
 public sealed unsafe class MovementOverride : IDisposable
 {
     public Vector3? DesiredDirection;
-    internal readonly Integration.IntegrationInputObservation IntegrationInput = new();
-    internal readonly Integration.IntegrationPacing IntegrationPacing = new();
+    internal readonly CombatAssistance.Planning.NativeInputObservation NativeInput = new();
     public Angle MisdirectionThreshold;
     public Angle? DesiredSpinDirection;
 
@@ -99,7 +98,6 @@ public sealed unsafe class MovementOverride : IDisposable
 
     public void Dispose()
     {
-        IntegrationPacing.Clear();
         _dalamud.RelinquishData("vnav.PathIsRunning");
         Service.GameConfig.UiControlChanged -= OnConfigChanged;
         MovementBlocked = false;
@@ -121,7 +119,6 @@ public sealed unsafe class MovementOverride : IDisposable
 
     private void RMIWalkDetour(MoveControllerSubMemberForMine* self, float* sumLeft, float* sumForward, float* sumTurnLeft, byte* haveBackwardOrStrafe, byte* a6, byte bAdditiveUnk)
     {
-        var observedAssignment = IntegrationInput.CurrentAssignment;
         if (bAdditiveUnk == 0)
         {
             _forcedControlState = null;
@@ -193,19 +190,10 @@ public sealed unsafe class MovementOverride : IDisposable
             : _forcedControlState == null ? ActualMove // misdirection mode, but we're not trying to help user
             : _forcedControlState.Value ? ActualMove // misdirection mode, not moving yet, but want to start - can return anything really
             : default; // misdirection mode, not moving yet and don't want to
-        var pace = IntegrationPacing.Apply(observedAssignment, DesiredDirection, new(UserMove.X, UserMove.Z),
-            new(ActualMove.X, ActualMove.Z), new(output.X, output.Z), automatic, movementAllowed, MovementBlocked, followPath,
-            misdirectionMode || self->Spinning == 1);
-        if (pace.ProofId != null)
-        {
-            output = new(pace.Output.X, pace.Output.Y);
-            ActualMove = output;
-        }
         *sumLeft = output.X;
         *sumForward = output.Z;
-        IntegrationInput.Observe("walk-input-result", DesiredDirection, new(UserMove.X, UserMove.Z),
-            new(ActualMove.X, ActualMove.Z), new(output.X, output.Z), followPath, misdirectionMode, pace.Scale, pace.ProofId,
-            automatic, observedAssignment, requireCapturedAssignment: true);
+        NativeInput.Observe(new(UserMove.X, UserMove.Z), new(ActualMove.X, ActualMove.Z),
+            new(output.X, output.Z), automatic, followPath, misdirectionMode, *sumTurnLeft);
     }
 
     private void RMIFlyDetour(void* self, PlayerMoveControllerFlyInput* result)

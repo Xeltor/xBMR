@@ -12,6 +12,8 @@ sealed class AIManager : IDisposable
     public readonly AIController Controller;
     private static readonly AIConfig _config = Service.Config.Get<AIConfig>();
     private readonly AIManagementWindow _wndAI;
+    private readonly CombatAssistance.UI.PatchNoteController _patchNotes;
+    private readonly CombatAssistance.UI.MigrationCommandAlias _migrationAlias;
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
     public AIBehaviour? Beh;
     public Preset? AiPreset;
@@ -20,14 +22,42 @@ sealed class AIManager : IDisposable
     public float ForceMovementIn => Beh?.ForceMovementIn ?? float.MaxValue;
     public string GetAIPreset => AiPreset?.Name ?? string.Empty;
 
-    public AIManager(RotationModuleManager autorot, ActionManagerEx amex, MovementOverride movement)
+    public AIManager(RotationModuleManager autorot, ActionManagerEx amex, MovementOverride movement, CombatAssistance.Config.AssistanceSettingsSession settings)
     {
         Instance = this;
-        _wndAI = new AIManagementWindow(this);
         Autorot = autorot;
+        _wndAI = new AIManagementWindow(this, settings);
+        _patchNotes = new(settings);
+        _wndAI.OpenPatchNotes = _patchNotes.Show;
+        var legacyCommands = new CombatAssistance.Runtime.LegacyAssistanceCommands(settings, () => _wndAI.SetVisible(true), _patchNotes.Show,
+            () => $"Native movement planning: {Autorot.MovementPlanning.LastFailure ?? "available"}; {Autorot.MovementPlanning.Assistance?.ActionStatus ?? "native rotation goals"}",
+            () => _wndAI.FightSharingStatus?.Invoke() ?? "Recording status is not available yet.", message => Service.ChatGui.Print($"[xBMR] {message}"));
+        _migrationAlias = new(legacyCommands.Execute);
         Controller = new(autorot.WorldState, amex, movement);
-        Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Toggle AI mode" });
+        Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Open combat assistance settings; on/off/toggle/follow control AI" });
         Service.CommandManager.AddHandler("/vbmai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "xBMR compatibility alias for /bmrai" });
+    }
+
+    internal void ConfigureAssistanceStatus(Func<string> sharing, Func<string?> support)
+    {
+        _wndAI.FightSharingStatus = sharing;
+        _wndAI.SupportRecipientStatus = support;
+        _wndAI.RotationSolverAvailability = () => Autorot.MovementPlanning.Assistance?.RsrAvailable == true
+            ? null : "RotationSolver Reborn is unavailable. Native BMR rotation goals remain available.";
+        _wndAI.ActionPredictionAvailability = _wndAI.RotationSolverAvailability;
+        _wndAI.PluginConnections = () =>
+        [
+            new("Movement planning", "Native xBMR service"),
+            new("RotationSolver Reborn", Autorot.MovementPlanning.Assistance?.RsrAvailable == true ? "Loaded" : "Unavailable",
+                Autorot.MovementPlanning.Assistance?.RsrAvailable != true)
+        ];
+    }
+
+    internal void UpdateMigrationAlias(bool standaloneLoaded)
+    {
+        _patchNotes.Update(!standaloneLoaded && Service.ClientState.IsLoggedIn
+            && WorldState.Party.Player() is { InCombat: false } && !Service.GameGui.GameUiHidden);
+        _migrationAlias.Enabled = !standaloneLoaded;
     }
 
     public void SetAIPreset(Preset? p)
@@ -40,9 +70,11 @@ sealed class AIManager : IDisposable
     public void Dispose()
     {
         SwitchToIdle();
+        _patchNotes.Dispose();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
         Service.CommandManager.RemoveHandler("/vbmai");
+        _migrationAlias.Dispose();
         Instance = null;
     }
 
@@ -57,10 +89,11 @@ sealed class AIManager : IDisposable
         var master = WorldState.Party[MasterSlot];
         if (Beh != null && player != null && master != null && !WorldState.Party.Members[PartyState.PlayerSlot].InCutscene)
         {
-            _ = Beh.Execute(player, master);
+            Beh.Execute(player, master);
         }
         else
         {
+            Autorot.MovementPlanning.Release("follow");
             Controller.Clear();
         }
 
@@ -120,9 +153,10 @@ sealed class AIManager : IDisposable
 
     private void OnCommand(string cmd, string message)
     {
-        var messageData = message.Split(' ');
+        var messageData = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (messageData.Length == 0)
         {
+            _wndAI.SetVisible(true);
             return;
         }
 
@@ -348,9 +382,10 @@ sealed class AIManager : IDisposable
 
     private void HandleFollowCommand(string[] messageData)
     {
-        if (messageData.Length < 2 && _config.EchoToChat)
+        if (messageData.Length < 2)
         {
-            Service.ChatGui.Print("[BMRAI] Missing follow target.");
+            if (_config.EchoToChat)
+                Service.ChatGui.Print("[BMRAI] Missing follow target.");
             return;
         }
 

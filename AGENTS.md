@@ -111,12 +111,52 @@ qualify. Record promotion/reopening reasons and evidence or issue links. After
 repair, validate the affected behavior and adjacent interactions before promoting
 again; a full encounter retest is not required for every change.
 
-## Versioned integration contracts
+## Native combat assistance
 
-For XCAI/BMR IPC work, use the contracts and agent handoff in
-[issue #1](https://github.com/Xeltor/xBMR/issues/1). Advertise families independently, keep unknown/stale
-results explicit, and preserve BMR frame/movement/safety ownership. The issue records residual gaps; capability publication alone does not prove a
-completed consumer migration or live gameplay acceptance.
+Standalone XelsCombatAI is retired into xBMR. All future assistance implementation
+and releases belong here. Do not republish standalone XCAI, restore its feed entry,
+or reinstate its removed IPC contracts. Existing XCAI installations are removed
+automatically through Dalamud when safe; only afterward does a persistent modal
+confirm completed removal. Its sole **Got it** button records acknowledgement,
+never consent. Preserve legacy settings and recordings. The feed workflow removes
+XCAI transactionally with the merged xBMR release. Its old source is archival and
+its Forgejo Actions are disabled. Explicit maintainer authorization is required
+to reverse that retirement.
+
+Combat policies, external RSR adapters, versioned assistance preferences and the
+Material interface live under `BossMod/CombatAssistance`. Normal movement and AI
+following use the same native planning service. Encounter modules remain
+independent of that area. Capture mutable game state on the framework thread;
+workers receive frozen values and must never read live actors or Dalamud wrappers.
+
+The former XCAI-only `BossMod.*.V1.*` contracts are intentionally retired. Preserve
+the upstream public IPC listed in `tests/NativeMovementRegression/Baseline.json`.
+Use typed native services internally; do not restore serialized local transport,
+consumer leases or capability negotiation. RSR and vnavmesh remain external
+boundaries where their features require them. ToF companion integration is excluded.
+
+Keep independent safety, assignment and action-recipient requirements visible.
+Opaque position scores are not safety proofs. Keep completed search, bounded best
+found results and native recovery distinct. Do not add performance limits without
+recording their origin and measuring the supported workloads. The native freshness
+ceiling and real departure deadlines remain binding.
+
+Settings import preserves opt-outs and the original legacy file. Installing
+assistance never activates AI. Native activation, following, presets and manual
+handoff remain authoritative. Material styling stays scoped to its own windows;
+`/bmr` and native configuration identities remain intact. DevBridge owns history
+and captures; the plugin exposes only bounded current-state diagnostics.
+
+Displacement capture must retain registered source presence independently of
+immunity, horizon and movement filters. Native preparation shapes implement
+`IKnockbackPreparationConstraint`; an opaque or pose-dependent publisher cannot
+certify authored absence. Separate only exact attributed pure preparation leaves,
+retain independent constraints, and keep landing envelopes scoped to their forced
+landing. Workers receive frozen native maps and values, never live producer handles.
+
+Track the migration and modified upstream interfaces in
+`docs/native-combat-assistance`. A build, source inventory or advertised capability
+does not establish behavioral parity or live acceptance.
 
 ## Local development builds
 
@@ -212,11 +252,11 @@ and release notes; preserve its existing tag and assets.
 
 ## Repository scope and focused validation
 
-Keep IPC implementation notes, usage contracts and agent handoffs in the linked
-issue. Do not add separate documentation trees, general inspection projects or
-copies of native implementations for broad test coverage. Keep research and
-one-off development tools outside the repository. Retain the release-version
-checker required by the existing fork CI and version policy.
+Keep the native integration inventory concise and tests close to the integrated
+code. Convert useful geometry/lifecycle regressions into native-service tests;
+remove tests that only assert retired transport behavior. Do not duplicate native
+safety implementations or add a general inspection framework. Keep one-off tools
+outside the repository. Retain the existing release-version checker.
 
 Regression tests are welcome when they target changed IPC behavior or encounter
 fixes. Use the smallest relevant checks; do not require full BMR coverage or grow

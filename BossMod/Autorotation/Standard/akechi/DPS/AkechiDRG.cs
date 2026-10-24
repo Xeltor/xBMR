@@ -780,7 +780,7 @@ public sealed class AkechiDRG(RotationModuleManager manager, Actor player) : Ake
                     AOEStrategy.ForceBuffsBreak or
                     AOEStrategy.ForceBuffsFinish)
                 {
-                    Hints.ForcedTarget = ttTarget;
+                    Hints.SetNativeTarget(ttTarget);
                 }
             }
         }

@@ -53,8 +53,8 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
         // TODO this checks whether movement keys are pressed, we need a better solution
         var moveRequested = _movement.IsMoveRequested();
         var castInProgress = player.CastInfo != null;
-        // decide here, every frame, against the live client cast state - the AI behaviour runs async and only sees a previous frame's worldstate,
-        // so a cast started this frame by an external plugin (e.g. RSR) looks like 'no cast', gets interrupted by a one-frame move, and the two lock into a cast/interrupt loop
+        // Decide here, every frame, against the live client cast state. An external
+        // plugin may have started a cast since the immutable planning snapshot.
         // if no cast has started yet but one is imminent, only an urgent dodge (no leeway left) is allowed to pre-empt it
         var castRemaining = _amex.CastTimeRemaining;
         var mustMoveNow = AllowInterruptingCastByMovement || (castRemaining > 0f ? NaviLeewaySeconds <= castRemaining - 0.5f : NaviLeewaySeconds <= 0f);
@@ -93,11 +93,6 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
                 null, false, hints.ForcedMovement != null ? "other-movement-wins"
                     : moveRequested ? "manual-input" : forbidMovement ? "native-cast-hold"
                     : NaviTargetPos == null ? "no-controller-destination" : "within-destination-tolerance", navigation);
-        if (followActive && navigation != null && hints.IntegrationGoals is { } integration
-            && hints.IntegrationControllerDecision is { WroteMovement: true, Owner: "bmr-follow" } observed
-            && hints.ForcedMovement is { } direction && NaviTargetPos is { } destination)
-            hints.IntegrationMovementDecision = new(integration.Context.InstanceGeneration, integration.Context.FrameId,
-                "bmr-follow", player.InstanceID, ws.CurrentTime, System.Diagnostics.Stopwatch.GetTimestamp(), player.Position, destination, direction, navigation)
-            { ControllerDecisionId = observed.Id, FollowMasterId = followMaster?.InstanceID, FollowMasterPosition = followMaster?.PosRot.XYZ() };
+
     }
 }

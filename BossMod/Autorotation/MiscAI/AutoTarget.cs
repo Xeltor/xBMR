@@ -105,6 +105,7 @@ public sealed class AutoTarget(RotationModuleManager manager, Actor player) : Ro
         if (strategy.Option(Track.Treasure).As<Flag>() == Flag.Enabled)
             Hints.InteractWithTarget ??= World.Actors.Where(a => a.Type == ActorType.Treasure && a.IsTargetable && !a.IsOpenTreasure).OrderBy(a => (a.Position - Player.Position).LengthSq()).FirstOrDefault();
 
+        if (Hints.NativeTargetIntentCollectionRequested) Hints.AutomaticRetargetingAllowed = false;
         var generalOpt = strategy.Option(Track.General);
         var generalStrategy = generalOpt.As<GeneralStrategy>();
         if (generalStrategy == GeneralStrategy.Passive)
@@ -245,9 +246,14 @@ public sealed class AutoTarget(RotationModuleManager manager, Actor player) : Ro
             _ => true
         };
 
+        if (Hints.NativeTargetIntentCollectionRequested) Hints.AutomaticRetargetingAllowed = changeTarget;
+
         // if we have target to switch to, do that
         if (changeTarget)
-            primaryTarget = Hints.ForcedTarget = bestTarget;
+        {
+            primaryTarget = bestTarget;
+            Hints.SetAutomaticTarget(bestTarget);
+        }
     }
 
     // TODO: this shouldn't be here

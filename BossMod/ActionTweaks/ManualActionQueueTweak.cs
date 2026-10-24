@@ -45,6 +45,8 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints)
         return false;
     }
 
+    internal bool HasPendingInput => _queue.Any(entry => !entry.Expired(ws.CurrentTime));
+
     public void RemoveExpired()
     {
         if (_emergencyMode && _queue[0].Expired(ws.CurrentTime))

@@ -11,16 +11,19 @@ public static class ActionPredicate
             return false;
         }
         var target = action.Target;
-        if (target == null || !_config.DashSafety)
+        if (target == null)
         {
             return false;
         }
+
+        if (!_config.DashSafety)
+            return true;
 
         // if there are pending knockbacks, god only knows where we would be sent after using a gapcloser
         // note that once the knockback is actually active and not pending, we can probably cancel it with a dash
         if (player.PendingKnockbacks.Count > 0)
         {
-            return true;
+            return false;
         }
 
         var dist = player.DistanceToHitbox(target);
@@ -36,13 +39,13 @@ public static class ActionPredicate
             var d = dirs[i];
             if (dir.AlmostEqual(d.center, d.halfWidth.Rad))
             {
-                return true;
+                return false;
             }
         }
 
         // TODO: check against action's animation lock duration instead of constant 0.8?
         var (mode, deadline, _) = hints.ImminentSpecialMode;
-        return mode is AIHints.SpecialMode.Pyretic or AIHints.SpecialMode.NoMovement && deadline <= ws.FutureTime(0.8d) || IsDashSafe(src, src + dir.ToDirection() * Math.Max(0f, dist), hints);
+        return !(mode is AIHints.SpecialMode.Pyretic or AIHints.SpecialMode.NoMovement && deadline <= ws.FutureTime(0.8d)) && IsDashSafe(src, src + dir.ToDirection() * Math.Max(0f, dist), hints);
     }
 
     public static bool AllowDashToPosition(WorldState _, Actor player, ActionQueue.Entry action, AIHints hints)
@@ -123,8 +126,6 @@ public static class ActionPredicate
             return false;
         }
         var center = hints.PathfindMapCenter;
-        foreach (var constraint in hints.IntegrationConstraints?.Capture() ?? [])
-            if (constraint.Contains(to)) return false;
         if (!hints.PathfindMapBounds.Contains(to - center))
         {
             return false;

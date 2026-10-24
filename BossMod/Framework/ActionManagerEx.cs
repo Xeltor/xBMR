@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -30,7 +30,7 @@ namespace BossMod;
 //    this feature allows queueing them, plus provides options to execute them automatically either at target's position or at cursor's position
 // 7. auto cancel cast utility
 // TODO: should not be public!
-public sealed unsafe class ActionManagerEx : IDisposable
+public sealed unsafe partial class ActionManagerEx : IDisposable
 {
     public ActionID CastSpell => new(ActionType.Spell, _inst->CastSpellId);
     public ActionID CastAction => new((ActionType)_inst->CastActionType, _inst->CastActionId);
@@ -417,8 +417,12 @@ public sealed unsafe class ActionManagerEx : IDisposable
         }
     }
 
+    internal Func<bool>? PreserveManualFacing;
+
     private Angle? CalculateDesiredOrientation(bool actionImminent)
     {
+        if (PreserveManualFacing?.Invoke() == true)
+            return null;
         if (actionImminent && AutoQueue.FacingAngle != null)
         {
             return AutoQueue.FacingAngle; // explicit angle overrides all other concerns
@@ -627,10 +631,18 @@ public sealed unsafe class ActionManagerEx : IDisposable
             targetSystem->Target = null;
         }
 
-        var ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7);
-        if (preventAutos)
+        // Borrow the option only for this synchronous native call. There is no
+        // persisted setting lease and no restoration journal across plugin unload.
+        var autoFace = Framework.Instance()->SystemConfig.GetConfigOption((uint)ConfigOption.AutoFaceTargetOnAction);
+        var preserveFacing = PreserveManualFacing?.Invoke() == true && autoFace != null;
+        var previousAutoFace = preserveFacing ? autoFace->Value.UInt : 0u;
+        if (preserveFacing) autoFace->Value.UInt = 0;
+        bool ret;
+        try { ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7); }
+        finally
         {
-            targetSystem->Target = hardTarget;
+            if (preserveFacing && autoFace->Value.UInt == 0) autoFace->Value.UInt = previousAutoFace;
+            if (preventAutos && targetSystem->Target == null) targetSystem->Target = hardTarget;
         }
 
         var currSeq = _inst->LastUsedActionSequence;

@@ -1,0 +1,607 @@
+{
+  "sourceRevision": "4a0f7968da8a743e8971973821cb9f6f1387198c",
+  "complete": true,
+  "settings": [
+    {
+      "name": "Version",
+      "type": "int",
+      "destination": "Versioned AssistanceSettingsDocument plus imported preference migrations",
+      "status": "implemented"
+    },
+    {
+      "name": "AcknowledgedPatchNotes",
+      "type": "string[]?",
+      "destination": "Native Material patch-note history; original acknowledgment IDs retained",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "PatchNotesBaselineVersion",
+      "type": "string?",
+      "destination": "Native Material patch-note history; original acknowledgment IDs retained",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "SettingsWindowPosition",
+      "type": "System.Numerics.Vector2?",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "Enabled",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ShareFightRecordings",
+      "type": "bool",
+      "destination": "Native replay decoder and opt-in sharing worker; imported receipts",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "LinkRotationSolverToggle",
+      "type": "bool",
+      "destination": "Scoped RsrOperatingMode and LinkedRotationOwner bound to existing native activation",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "StartRotationSolverAtFateOpener",
+      "type": "bool",
+      "destination": "Retired with excluded ToF cooperative FATE integration",
+      "status": "intentionally excluded"
+    },
+    {
+      "name": "AutoAcceptRaises",
+      "type": "bool",
+      "destination": "Native exact resurrection-offer controller",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "FixRsrMeleeRangedAfterMovement",
+      "type": "bool",
+      "destination": "Native lifecycle and external RSR fallback binding",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageMovement",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "FixBmrDawntrailHallwayModules",
+      "type": "bool",
+      "destination": "Native module/arena/stack/Questionable corrections with preserved opt-outs",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "BmrHallwayModulesToRestore",
+      "type": "System.Collections.Generic.List<uint>",
+      "destination": "AssistanceSettingsSession.ReconcileRecovery; original file retained",
+      "status": "implemented"
+    },
+    {
+      "name": "BmrHallwayRestoreUserRevisions",
+      "type": "System.Collections.Generic.Dictionary<uint, long>",
+      "destination": "AssistanceSettingsSession.ReconcileRecovery; original file retained",
+      "status": "implemented"
+    },
+    {
+      "name": "BmrHallwayRestoreGeneration",
+      "type": "string?",
+      "destination": "AssistanceSettingsSession.ReconcileRecovery; original file retained",
+      "status": "implemented"
+    },
+    {
+      "name": "FixBmrFateArenaFrame",
+      "type": "bool",
+      "destination": "Native module/arena/stack/Questionable corrections with preserved opt-outs",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "EnableEncounterFixes",
+      "type": "bool",
+      "destination": "Legacy compatibility field retained for import; authored native encounter modules remain authoritative",
+      "status": "retired: no standalone per-encounter correction owner"
+    },
+    {
+      "name": "DisabledEncounterFixes",
+      "type": "System.Collections.Generic.HashSet<string>",
+      "destination": "Legacy compatibility keys remain in imported preferences and original rollback config; general corrections retain their explicit native toggles",
+      "status": "retired: per-encounter plugin switches cannot override native mechanics"
+    },
+    {
+      "name": "FixBmrStackSeparation",
+      "type": "bool",
+      "destination": "Native module/arena/stack/Questionable corrections with preserved opt-outs",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "FixBmrForcedMarchHeading",
+      "type": "bool",
+      "destination": "NativeForcedMovementCapture freezes authored component routes; joint search and shared executor choose and revalidate the heading plus onward escape",
+      "status": "implemented; synthetic and exhaustive reference validated; live mechanic pending"
+    },
+    {
+      "name": "FixBmrForcedMarchFacing",
+      "type": "bool",
+      "destination": "Framework-native GenericForcedMarch observation and local RSR pause/restoration; synchronous action auto-face protection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "FixBmrDefaultTankFacing",
+      "type": "bool",
+      "destination": "Existing native Enemy.DesiredRotation defaults to unset. Retire the nonfunctional standalone control; preserve its legacy import value",
+      "status": "retired: baseline standalone only observed the already-native correction"
+    },
+    {
+      "name": "FixQuestionableQuestTargeting",
+      "type": "bool",
+      "destination": "Native module/arena/stack/Questionable corrections with preserved opt-outs",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "UseSprint",
+      "type": "bool",
+      "destination": "Native joint utility/travel search with expiring speed evidence; scoped RSR selection; native follow fallback shares the saved gate",
+      "status": "Implemented with native policy/regression coverage; actual action/effect/cone delivery remains a dungeon test."
+    },
+    {
+      "name": "CombatCamera",
+      "type": "bool",
+      "destination": "Native camera and scoped action-facing; preserves manual input",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "CameraAutoZoom",
+      "type": "bool",
+      "destination": "Native camera and scoped action-facing; preserves manual input",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "CameraPanningSpeed",
+      "type": "float",
+      "destination": "Native camera and scoped action-facing; preserves manual input",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "RespectManualMovement",
+      "type": "bool",
+      "destination": "Native manual-input authority always applies. Legacy saved field remains readable; Material control displays the fixed native rule",
+      "status": "implemented; legacy opt-out superseded by required native authority"
+    },
+    {
+      "name": "DisableAutoFaceTargetDuringManualMovement",
+      "type": "bool",
+      "destination": "Native camera and scoped action-facing; preserves manual input",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageSocialTurning",
+      "type": "bool",
+      "destination": "Stable party-facing preference finishes the native plan during downtime; no separate movement writer",
+      "status": "implemented; regression validated; live validation pending"
+    },
+    {
+      "name": "ManageSocialSpacing",
+      "type": "bool",
+      "destination": "Native presentation objective after action execution and resources",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageNaturalDestinations",
+      "type": "bool",
+      "destination": "Remembered formation and deterministic party lanes score the full native map before movement; no endpoint refinement",
+      "status": "implemented; regression validated; live validation pending"
+    },
+    {
+      "name": "ManageForbiddenZoneDistance",
+      "type": "bool",
+      "destination": "Native presentation objective after action execution and resources",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManagePositionals",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageTrueNorth",
+      "type": "bool",
+      "destination": "Joint utility-action search compares positional movement against observed charges and finite status coverage; scoped automatic RSR selection deferral",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageKardiaRecipient",
+      "type": "bool",
+      "destination": "Native support observations and scoped RSR action selection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "HealRaisedNonPartyPlayers",
+      "type": "bool",
+      "destination": "Native support observations and scoped RSR action selection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageDancePartnerRecipient",
+      "type": "bool",
+      "destination": "Native support observations and scoped RSR action selection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageFeyUnionRecipient",
+      "type": "bool",
+      "destination": "Native support observations and scoped RSR action selection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageAstCardRecipients",
+      "type": "bool",
+      "destination": "Native support observations and scoped RSR action selection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "PreserveCoveredRangedMitigation",
+      "type": "bool",
+      "destination": "Native support observations and scoped RSR action selection",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ManageCastControl",
+      "type": "bool",
+      "destination": "Native cast identity and action-effect observations; scoped RSR action selection; exact native submission with unchanged escape route",
+      "status": "implemented; deterministic and installed RSR contract checks passed; live delivery pending"
+    },
+    {
+      "name": "ManageKnockback",
+      "type": "bool",
+      "destination": "NativeMobilityCapture, JointMovementSearch/shared native failure validation, RsrKnockbackSelection and the one movement executor; native tank slow opportunity enters the same original RSR ability pipeline",
+      "status": "Verified supported native implementation retained. Further first-event/general authored projection and cast/mobility enhancements deferred by user on 2026-10-24; native BMR recovery remains the fallback. Unknown-knockback learning is retired. Actual delivery remains a dungeon test."
+    },
+    {
+      "name": "PlanKnockbackLandings",
+      "type": "bool",
+      "destination": "NativeKnockbackTimingCapture binds authored phases; NativeKnockbackTransaction retains causal state; JointMovementSearch, shared native validation and executor select preparation, landing and onward recovery",
+      "status": "Verified supported native implementation retained. Further first-event/general authored projection and cast/mobility enhancements deferred by user on 2026-10-24; native BMR recovery remains the fallback. Unknown-knockback learning is retired. Actual delivery remains a dungeon test."
+    },
+    {
+      "name": "UseLearnedKnockbackFallback",
+      "type": "bool",
+      "destination": "User-authorized retirement on 2026-10-24; no integrated preference or unknown-knockback learning subsystem. Preserve original standalone configuration and knowledge files for rollback.",
+      "status": "Retired by user on 2026-10-24. Native preference/UI, unknown forecast admission, classifier, knowledge persistence/import and unknown-only tests removed. Settings import and repeated startup discard the field while preserving original standalone files. Retained authored effect/completion observation is session-only; no unknown mechanic is inferred."
+    },
+    {
+      "name": "ManageLeylines",
+      "type": "bool",
+      "destination": "Shared native owned field/timing observation, utility-zone recovery and joint walking/Between the Lines/Retrace planning for selected-spell delivery and recovery; native placement/scoped selection now connected",
+      "status": "Native implementation present: shared field timing/return/placement/relocation, original RSR selection and saved gates. First walking publication now includes useful after-action field recovery. Unknown timing/footprint is explicitly bounded; no fabricated benefit. Final offline verification and dungeon delivery/tuning remain."
+    },
+    {
+      "name": "BlackMageLateMovement",
+      "type": "bool",
+      "destination": "Verified pre-publication wait from native complete-route slack, preserving action delivery and the original departure deadline",
+      "status": "implemented; regression validated; live validation pending"
+    },
+    {
+      "name": "GreedyLeyLines",
+      "type": "bool",
+      "destination": "Native departure wait and original effect lifetime; cast timing conditions rechecked after travel",
+      "status": "Native implementation present: shared field timing/return/placement/relocation, original RSR selection and saved gates. First walking publication now includes useful after-action field recovery. Unknown timing/footprint is explicitly bounded; no fabricated benefit. Final offline verification and dungeon delivery/tuning remain."
+    },
+    {
+      "name": "PlanLeyLinesPlacement",
+      "type": "bool",
+      "destination": "PlanningFieldPlacement and joint route search; NativePlacementOpportunity preserves original clocks/position; RsrLeyLinesPlacement scopes original native approval and delivery independently of support-party gates",
+      "status": "implemented and loaded; 42602 native assertions, independent placement solver/pruning comparisons, installed contracts and native dummy selection/fallback/cleanup pass; improved encounter placement and full lifecycle acceptance pending"
+    },
+    {
+      "name": "UseBetweenTheLines",
+      "type": "bool",
+      "destination": "NativeMobilityCapture owned return anchor and exact shared search/executor, gated by ManageLeylines and global/job mobility opt-outs; compare observed current-spell timing, locks, resources and safe landing",
+      "status": "implemented for supported observed current-spell return; native regressions passed. Live stopped-navigation return corroborated by actual landing, buff/timing and 0.8s action effect. Integrated RSR/native executor and combat delivery remain pending."
+    },
+    {
+      "name": "UseRetrace",
+      "type": "bool",
+      "destination": "PlanningUtility.RelocatePersonalField, stabilized owned field observation, shared JointMovementSearch and MovementPlanExecutor. Compare selected spell delivery and native GCD recovery, cooldown/lock, safe holding and onward route. Preserve original expiry; update subsequent return anchor. RSR selector has scoped ownership; selected unmodeled abilities keep their weave. Retrace may replace the actual ground object: observed owned-action continuity preserves the original effect identity/deadline, while exact revalidation still requires the unique new object at the planned center.",
+      "status": "implemented for supported observed selected-spell cast/recast evidence; build/reference/native/installed-contract checks passed. Live native field/buff arrival, replacement identity, unchanged remaining duration and 0.6s action effect corroborated. Integrated RSR/native executor and combat delivery remain pending."
+    },
+    {
+      "name": "ReturnToLeylines",
+      "type": "bool",
+      "destination": "Native walking-zone objective and abilities-only entry proof; compare selected spell delivery plus its observed native GCD recovery before resource/presentation preferences. Legal owned return and relocation share the route/executor.",
+      "status": "Native implementation present: shared field timing/return/placement/relocation, original RSR selection and saved gates. First walking publication now includes useful after-action field recovery. Unknown timing/footprint is explicitly bounded; no fabricated benefit. Final offline verification and dungeon delivery/tuning remain."
+    },
+    {
+      "name": "UseRedMageMeleeComboMovement",
+      "type": "bool",
+      "destination": "Native RedMageIntentPolicy and ComboRecovery geometry: observed ST/AoE continuation with original native expiry, supported Reborn starter gates and Beiruta explicit hold; preserve selected action/target/recipients before optional preparation. Shared route/mobility search accounts for next GCD slot, action locks, facing, resources and native authority.",
+      "status": "implemented for supported observed intent with native regression and installed RSR 7.5.7.6 contract checks; selected sword steps remain ordinary current execution, unknown/resource-consuming fallback actions receive no invented preparation, live parity pending"
+    },
+    {
+      "name": "ManagePictomancerStarryMuse",
+      "type": "bool",
+      "destination": "Native observed owned landscape and selected-action cast/recast calibration. Only a center actually observed with Inspiration is credited; current native coverage corroborates the actual stopped pose. Original placement, modifier and charge-condition clocks remain binding; no party-buff radius is substituted.",
+      "status": "Native implementation present: shared field timing/return/placement/relocation, original RSR selection and saved gates. First walking publication now includes useful after-action field recovery. Unknown timing/footprint is explicitly bounded; no fabricated benefit. Final offline verification and dungeon delivery/tuning remain."
+    },
+    {
+      "name": "UsePictomancerStarryMuseSmudge",
+      "type": "bool",
+      "destination": "PlanningCastTiming.FieldBenefitExcludedAfterAction plus route label and exact validation state. A declined Smudge field forecast cannot regain credit through a later walk/wait; walking return and independent legal Smudge safety/range remain available. Existing global and PCT action opt-outs still gate availability.",
+      "status": "implemented for matched current-effect timing with native search/reference and exact revalidation regressions; actual Smudge landing and integrated live field return pending"
+    },
+    {
+      "name": "UseGapCloser",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "UsePhantomGapClosers",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserPLD",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserWAR",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserDRK",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserGNB",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserMNK",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserDRG",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserNIN",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserSMN",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserBLU",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserSAM",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserBRD",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserDNC",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserRPR",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserBST",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserVPR",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserWHM",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserBLM",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserRDM",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserSGE",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "GapCloserPCT",
+      "type": "bool",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "EchoStatusToChat",
+      "type": "bool",
+      "destination": "Material chat control binds directly to AIConfig.EchoToChat. Legacy XCAI command echo remains rollback data; those operational commands are retired",
+      "status": "mapped to native owner; command compatibility verified in source"
+    },
+    {
+      "name": "CombatStyle",
+      "type": "CombatStyle",
+      "destination": "Native current-action-first search plus explicit GreedGCD or GreedLastMoment departure stages; no IPC pacing owner",
+      "status": "implemented; regression validated; live validation pending"
+    },
+    {
+      "name": "PreferredForbiddenZoneDistance",
+      "type": "float",
+      "destination": "Native presentation objective after action execution and resources",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "MinimumGapCloserDistance",
+      "type": "float",
+      "destination": "Native planning/runtime or Material window",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "MaintainPullContact",
+      "type": "bool",
+      "destination": "NativePartyContact supplies a combat-only moving-pack region to joint search; no automatic between-pull catch-up or travel owner",
+      "status": "Implemented: combat-only observed advancing multi-enemy tank contact, native leader/preset/manual precedence, role distances and hysteresis. Native map/corridor safety remains authoritative; no extrapolated tank path or between-pull following. Dungeon validation remains."
+    },
+    {
+      "name": "TrackDungeonParty",
+      "type": "bool",
+      "destination": "Retired by explicit user request on 2026-10-23: remove automatic tank following between pulls and its inferred travel/interaction subsystem. Legacy and integrated JSON values are ignored and omitted on save; original standalone configuration is retained.",
+      "status": "retired by user; source/UI removed; legacy import, integrated restart and combat-only contact regressions passed in managed validation"
+    },
+    {
+      "name": "ManageAoePackPositioning",
+      "type": "bool",
+      "destination": "Selected RSR action geometry preserves each evidenced recipient and optionally improves additional coverage in joint search",
+      "status": "implemented for evidenced current actions; independent stationary target-circle improvements preserve the movement-coverage opt-out; targeting, pull and live parity remain pending"
+    },
+    {
+      "name": "ManageHealerCoverageZone",
+      "type": "bool",
+      "destination": "RsrExecutionCapture and NativeActionSequence: supported selected immediate party-heal ability and selected GCD enter joint planning with individual recipients, original execution timing and one publication. Obsolete selection-delay lease retired because extra recipients cannot buy a delayed current heal.",
+      "status": "implemented for supported direct selected party heals and GCDs; native regressions and installed contracts passed; mixed damage/heal effect evidence and live delivery pending"
+    },
+    {
+      "name": "ManageDefensiveGroundZonePositioning",
+      "type": "bool",
+      "destination": "Native cast-event ground effects with original lifetimes, observed channel auras, separate healing and mitigation utility; no post-arrival correction",
+      "status": "Implemented with native policy/regression coverage; actual action/effect/cone delivery remains a dungeon test."
+    },
+    {
+      "name": "ManagePassageOfArmsPositioning",
+      "type": "bool",
+      "destination": "Observed native paladin channel status and rear cone participate in timed full-map search",
+      "status": "Implemented with native policy/regression coverage; actual action/effect/cone delivery remains a dungeon test."
+    },
+    {
+      "name": "PickBetterAoeTarget",
+      "type": "bool",
+      "destination": "NativeOffensiveTargeting.Planning freezes target-circle/cone/rectangle alternatives; JointMovementSearch selects route/anchor/facing together; NativeTargetSetupOwner and the single executor require fresh original RSR confirmation",
+      "status": "implemented for supported targeted circle/cone/rectangle actions, including stationary-only planning when ManageMovement is off. Current execution, old/new primary and individual required recipients, exact facing, priority and forbidden collateral remain binding. Independent native regressions and installed RSR contracts pass; actual Henched delivery, improved AoE setup, lifecycle behavior and capture cost remain live/audit checks."
+    },
+    {
+      "name": "KeepTrashTargetSelected",
+      "type": "bool",
+      "destination": "NativeOffensiveTargeting consumes an observed valid RSR target; no nearest fallback outside original action checks; native automatic-target preset remains authoritative",
+      "status": "Implemented: native target owner, original RSR eligibility, runtime handoff and option/lifecycle regressions. Actual dungeon targeting/delivery remains unverified."
+    },
+    {
+      "name": "TankIgnoreFrontConeMovement",
+      "type": "bool",
+      "destination": "Imported value retained; misleading control removed. Native authored tank-facing and hazard requirements remain authoritative. TryInjectNative explicitly cleared the old cone plan; private goal builder had no caller.",
+      "status": "retired: no behavioral consumer at pinned standalone baseline"
+    },
+    {
+      "name": "TankKeepFrontConeAwayFromParty",
+      "type": "bool",
+      "destination": "Imported value retained; misleading control removed. Native authored tank-facing and hazard requirements remain authoritative. TryInjectNative explicitly cleared the old cone plan; private goal builder had no caller.",
+      "status": "retired: no behavioral consumer at pinned standalone baseline"
+    },
+    {
+      "name": "TankTargetLostTrashAggro",
+      "type": "bool",
+      "destination": "Existing Support/NativeTankRecovery exposes a confirmed loose-enemy candidate to native recipient-preserving targeting",
+      "status": "Implemented: native target owner, original RSR eligibility, runtime handoff and option/lifecycle regressions. Actual dungeon targeting/delivery remains unverified."
+    },
+    {
+      "name": "TankUseRangedAggroRecovery",
+      "type": "bool",
+      "destination": "NativeTankRecovery and TankRecoveryPolicy: exact native assignments, observed owner death, scoped RSR opt-outs, and native action submission preserving the selected GCD and recipients",
+      "status": "implemented; deterministic recovery checks passed; live delivery pending"
+    },
+    {
+      "name": "TankRecoverAfterTankDeath",
+      "type": "bool",
+      "destination": "NativeTankRecovery and TankRecoveryPolicy: exact native assignments, observed owner death, scoped RSR opt-outs, and native action submission preserving the selected GCD and recipients",
+      "status": "implemented; deterministic recovery checks passed; live delivery pending"
+    },
+    {
+      "name": "TankFollowBossModSwaps",
+      "type": "bool",
+      "destination": "NativeTankRecovery and TankRecoveryPolicy: exact native assignments, observed owner death, scoped RSR opt-outs, and native action submission preserving the selected GCD and recipients",
+      "status": "implemented; deterministic recovery checks passed; live delivery pending"
+    },
+    {
+      "name": "TankDropStanceWhenCoTankHasStance",
+      "type": "bool",
+      "destination": "Native tank stance coordination using target-matched ClientState enmity and scoped RSR selection; preserves current GCD and native swap assignments",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "AvoidStandingInsideEnemies",
+      "type": "bool",
+      "destination": "Native presentation objective after action execution and resources",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "AvoidArenaEdge",
+      "type": "bool",
+      "destination": "Native presentation objective after action execution and resources",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "ShowDecisionOverlay",
+      "type": "bool",
+      "destination": "Native plan/support overlay using existing drawing primitives",
+      "status": "implemented; live validation pending"
+    },
+    {
+      "name": "DecisionOverlayDensity",
+      "type": "OverlayDensity",
+      "destination": "Native plan/support overlay using existing drawing primitives",
+      "status": "implemented; live validation pending"
+    }
+  ],
+  "completionMeaning": "Every legacy setting has an explicit native owner or retirement/defer disposition. Completeness is mapping/implementation accounting, not live gameplay acceptance."
+}

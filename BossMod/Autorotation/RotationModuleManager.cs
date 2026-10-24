@@ -31,6 +31,8 @@ public sealed class RotationModuleManager : IDisposable
     public readonly BossModuleManager Bossmods;
     public int PlayerSlot; // TODO: reconsider, we rely on too many things in clientstate...
     public readonly AIHints Hints;
+    internal readonly CombatAssistance.Planning.NativeMovementHost MovementPlanning = new();
+    internal bool HasAutomaticTargetModule => ActiveModules?.Any(m => m.Module is MiscAI.AutoTarget) == true;
     public PlanExecution? Planner;
 
     // raised whenever the active plan (and therefore the set of upcoming planned actions) changes; used by external IPC users (RSR) to know when to re-poll
@@ -137,6 +139,7 @@ public sealed class RotationModuleManager : IDisposable
             ActiveModules = null;
         }
         _subscriptions.Dispose();
+        MovementPlanning.Dispose();
     }
 
     public void Update(float estimatedAnimLockDelay, bool isMoving, bool dutyRecorder)
@@ -166,6 +169,8 @@ public sealed class RotationModuleManager : IDisposable
                 : (ResolveTargetOverride(StrategyTarget.EnemyWithHighestPriority, 0) ?? Bossmods.ActiveModule?.GetDefaultTarget(PlayerSlot));
         }
 
+        // Collect the current external action target before any movement module.
+        if (Hints.NativeTargetIntentCollectionRequested) MovementPlanning.Assistance?.ResolveTargetIntent();
         // auto actions
         var target = Hints.ForcedTarget ?? WorldState.Actors.Find(Player?.TargetID ?? 0);
         var count = ActiveModules.Count;
@@ -174,7 +179,16 @@ public sealed class RotationModuleManager : IDisposable
             var m = ActiveModules[i];
             var values = Preset?.ActiveStrategyOverrides(m.DataIndex) ?? Planner?.ActiveStrategyOverrides(m.DataIndex, WorldState, PlayerSlot) ?? throw new InvalidOperationException("Both preset and plan are null, but there are active modules");
             m.Module.Execute(values, target, estimatedAnimLockDelay, isMoving);
+            // A newly selected target belongs to this same input generation.
+            // Later movement/rotation modules must not plan against the target
+            // captured before the automatic selector ran.
+            if (Hints.NativeTargetIntentCollectionRequested)
+            {
+                MovementPlanning.Assistance?.ResolveTargetIntent();
+                target = Hints.ForcedTarget ?? target;
+            }
         }
+        MovementPlanning.UpdateStationaryTarget(WorldState, Hints, Player);
     }
 
     public Actor? ResolveTargetOverride(StrategyTarget strategy, int param) => strategy switch

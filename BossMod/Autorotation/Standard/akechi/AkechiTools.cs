@@ -200,7 +200,7 @@ public abstract class AkechiTools<AID, TraitID>(RotationModuleManager manager, A
                 if (strategy.AutoHardTargeting())
                 {
                     primaryTarget = newTarget;
-                    Hints.ForcedTarget = primaryTarget?.Actor;
+                    Hints.SetNativeTarget(primaryTarget?.Actor);
                 }
             }
         }
@@ -329,9 +329,9 @@ public abstract class AkechiTools<AID, TraitID>(RotationModuleManager manager, A
         var focusTargetsTarget = RetrieveTarget(x => focusTarget?.TargetObjectId == x.Actor.InstanceID);
 
         var bestTarget = max ?? wfTarget ?? high ?? bigIce ?? avg ?? low;
-        Hints.ForcedTarget =
+        Hints.SetNativeTarget(
             wantDuosTarget ? (focusTargetsTarget ?? bestTarget)?.Actor
-            : bestTarget?.Actor;
+            : bestTarget?.Actor);
     }
     #endregion
 

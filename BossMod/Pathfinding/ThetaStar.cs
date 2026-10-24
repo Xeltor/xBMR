@@ -175,10 +175,14 @@ public sealed class ThetaStar
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int Execute()
+        => ExecuteCancellable(default);
+
+    internal int ExecuteCancellable(System.Threading.CancellationToken cancellation)
     {
         var pixelMaxG = _map.PixelMaxG;
         while (_fallbackIndex == StartNodeIndex && ExecuteStep())
         {
+            cancellation.ThrowIfCancellationRequested();
             ref var nd = ref _nodes[_bestIndex]; // instead of only looking for the perfect cell we search for a cell that is reasonably better
             var isLeeWayOverZero = nd.PathLeeway > 0f;
             if (isLeeWayOverZero && nd.Score >= Score.SafeMaxPrio || !isLeeWayOverZero && nd.Score > _startScore && pixelMaxG[_bestIndex] > pixelMaxG[StartNodeIndex] + 2f || nd.HScore <= 0f)

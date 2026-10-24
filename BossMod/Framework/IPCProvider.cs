@@ -11,81 +11,8 @@ sealed class IPCProvider : IDisposable
 {
     private Action? _disposeActions;
 
-    public IPCProvider(BossModuleManager bossmod, AIHints hints, RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai, ObstacleMapManager obstacles, Integration.IntegrationCoordinator integration)
+    public IPCProvider(BossModuleManager bossmod, AIHints hints, RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai, ObstacleMapManager obstacles)
     {
-        Register("Integration.V1.Capabilities", integration.Capabilities);
-        Register("Integration.V1.Register", (string request, Action<string> callback) => Integration.IntegrationSession.Serialize(integration.Session.Register(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Registration>(request), callback)));
-        Register("Integration.V1.Renew", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Renew(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
-        Register("Integration.V1.Unregister", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Unregister(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
-        Register("Goals.V1.Submit", (string request, Func<Vector2, float> score) => Integration.IntegrationSession.Serialize(integration.Session.Submit(Integration.IntegrationSession.Parse<Integration.IntegrationSession.GoalRequest>(request), score)));
-        Register("Goals.V1.SubmitNoLoss", (string request, Func<Vector2, float> score) => Integration.IntegrationSession.Serialize(integration.Session.SubmitNoLoss(Integration.IntegrationSession.Parse<Integration.IntegrationSession.NoLossRequest>(request), score)));
-        Register("Goals.V1.SubmitNoLossBatch", (string request, Func<Vector2, float>[] scores) => Integration.IntegrationSession.Serialize(integration.Session.SubmitNoLossBatch(Integration.IntegrationSession.Parse<Integration.IntegrationSession.NoLossBatch>(request), scores)));
-        Register("Goals.V1.Clear", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Clear(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
-        Register("Goals.V1.EvaluateNativeDetails", (string request) => integration.EvaluateNativeGoalDetails(request));
-        Register("Goals.V1.EvaluateNative", (string request) => integration.EvaluateNativeGoals(request));
-        Register("Arena.V1.ApplyFateFrame", (string request) => integration.ApplyFateFrame(request));
-        Register("Movement.V1.ApplyDutyIngress", (string request) => integration.ApplyDutyIngress(request));
-        Register("Movement.V1.GetPhysicalStep", (string request) => integration.GetPhysicalStep(request));
-        Register("Movement.V1.RequestPace", (string request) => integration.RequestPace(request));
-        Register("Movement.V1.RequestDepartureHold", (string request) => integration.RequestDepartureHold(request));
-        Register("Movement.V1.RequestArrivalHold", (string request) => integration.RequestArrivalHold(request));
-        Register("Movement.V1.RequestFollowArrivalHold", (string request) => integration.RequestFollowArrivalHold(request));
-        Register("Movement.V1.RequestFollowPhysicalBrake", (string request) => integration.RequestFollowPhysicalBrake(request));
-        Register("Movement.V1.RequestPhysicalBrake", (string request) => integration.RequestPhysicalBrake(request));
-        Register("Movement.V1.ClearDepartureHold", (string request) => integration.ClearPace(request));
-        Register("Movement.V1.ClearPace", (string request) => integration.ClearPace(request));
-        Register("Movement.V1.GetSnapshot", (string request) => integration.GetSnapshot(request));
-        Register("Movement.V1.Latest", integration.GetLatestSnapshot);
-        Register("Hints.V1.CaptureConstraintDistances", (string request, Action<string, Func<Vector2, float>[]> receive) => integration.CaptureConstraintDistances(request, receive));
-        Register("Mechanics.V1.CaptureForecastDistances", (string request, Action<string, Func<Vector2, float>[]> receive) => integration.CaptureForecastDistances(request, receive));
-        Register("Mechanics.V1.EvaluateForcedMarchHeadings", (string request) => integration.EvaluateForcedMarchHeadings(request));
-        Register("Directions.V1.ConstrainForcedMarchHeading", (string request) => integration.ConstrainForcedMarchHeading(request));
-        Register("Hints.V1.SetStackCarrierSeparation", (string request) => integration.SetStackCarrierSeparation(request));
-        Register("Mechanics.V1.ProjectNativeKnockbackPoses", (string request) => integration.ProjectNativeKnockbackPoses(request));
-        Register("Knockback.V1.StartSafetySnapshot", (string request) => integration.StartSafetySnapshot(request));
-        Register("Knockback.V1.PollSafetySnapshot", (string request) => integration.PollSafetySnapshot(request));
-        Register("Knockback.V1.GetSafetyWindow", (string request) => integration.GetSafetyWindow(request));
-        Register("Knockback.V1.StartSafetyRoute", (string request) => integration.StartSafetyRoute(request));
-        Register("Knockback.V1.PollSafetyRoute", (string request) => integration.PollSafetyRoute(request));
-        Register("Diagnostics.V1.CheckControlBackend", (string request) => integration.CheckControlBackend(request));
-        Register("Diagnostics.V1.CheckSafetyBackend", (string request) => integration.CheckSafetyBackend(request));
-        Register("Knockback.V1.EvaluateSafetySegments", (string request) => integration.EvaluateSafetySegments(request));
-        Register("Constraints.V1.Submit", (string request, Func<Vector2, float> distance) => integration.SubmitConstraint(request, distance));
-        Register("Constraints.V1.SubmitCells", (string request) => integration.SubmitConstraintCells(request));
-        Register("Constraints.V1.Poll", (string request) => integration.PollConstraint(request));
-        Register("Constraints.V1.Clear", (string request) => Integration.IntegrationSession.Serialize(integration.Session.Clear(Integration.IntegrationSession.Parse<Integration.IntegrationSession.Lease>(request))));
-        Register("Hints.V1.GetCastControl", (string request) => integration.GetCastControl(request));
-        Register("Hints.V1.GetTargets", (string request) => integration.GetTargets(request));
-        Register("Hints.V1.GetPredictedDamage", (string request) => integration.GetPredictedDamage(request));
-        Register("World.V1.GetActionEffects", (string request) => integration.GetActionEffects(request));
-        Register("Arena.V1.GetSnapshot", (string request) => integration.GetArenaSnapshot(request));
-        Register("Arena.V1.QueryPoints", (string request) => integration.QueryArena(request));
-        Register("Navigation.V1.StartSearch", (string request) => integration.StartSearch(request));
-        Register("Navigation.V1.PollSearch", (string request) => integration.PollSearch(request));
-        Register("Navigation.V1.GetSnapshot", (string request) => integration.GetNavigationSnapshot(request));
-        Register("Navigation.V1.GetLocalMap", (string request) => integration.GetNavigationMap(request));
-        Register("Navigation.V1.EvaluateRoutes", (string request) => integration.EvaluateRoutes(request));
-        Register("Follow.V1.GetSnapshot", (string request) => integration.GetFollow(request));
-        Register("Follow.V1.Stop", (string request) => integration.StopFollow(request));
-        Register("Mechanics.V1.GetSnapshot", (string request) => integration.GetMechanics(request));
-        Register("Mechanics.V1.EvaluateMovement", (string request) => integration.EvaluateMechanicMovement(request));
-        Register("Mechanics.V1.ProjectPoses", (string request) => integration.ProjectMechanicPoses(request));
-        Register("Mechanics.V1.EvaluateLandings", (string request) => integration.EvaluateKnockbackLandings(request));
-        Register("Registry.V1.GetSnapshot", (string request) => integration.GetStaticRegistry(request));
-        Register("Replay.V1.DecodeEvidence", (string request, Func<string, System.Threading.Tasks.Task> receive, System.Threading.CancellationToken cancellation) => integration.DecodeEvidence(request, receive, cancellation));
-        Register("Modules.V1.GetSnapshot", (string request) => integration.GetModules(request));
-        Register("Modules.V1.GetHallwaySavedEnabled", (string request) => integration.GetHallwaySavedEnabled(request));
-        Register("Modules.V1.SetHallwaySavedEnabled", (string request) => integration.SetHallwaySavedEnabled(request));
-        Register("Modules.V1.GetEnablement", (string request) => integration.GetModuleEnablement(request));
-        Register("Modules.V1.ApplyEnablement", (string request) => integration.ApplyModuleEnablement(request));
-        Register("Strategies.V1.GetSnapshot", (string request) => integration.GetStrategy(request));
-        Register("Strategies.V1.Apply", (string request) => integration.ApplyStrategy(request));
-        Register("Control.V1.GetSettings", (string request) => integration.GetSettings(request));
-        Register("Control.V1.ApplySetting", (string request) => integration.ApplySetting(request));
-        Register("Control.V1.Renew", (string request) => integration.RenewControl(request));
-        Register("Control.V1.Release", (string request) => integration.ReleaseControl(request));
-        Register("Control.V1.WithDirectionalAngle", (string request, Func<bool> execute) => integration.WithDirectionalAngle(request, execute));
-        _disposeActions += integration.Dispose;
 
         Register("HasModuleByDataId", static (uint dataId) => BossModuleRegistry.FindByOID(dataId) != null);
 

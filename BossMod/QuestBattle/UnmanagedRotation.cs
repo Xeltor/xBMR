@@ -46,7 +46,7 @@ public abstract class UnmanagedRotation(WorldState ws, float effectiveRange)
 
             if (closestPriorityTarget != null)
             {
-                Hints.ForcedTarget = closestPriorityTarget;
+                Hints.SetNativeTarget(closestPriorityTarget);
                 Hints.GoalZones.Add(AIHints.GoalSingleTarget(closestPriorityTarget, effectiveRange));
             }
             Exec(closestPriorityTarget);

@@ -1,5 +1,15 @@
 # Third-party notices
 
+Combat assistance uses RebornMaterial 7.5.6.2 by The CombatReborn Team,
+distributed as a separate, unmodified assembly under LGPL-3.0-or-later.
+Its package records source revision `7f6946d74d7e150d99889bf678d7684184895e10`
+in https://github.com/LTS-FFXIV/RebornMaterial. The package license is
+https://licenses.nuget.org/LGPL-3.0-or-later.
+
+The Material page layout, controls, and assistance preference migrations are
+adapted from the maintainer's XelsCombatAI revision
+`4a0f7968da8a743e8971973821cb9f6f1387198c`.
+
 The native background-overlay implementation in `Framework/WorldOverlayNode.cs` is derived in part from KamiToolKit's native addon, overlay-controller, node-linking, and texture-image-node design.
 
 KamiToolKit: https://github.com/MidoriKami/KamiToolKit

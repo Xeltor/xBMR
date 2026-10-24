@@ -33,9 +33,14 @@ public sealed class Plugin : IAsyncDalamudPlugin
     private WorldStateGameSync _wsSync = null!;
     private RotationModuleManager _rotation = null!;
     private AI.AIManager _ai = null!;
+    private CombatAssistance.Config.AssistanceSettingsSession _assistance = null!;
+    private CombatAssistance.Runtime.LegacyXcaiRetirement _xcaiRetirement = null!;
+    private CombatAssistance.Runtime.LegacyXcaiNotice _xcaiNotice = null!;
+    private CombatAssistance.UI.LegacyXcaiMigrationWindow _xcaiMigrationWindow = null!;
+    private CombatAssistance.Diagnostics.DevBridgeSnapshotProvider _assistanceDiagnostics = null!;
+    private CombatAssistance.Sharing.FightEvidenceUploader _fightSharing = null!;
     private AI.Broadcast _broadcast = null!;
     private IPCProvider _ipc = null!;
-    private Integration.IntegrationCoordinator _integration = null!;
     private DTRProvider _dtr = null!;
     private MultiboxManager _mbox = null!;
     private PartyRolesManager _partyRoles = null!;
@@ -129,11 +134,22 @@ public sealed class Plugin : IAsyncDalamudPlugin
         _amex = new(_ws, _hints, _movementOverride, _rsr);
         _wsSync = new(_ws, _amex);
         _rotation = new(_rotationDB, _bossmod, _hints);
-        _ai = new(_rotation, _amex, _movementOverride);
+        _assistance = new(new(_dalamud.ConfigDirectory.FullName,
+            Path.Combine(_dalamud.ConfigFile.Directory!.FullName, "XelsCombatAI.json")));
+        _xcaiNotice = new(_dalamud.ConfigDirectory.FullName,
+            error => Service.Logger.Warning(error, "XCAI migration acknowledgement could not be persisted."));
+        _xcaiRetirement = new(new CombatAssistance.Integrations.LegacyXcaiInstaller(_dalamud, _xcaiNotice));
+        _rotation.MovementPlanning.Configure(new(_dalamud, _assistance, _rotation, _amex, _movementOverride, _rsr));
+        CombatAssistance.UI.MaterialTheme.Initialize(_dalamud);
+        _xcaiMigrationWindow = new(_xcaiNotice);
+        _ai = new(_rotation, _amex, _movementOverride, _assistance);
+        _assistanceDiagnostics = new(_dalamud, _ai, _assistance);
+        _fightSharing = new(_dalamud.ConfigDirectory.FullName, CombatAssistance.Sharing.RecordingModuleCatalog.Capture());
+        _ai.ConfigureAssistanceStatus(() => _fightSharing.Status, () => _rotation.MovementPlanning.Assistance?.SupportAvailability);
+        UpdateAssistanceSettings();
+
         _broadcast = new();
-        _integration = new(_bossmod, _zonemod, _hints, _rotation, _amex, _movementOverride, _ai);
-        _integration.AttachControls();
-        _ipc = new(_bossmod, _hints, _rotation, _amex, _movementOverride, _ai, _hintsBuilder.Obstacles, _integration);
+        _ipc = new(_bossmod, _hints, _rotation, _amex, _movementOverride, _ai, _hintsBuilder.Obstacles);
         _dtr = new(_rotation, _ai);
         _mbox = new(_rotation, _ws);
         _partyRoles = new(_ws);
@@ -158,6 +174,10 @@ public sealed class Plugin : IAsyncDalamudPlugin
 
     public async ValueTask DisposeAsync()
     {
+        // Stop initiating installer work on the framework thread, then await any
+        // existing legacy-plugin unload without blocking a frame.
+        var retirement = await Service.Framework.RunOnFrameworkThread(() => _xcaiRetirement.DisposeAsync());
+        await retirement;
         await Service.Framework.RunOnFrameworkThread(() =>
         {
             _dalamud.UiBuilder.Draw -= DrawUI;
@@ -167,30 +187,39 @@ public sealed class Plugin : IAsyncDalamudPlugin
             _worldOverlayNode = null;
             Dx11ArenaRenderer.Shutdown();
         });
-        ReplayVisualization.GaugeVisualizer.Dispose();
-        _wndDebug.Dispose();
-        _wndRotation.Dispose();
-        _wndReplay.Dispose();
-        _wndZone.Dispose();
-        _wndBossmodPrePullHints.Dispose();
-        _wndBossmodHints.Dispose();
-        _wndBossmod.Dispose();
-        _configUI.Dispose();
-        _partyRoles.Dispose();
-        _mbox.Dispose();
-        _dtr.Dispose();
-        _ipc.Dispose();
-        _ai.Dispose();
-        _rotation.Dispose();
-        _wsSync.Dispose();
-        _amex.Dispose();
-        _movementOverride.Dispose();
-        _hintsBuilder.Dispose();
-        _zonemod.Dispose();
-        _bossmod.Dispose();
-        _rsr.Dispose();
-        CommandManager.RemoveHandler("/bmr");
-        CommandManager.RemoveHandler("/vbm");
+        await Service.Framework.RunOnFrameworkThread(() =>
+        {
+            ReplayVisualization.GaugeVisualizer.Dispose();
+            _wndDebug.Dispose();
+            _wndRotation.Dispose();
+            _wndReplay.Dispose();
+            _wndZone.Dispose();
+            _wndBossmodPrePullHints.Dispose();
+            _wndBossmodHints.Dispose();
+            _wndBossmod.Dispose();
+            _configUI.Dispose();
+            _partyRoles.Dispose();
+            _mbox.Dispose();
+            _dtr.Dispose();
+            _ipc.Dispose();
+            _assistanceDiagnostics.Dispose();
+            _xcaiMigrationWindow.Dispose();
+            _ai.Dispose();
+            _rotation.Dispose();
+            _wsSync.Dispose();
+            _amex.Dispose();
+            _movementOverride.Dispose();
+            _hintsBuilder.Dispose();
+            _zonemod.Dispose();
+            _bossmod.Dispose();
+            _rsr.Dispose();
+            CommandManager.RemoveHandler("/bmr");
+            CommandManager.RemoveHandler("/vbm");
+            RebornMaterial.M3.Dispose();
+        });
+        await _fightSharing.DisposeAsync();
+        await _assistance.DisposeAsync();
+        await _xcaiNotice.DisposeAsync();
         GarbageCollection();
     }
 
@@ -313,23 +342,50 @@ public sealed class Plugin : IAsyncDalamudPlugin
         _ = new UISimpleWindow("Xel's Boss Mods Reborn (xBMR)", _configUI.Draw, true, new(300, 300));
     }
 
+    private void UpdateAssistanceSettings()
+    {
+        _xcaiNotice.Poll();
+        _xcaiRetirement.Update(Service.ClientState.IsLoggedIn,
+            !Service.Condition.Any(ConditionFlag.InCombat, ConditionFlag.Casting, ConditionFlag.BetweenAreas,
+                ConditionFlag.BetweenAreas51, ConditionFlag.WatchingCutscene, ConditionFlag.WatchingCutscene78), DateTime.UtcNow);
+        var standalone = _xcaiRetirement.BlocksAssistance
+            || _dalamud.InstalledPlugins.Any(plugin => plugin.IsLoaded && plugin.InternalName == "XelsCombatAI");
+        _assistance.ObserveStandalone(standalone);
+        _assistance.Poll();
+        _fightSharing.Observe(_assistance.MayAssist && _assistance.Preferences.ShareFightRecordings,
+            !Service.ClientState.IsLoggedIn || Service.Condition.Any(ConditionFlag.InCombat, ConditionFlag.BetweenAreas,
+                ConditionFlag.BetweenAreas51, ConditionFlag.WatchingCutscene, ConditionFlag.WatchingCutscene78),
+            CombatAssistance.Sharing.RecordingSharingSettings.Capture(Service.Config.Get<ReplayManagementConfig>()));
+        _ai.UpdateMigrationAlias(standalone);
+        if (_assistance.Current.State == CombatAssistance.Config.AssistanceSettingsState.RecoveryPending)
+        {
+            var native = Service.Config.Get<BossModuleConfig>();
+            var choices = _assistance.Preferences.BmrHallwayModulesToRestore.ToDictionary(oid => oid, native.IsModuleConfiguredEnabled);
+            _assistance.ReconcileRecovery(choices);
+        }
+    }
+
     private void DrawUI()
     {
+        UpdateAssistanceSettings();
+        RebornMaterial.M3.BeginFrame();
         var tsStart = DateTime.Now;
         var moveImminent = _movementOverride.IsMoveRequested() && (!_amex.PreventMovingWhileCasting || _movementOverride.IsForceUnblocked());
 
         _dtr.Update();
         Camera.Instance?.Update();
-        _integration.BeginWorldUpdate();
         _wsSync.Update(_prevUpdateTime);
+        _rotation.MovementPlanning.Assistance?.BeginNativeUpdate();
+        _assistanceDiagnostics.Observe(_ws);
         _partyRoles.Update();
         _bossmod.Update();
         _zonemod.ActiveModule?.Update();
         _hintsBuilder.Update(_hints, PartyState.PlayerSlot, moveImminent);
-        _integration.HintsReady();
         _amex.QueueManualActions();
+        _rotation.MovementPlanning.Assistance?.BeforeRotationUpdate();
         _rotation.Update(_amex.AnimationLockDelayEstimate, _movementOverride.IsMoving(), Service.Condition[ConditionFlag.DutyRecorderPlayback]);
         _ai.Update();
+        _rotation.MovementPlanning.Assistance?.UpdatePresentation();
         _broadcast.Update();
         _amex.FinishActionGather();
 
@@ -340,9 +396,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
             Service.WindowSystem?.Draw();
         }
 
-        _integration.MovementProposed();
         ExecuteHints();
-        _integration.MovementApplied();
 
         Camera.Instance?.DrawWorldPrimitives();
         _prevUpdateTime = DateTime.Now - tsStart;
@@ -384,7 +438,6 @@ public sealed class Plugin : IAsyncDalamudPlugin
     private unsafe void ExecuteHints()
     {
         _movementOverride.DesiredDirection = _hints.EffectiveForcedMovement;
-        _integration.OverrideAssigned("native-hints");
         _movementOverride.MisdirectionThreshold = _hints.MisdirectionThreshold;
         _movementOverride.DesiredSpinDirection = _hints.SpinDirection;
 
@@ -410,7 +463,6 @@ public sealed class Plugin : IAsyncDalamudPlugin
             {
                 // many eventobj interactions "immediately" start some cast animation (delayed by server roundtrip), and if we keep trying to move toward the target after sending the interact request, it will be canceled and force us to start over
                 _movementOverride.DesiredDirection = default;
-                _integration.OverrideAssigned("native-interaction-suppression");
 
                 if (_amex.EffectiveAnimationLock == 0 && _ws.CurrentTime >= _throttleInteract)
                 {

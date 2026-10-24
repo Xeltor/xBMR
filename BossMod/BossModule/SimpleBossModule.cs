@@ -24,6 +24,7 @@ public abstract class SimpleBossModule(WorldState ws, Actor primary) : BossModul
     {
         hints.PathfindMapCenter = _prevFramePathfindCenter;
         hints.PathfindMapBounds = AIHints.DefaultBounds;
+        CombatAssistance.Runtime.NativeCorrections.AlignDefaultFateFrame(this, actor, hints);
     }
 }
 

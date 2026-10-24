@@ -25,6 +25,7 @@ public sealed class NormalMovement : RotationModule
 
     public override void Dispose()
     {
+        Manager.MovementPlanning.Release("normal");
         Instance = null;
         base.Dispose();
     }
@@ -84,8 +85,8 @@ public sealed class NormalMovement : RotationModule
     public const float CasterRange = 25f;
 
     private readonly AI.CastSettleHold _castHold = new();
-    private Task<NavigationDecision> _decisionTask = Task.FromResult(default(NavigationDecision));
     private NavigationDecision _lastDecision;
+    private bool _requestedNavigation;
 
     private DateTime? TimeToMove;
     private bool? _delayMovementIsDodge;
@@ -97,42 +98,48 @@ public sealed class NormalMovement : RotationModule
         _ => 0f
     };
 
-    private NavigationDecision GetDecision(float speed, float cushionSize)
+    private NavigationDecision GetDecision(float speed, float cushionSize, CombatAssistance.Planning.MovementIntent intent)
     {
-        if (_decisionTask.IsCompletedSuccessfully)
-        {
-            _lastDecision = _decisionTask.Result;
-            if (_lastDecision.Publication is { } built)
-            {
-                PublishedNavigation = built.Publish();
-                _lastDecision.Publication = PublishedNavigation;
-            }
-        }
-
-        if (_decisionTask.IsCompleted)
-        {
-            if (_decisionTask.Exception is { } exception)
-                Service.Log($"exception during pathfind: {exception}");
-
-            var input = NavigationDecision.CaptureInput(World.CurrentTime, Hints, Player, speed, cushionSize, World.CurrentZone, World.CurrentCFCID);
-            _decisionTask = Task.Run(() => NavigationDecision.BuildCaptured(_navCtx, input));
-        }
-
+        _requestedNavigation = true;
+        _lastDecision = intent.ExplicitDestination == null && Bossmods.ActiveModule is
+        { Info.Category: BossModuleInfo.Category.Dungeon or BossModuleInfo.Category.VariantCriterion, StateMachine.ActivePhase: not null } module
+            && !module.Arena.InBounds(Player.Position)
+                ? Manager.MovementPlanning.UpdateIngress("normal", World, Hints, Player, module, speed, intent)
+                : Manager.MovementPlanning.Update("normal", World, Hints, Player, speed, cushionSize, _navCtx, intent);
+        PublishedNavigation = _lastDecision.Publication;
         return _lastDecision;
     }
 
     public override void Execute(StrategyValues strategy, Actor? primaryTarget, float estimatedAnimLockDelay, bool isMoving)
     {
+        _requestedNavigation = false;
+        try { ExecuteMovement(strategy, primaryTarget); }
+        finally
+        {
+            if (!_requestedNavigation)
+                Manager.MovementPlanning.Release("normal");
+        }
+    }
+
+    private void ExecuteMovement(StrategyValues strategy, Actor? primaryTarget)
+    {
         if (Hints.AutomaticMovementPaused)
+        {
+            Manager.MovementPlanning.Release("normal");
             return; // unsupported-region hold preserves keyboard input and cannot use the main-floor map
+        }
         if (AI.AIManager.Instance?.Beh != null) // prevent both AI movement modes from being active at the same time
         {
+            Manager.MovementPlanning.Release("normal");
             return;
         }
 
         // do nothing if we're already being moved by some other module (i.e. quest battle pathfinding)
         if (Hints.ForcedMovement != null)
+        {
+            Manager.MovementPlanning.Release("normal");
             return;
+        }
 
         // use the live client cast state: worldstate CastInfo can lag behind a cast that an external plugin (e.g. RSR) has just started, letting us start a move that interrupts it
         // worldstate is kept as a fallback for casts the action manager doesn't track (e.g. interactions)
@@ -167,18 +174,6 @@ public sealed class NormalMovement : RotationModule
         if (World.Client.Flying)
         {
             Observe("flight-unsupported");
-            return;
-        }
-
-        // if the player on a ranged job pulls a dungeon boss from outside (e.g. Mistwake B1), pathfinder won't force it to move inside the arena, since their position isn't in the pathfinding map
-        // TODO: what should the generic solution be? do we need multiple sets of bounds?
-        // forcing the player to move directly toward the arena center works fine in this basic case, but would be terrible for other content
-        //   - hunt marks can be hundreds of units away
-        //   - araid/foray bosses are often located on an isolated platform with a clientpath leading to it, so VBM would just run directly forward into the abyss
-        if (Bossmods.ActiveModule is { Info.Category: BossModuleInfo.Category.Dungeon or BossModuleInfo.Category.VariantCriterion, StateMachine.ActivePhase: not null } module && !module.Arena.InBounds(Player.Position))
-        {
-            Hints.ForcedMovement = Player.DirectionTo(module.Arena.Center).ToVec3();
-            Observe("native-ingress-without-route-proof", module.Arena.Center, wroteMovement: true);
             return;
         }
 
@@ -259,13 +254,28 @@ public sealed class NormalMovement : RotationModule
         var movementDelay = DelaySeconds(strategy.Option(Track.DelayMovement).As<DelayMovementStrategy>());
         var separateDodgeDelay = strategy.Option(Track.SeparateDodgeDelay).As<SeparateDodgeDelayStrategy>() == SeparateDodgeDelayStrategy.Enabled;
         var dodgeDelay = DelaySeconds(strategy.Option(Track.DodgeDelayMovement).As<DelayMovementStrategy>());
+        var rangeOpt = strategy.Option(Track.Range);
+        var rangeStrategy = rangeOpt.As<RangeStrategy>();
+        var rangeReference = ResolveTarget(rangeOpt.Value) ?? primaryTarget;
+        CombatAssistance.Planning.PlanningRange? rangeIntent = rangeStrategy is not (RangeStrategy.Any or RangeStrategy.Drag)
+            && Player.InCombat && rangeReference != null
+            ? new(rangeReference.InstanceID, rangeReference.Position, Player.HitboxRadius + rangeReference.HitboxRadius
+                + (Player.Role is Role.Tank or Role.Melee ? MeleeRange : CasterRange) - GreedTolerance) : null;
+        var movementIntent = new CombatAssistance.Planning.MovementIntent(movementDelay, dodgeDelay, separateDodgeDelay,
+            castStrategy is CastStrategy.DropMove or CastStrategy.DropInstants, rangeIntent);
         NavigationDecision navi = default;
         var resetStats = true;
         switch (destinationStrategy)
         {
             case DestinationStrategy.Pathfind:
-                navi = GetDecision(speed, cushionSize);
+                navi = GetDecision(speed, cushionSize, movementIntent);
                 resetStats = false;
+                if (Manager.MovementPlanning.PlansOwnerTiming)
+                {
+                    TimeToMove = null;
+                    _delayMovementIsDodge = null;
+                    break;
+                }
                 var isDodge = navi.LeewaySeconds < float.MaxValue;
                 var delay = separateDodgeDelay
                     ? (isDodge ? dodgeDelay : movementDelay)
@@ -282,11 +292,15 @@ public sealed class NormalMovement : RotationModule
                 break;
             case DestinationStrategy.Explicit:
                 navi = new() { Destination = ResolveTargetLocation(destinationOpt.Value), TimeToGoal = destinationOpt.Value.ExpireIn };
+                resetStats = false;
+                TimeToMove = null;
+                _delayMovementIsDodge = null;
                 break;
         }
 
         if (resetStats)
         {
+            Manager.MovementPlanning.Release("normal");
             _lastDecision = default;
             PublishedNavigation = null;
         }
@@ -315,11 +329,11 @@ public sealed class NormalMovement : RotationModule
             return; // delaying movement
         }
 
-        var rangeOpt = strategy.Option(Track.Range);
-        var rangeStrategy = rangeOpt.As<RangeStrategy>();
-        if (rangeStrategy != RangeStrategy.Any && Player.InCombat)
+        // Explicit instructions retain their native preset semantics. Automatic plans
+        // already evaluated range, waiting and onward escape before publication.
+        if (rangeStrategy != RangeStrategy.Any && Player.InCombat
+            && (destinationStrategy != DestinationStrategy.Pathfind || !Manager.MovementPlanning.PlansOwnerTiming))
         {
-            var rangeReference = ResolveTarget(rangeOpt.Value) ?? primaryTarget;
             if (rangeReference != null)
             {
                 // TODO: instead of hardcoding, is it possible to reuse goal zones for this purpose?
@@ -345,10 +359,10 @@ public sealed class NormalMovement : RotationModule
                                 navi.Destination = uptimePosition;
                             break;
 
-                        // _navCtx is the retained completed context; the worker writes its other buffer.
+                        // The inspection map belongs to this frame; the worker owns a separate snapshot.
                         case RangeStrategy.GreedAutomatic:
                             var uptimeCell = _navCtx.Map.GridToIndex(_navCtx.Map.WorldToGrid(uptimePosition));
-                            var curCell = _navCtx.ThetaStar.StartNodeIndex;
+                            var curCell = _navCtx.Map.GridToIndex(_navCtx.Map.WorldToGrid(Player.Position));
                             if (navi.LeewaySeconds > 0)
                             {
                                 if (_navCtx.Map.PixelMaxG.BoundSafeAt(uptimeCell) >= _navCtx.Map.PixelMaxG.BoundSafeAt(curCell))
@@ -360,6 +374,25 @@ public sealed class NormalMovement : RotationModule
                     }
                 }
                 // else: destination is already in our effective range, nothing to adjust here
+            }
+        }
+
+        if (destinationStrategy == DestinationStrategy.Explicit)
+        {
+            // Resolve explicit range/greed semantics above, then submit the resulting
+            // instruction to the same route publication and executor as automatic AI.
+            navi = GetDecision(speed, cushionSize, movementIntent with
+            {
+                MoveDelay = 0,
+                DodgeDelay = 0,
+                Range = null,
+                ExplicitDestination = navi.Destination,
+                ArrivalDeadline = Math.Max(0, destinationOpt.Value.ExpireIn)
+            });
+            if (navi.Destination == null)
+            {
+                Observe("explicit-plan-pending-or-arrived", fromSearch: true);
+                return;
             }
         }
 
@@ -443,11 +476,6 @@ public sealed class NormalMovement : RotationModule
                 leewayCastDeparture = true;
             }
         }
-        if (destinationStrategy == DestinationStrategy.Pathfind && PublishedNavigation is { } publication
-            && Hints.IntegrationGoals is { } integration && Hints.ForcedMovement is { } direction && direction != default)
-            Hints.IntegrationMovementDecision = new(integration.Context.InstanceGeneration, integration.Context.FrameId,
-                "bmr-normal-movement", Player.InstanceID, World.CurrentTime, System.Diagnostics.Stopwatch.GetTimestamp(),
-                Player.Position, navi.Destination.Value, direction, publication);
         Observe(leewayCastDeparture ? "native-leeway-cast-departure"
             : misdirectionActive ? "native-misdirection-decision"
             : castInProgress && castStrategy is not (CastStrategy.DropMove or CastStrategy.DropInstants) ? "native-cast-decision" : "native-destination-decision",

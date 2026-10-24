@@ -7,7 +7,7 @@ public sealed class SDKnockbackInCircleAwayFromOrigin(WPos Center, WPos Origin, 
     private readonly float radius = Radius;
     private readonly float distance = Distance;
 
-    internal Integration.IntegrationLandingConstraints.Envelope ProjectionEnvelope => new("circle", center, origin, distance, radius);
+    internal Pathfinding.NativeLandingConstraints.Envelope ProjectionEnvelope => new("circle", center, origin, distance, radius);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Contains(in WPos p)
@@ -389,17 +389,21 @@ public sealed class SDKnockbackInCircleAwayFromOriginIntoCircle(WPos Center, WPo
 }
 
 // Knockback, but we can hit the wall
-public sealed class SDInCircleAwayFromOriginPlusIntersectAOECircles(WPos Origin, float Distance, (WPos Origin, float radius)[] AOEs, int Length) : ShapeDistance, IKnockbackPreparationConstraint {
+public sealed class SDInCircleAwayFromOriginPlusIntersectAOECircles(WPos Origin, float Distance, (WPos Origin, float radius)[] AOEs, int Length) : ShapeDistance, IKnockbackPreparationConstraint
+{
     private readonly WPos origin = Origin;
     private readonly float distance = Distance;
     private readonly (WPos origin, float radius)[] aoes = AOEs;
     private readonly int len = Length;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override bool Contains(in WPos p) {
-        for (var i = 0; i < len; ++i) {
+    public override bool Contains(in WPos p)
+    {
+        for (var i = 0; i < len; ++i)
+        {
             ref var aoe = ref aoes[i];
-            if (Intersect.RayCircle(p - aoe.origin, (p - origin).Normalized(), aoe.radius, distance)) {
+            if (Intersect.RayCircle(p - aoe.origin, (p - origin).Normalized(), aoe.radius, distance))
+            {
                 return true;
             }
 

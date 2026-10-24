@@ -5,7 +5,6 @@ namespace BossMod;
 public sealed partial class AIHints
 {
     internal bool ProjectionSourcesRequested;
-    internal Integration.IntegrationSession.Context? ProjectionSourcesContext;
     private sealed record ProjectionSource(BossComponent Component, ShapeDistance Shape, DateTime Activation, ulong Actor,
         ShapeDistance[] Graph, Actor Player, ulong PlayerId);
     private readonly List<ProjectionSource> _projectionSources = [];
@@ -17,19 +16,18 @@ public sealed partial class AIHints
     {
         _projectionSources.Clear(); _projectionPrefix.Clear();
         _projectionSourcesInvalid = false; _collectingProjectionSource = false;
-        ProjectionSourcesContext = null;
     }
 
     // Wrap the native producer, including components that append directly to the public list.
-    // Capture only while a supported integration owner requests it; never change native hints.
+    // Capture only while a supported native planner requests it; never change native hints.
     internal void CollectComponentHints(BossComponent component, int slot, Actor actor, PartyRolesConfig.Assignment assignment)
     {
         if (!ProjectionSourcesRequested || _projectionSourcesInvalid)
         { component.AddAIHints(slot, actor, assignment, this); return; }
-        var candidate = component is GenericKnockback knockback && knockback.ActiveKnockbacks(slot, actor).Length <= 32;
+        var candidate = component is GenericKnockback;
         if (!candidate && _projectionSources.Count == 0)
         { component.AddAIHints(slot, actor, assignment, this); return; }
-        if (_collectingProjectionSource || ForbiddenZones.Count > 128)
+        if (_collectingProjectionSource)
         {
             _projectionSourcesInvalid = true;
             component.AddAIHints(slot, actor, assignment, this); return;
@@ -40,7 +38,7 @@ public sealed partial class AIHints
         finally
         {
             _collectingProjectionSource = false;
-            if (ForbiddenZones.Count > 128 || ForbiddenZones.Count < _projectionPrefix.Count)
+            if (ForbiddenZones.Count < _projectionPrefix.Count)
                 _projectionSourcesInvalid = true;
             else
             {
@@ -49,8 +47,8 @@ public sealed partial class AIHints
                 if (candidate && !_projectionSourcesInvalid)
                     foreach (var zone in ForbiddenZones.Skip(_projectionPrefix.Count))
                     {
-                        var graph = Integration.IntegrationLandingConstraints.Graph(zone.shapeDistance);
-                        if (graph == null || _projectionSources.Count >= 128) { _projectionSourcesInvalid = true; break; }
+                        var graph = Pathfinding.NativeLandingConstraints.Graph(zone.shapeDistance);
+                        if (graph == null) { _projectionSourcesInvalid = true; break; }
                         _projectionSources.Add(new(component, zone.shapeDistance, zone.activation, zone.Source, graph, actor, actor.InstanceID));
                     }
             }
@@ -74,7 +72,7 @@ public sealed partial class AIHints
         if (ForbiddenZones.Count(z => SameZone(z, key)) != 1) return null;
         var records = _projectionSources.Where(p => ReferenceEquals(p.Shape, shape) && p.Activation == activation && p.Actor == source).Take(2).ToArray();
         if (records.Length != 1) return null;
-        var graph = Integration.IntegrationLandingConstraints.Graph(shape);
+        var graph = Pathfinding.NativeLandingConstraints.Graph(shape);
         return graph != null && graph.Length == records[0].Graph.Length
             && graph.Zip(records[0].Graph).All(p => ReferenceEquals(p.First, p.Second)) ? records[0].Component : null;
     }

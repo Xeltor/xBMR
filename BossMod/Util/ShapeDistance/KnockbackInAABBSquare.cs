@@ -100,7 +100,7 @@ public sealed class SDKnockbackInAABBSquareAwayFromOrigin(WPos Center, WPos Orig
     private readonly float halfWidth = HalfWidth;
     private readonly float distance = Distance;
 
-    internal Integration.IntegrationLandingConstraints.Envelope ProjectionEnvelope => new("square", center, origin, distance, halfWidth);
+    internal Pathfinding.NativeLandingConstraints.Envelope ProjectionEnvelope => new("square", center, origin, distance, halfWidth);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Contains(in WPos p) => !(p + distance * (p - origin).Normalized()).InSquare(center, halfWidth);
@@ -442,7 +442,8 @@ public sealed class SDKnockbackInAABBSquareFixedDirectionPlusMixedAOEs(WPos Cent
     public override bool RowIntersectsShape(WPos rowStart, WDir dx, float width, float cushion = default) => true;
 }
 
-public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusIntersectAOECircles(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos[] Origins, float Radius, int Length) : ShapeDistance, IKnockbackPreparationConstraint {
+public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusIntersectAOECircles(WPos Center, WPos Origin, float Distance, float HalfWidth, WPos[] Origins, float Radius, int Length) : ShapeDistance, IKnockbackPreparationConstraint
+{
     private readonly WPos center = Center;
     private readonly WPos origin = Origin;
     private readonly float halfWidth = HalfWidth;
@@ -452,14 +453,18 @@ public sealed class SDKnockbackInAABBSquareAwayFromOriginPlusIntersectAOECircles
     private readonly int len = Length;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public override bool Contains(in WPos p) {
+    public override bool Contains(in WPos p)
+    {
         var projected = p + distance * (p - origin).Normalized();
-        if (!projected.InSquare(center, halfWidth)) {
+        if (!projected.InSquare(center, halfWidth))
+        {
             return true;
         }
 
-        for (var i = 0; i < len; ++i) {
-            if (Intersect.RayCircle(p - origins[i], (p - origin).Normalized(), radius, distance)) {
+        for (var i = 0; i < len; ++i)
+        {
+            if (Intersect.RayCircle(p - origins[i], (p - origin).Normalized(), radius, distance))
+            {
                 return true;
             }
         }

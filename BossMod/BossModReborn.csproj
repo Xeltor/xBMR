@@ -1,9 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>7.5.6.3518</Version>
-    <InformationalVersion>7.5.6.35.18</InformationalVersion>
+    <Version>7.5.6.3519</Version>
+    <InformationalVersion>7.5.6.35.19</InformationalVersion>
     <Description>Xel's Boss Mods Reborn (xBMR).</Description>
     <Copyright></Copyright>
     <PackageProjectUrl></PackageProjectUrl>
@@ -55,6 +55,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="RebornMaterial" Version="7.5.6.2" />
     <PackageReference Include="DalamudPackager" Version="15.0.0" />
     <PackageReference Include="TerraFX.Interop.Windows" Version="10.0.26100.6" />
     <Reference Include="FFXIVClientStructs">
@@ -68,6 +69,10 @@
 
     <Reference Include="Dalamud">
       <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Dalamud.Common">
@@ -106,6 +111,7 @@
     <None Update="DefaultRotationPresets.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="XCAI-retirement.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -126,6 +132,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Pathfinding\ObstacleMaps\*" />
+    <EmbeddedResource Include="CombatAssistance/UI/PatchNotes.json" LogicalName="BossMod.CombatAssistance.PatchNotes.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -135,7 +142,7 @@
 
   <Target Name="CleanupOutput" AfterTargets="Build" BeforeTargets="DalamudPackage">
     <ItemGroup>
-      <_ExtraOutputFiles Include="$(OutputPath)*" Exclude="$(OutputPath)BossModReborn.*;$(OutputPath)DefaultRotationPresets.json;$(OutputPath)RebornPresets.json;$(OutputPath)LICENSE;$(OutputPath)THIRD_PARTY_NOTICES.md;" />
+      <_ExtraOutputFiles Include="$(OutputPath)*" Exclude="$(OutputPath)BossModReborn.*;$(OutputPath)RebornMaterial.dll;$(OutputPath)DefaultRotationPresets.json;$(OutputPath)RebornPresets.json;$(OutputPath)XCAI-retirement.json;$(OutputPath)LICENSE;$(OutputPath)THIRD_PARTY_NOTICES.md;" />
     </ItemGroup>
     <Delete Files="@(_ExtraOutputFiles)" />
   </Target>

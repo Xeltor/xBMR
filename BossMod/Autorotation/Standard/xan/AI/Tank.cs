@@ -219,7 +219,7 @@ public sealed class TankAI(RotationModuleManager manager, Actor player) : AIBase
                     Hints.ActionsToExecute.Push(JobActions.Ranged, threat.Actor, ActionQueue.Priority.ManualGCD - 100);
                 else
                     // in case all mobs are in melee range, but there aren't enough mobs to switch to aoe
-                    Hints.ForcedTarget = threat.Actor;
+                    Hints.SetNativeTarget(threat.Actor);
             }
         }
 
