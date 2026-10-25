@@ -74,6 +74,10 @@ public static partial class Checks
         Check(NativePhysicalObstacle.FromHit(hit with { Point = new(-.5f, 1, 0) }, .5f) == surface, "sweep centre offset from triangle is expanded from the actual surface exactly once");
         var primitive = NativePhysicalObstacle.FromHit(hit with { A = default, B = default, C = default }, .5f);
         Check(primitive.A == new WPos(hit.Point) && primitive.B == primitive.A && primitive.Radius == 0, "unset primitive vertices never manufacture a wall or expand the swept centre twice");
+        var described = NativeRoutePhysicalObservation.Describe(new(new(0, 0), default, Vector3.UnitX, .5f, "observed-movement-collision"), surface, hit);
+        Check(described.HitPoint!.SequenceEqual(new[] { 0f, 1f, 0f }) && described.HitNormal!.SequenceEqual(new[] { 1f, 0f, 0f })
+            && described.Material == "0000000000002000" && described.Step.SequenceEqual(new[] { 1f, 0f, 0f }),
+            "current physical diagnostics preserve the exact numeric collision witness without a collider handle");
         foreach (var rotation in new[] { 0f, .7f })
             foreach (var resolution in new[] { .5f, 1f })
             {

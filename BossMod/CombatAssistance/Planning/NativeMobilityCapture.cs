@@ -77,7 +77,8 @@ internal static class NativeMobilityCapture
             if (hints.ForbidDashes && (!entry.Rotational || entry.Mechanic != MobilityMechanic.Target) || !EnabledBySettings(entry, settings, player.Class)
                 || mudra && !NativeRotationalPreparation.MayFinishMudra(player.Class, entry.Id, setupActions,
                     player.InstanceID, hints.ForcedTarget?.InstanceID ?? player.TargetID)
-                || !enabledActions.Contains(entry.Id) || ownedMobility?.Contains(entry.Id) != true)
+                || !enabledActions.Contains(entry.Id) || ownedMobility?.Contains(entry.Id) != true
+                || entry.Phantom && !NativePhantomMobility.Available(entry.Id, world.CurrentZone, player, world.CurrentTime))
                 continue;
             var id = new ActionID(ActionType.Spell, entry.Id);
             var definition = ActionDefinitions.Instance[id];
@@ -127,6 +128,8 @@ internal static class NativeMobilityCapture
                 instantCost = 1ul << (instant.Slot * 4);
                 availableUntil = Math.Min(availableUntil, Remaining(167));
             }
+            if (entry.Phantom)
+                availableUntil = Math.Min(availableUntil, NativePhantomMobility.Remaining(entry.Id, player, world.CurrentTime));
             if (availableUntil <= 0) continue;
             var charges = native->GetCurrentCharges(entry.Id);
             if (charges > 15 || definition.MainCooldownGroup < 0)
@@ -215,21 +218,23 @@ internal static class NativeMobilityCapture
         // Speed forecasts are supported for the observed ordinary running
         // baseline (including the ninja trait). Slow/heavy/unknown baselines
         // require new evidence; never assume a boost will override a debuff.
-        if (!mudra && settings.UseSprint && travel is { Baseline: >= 5.99f and <= 6.61f })
-            foreach (var (id, cap, multiplier) in new (uint, float, float)[] { (3, 7.8f, 1.3f), (41646, 12, 2) })
+        if (!mudra && settings.UseSprint && travel != null)
+            foreach (var id in new uint[] { 3, 41646 })
             {
                 var definition = ActionDefinitions.Instance[new(ActionType.Spell, id)];
-                if (!SprintEnabled(id, settings, player.Class) || player.Statuses.Any(s => s.ID is 13 or 14 && s.ExpireAt > world.CurrentTime)
-                    || id == 41646 && (world.CurrentZone is not (1252 or 1346) || player.FindStatus(4369) == null)
+                if (SprintForecast(id, travel) is not { } forecast
+                    || !SprintEnabled(id, settings, player.Class) || player.Statuses.Any(s => s.ID is 13 or 14 && s.ExpireAt > world.CurrentTime)
+                    || id == 41646 && !NativePhantomMobility.Available(id, world.CurrentZone, player, world.CurrentTime)
                     || resources.Count >= 16 || ownedMobility?.Contains(id) != true || !enabledActions.Contains(id)
                     || definition == null || !definition.IsUnlocked(world, player) || native->GetAdjustedActionId(id) != id
                     || native->GetCurrentCharges(id) > 15
                     || native->GetActionStatus(CSActionType.Action, id, checkRecastActive: false, checkCastingActive: false) != 0)
                     continue;
                 if (!ObserveResource(definition, native->GetCurrentCharges(id), out var resource, out var readyIn, out var extraCost)) continue;
-                utilities.Add(new(id, PlanningUtilityEffect.MovementSpeed, 10,
+                var duration = id == 41646 ? Math.Min(forecast.Duration, NativePhantomMobility.Remaining(id, player, world.CurrentTime)) : forecast.Duration;
+                utilities.Add(new(id, PlanningUtilityEffect.MovementSpeed, duration,
                     Math.Max(0.1f, definition.InstantAnimLock + manager.AnimationLockDelayEstimate), Math.Max(readyIn, manager.EffectiveAnimationLock),
-                    resource.Slot, Math.Min(cap, travel.Baseline * multiplier), extraCost));
+                    resource.Slot, forecast.Speed, extraCost));
             }
         if (!mudra && utilitySelectionOwned && settings.ManageTrueNorth && settings.ManagePositionals && enabledActions.Contains((uint)ClassShared.AID.TrueNorth)
             && trueNorth != null && trueNorth.IsUnlocked(world, player) && resources.Count < 16
@@ -342,6 +347,14 @@ internal static class NativeMobilityCapture
         => settings.UseGapCloser && (entry.Phantom ? settings.UsePhantomGapClosers && settings.IsPhantomGapCloserJobEnabled((uint)job)
             : settings.IsGapCloserJobEnabled((uint)job))
             && (entry.Id != 7419 || settings.ManageLeylines && settings.UseBetweenTheLines);
+
+    internal static (float Speed, float Duration)? SprintForecast(uint id, PlanningTravel travel)
+    {
+        // Preserve the observed running baseline. Loading during a speed buff
+        // cannot establish the post-buff speed, so it cannot promise a new boost.
+        if (id is not (3 or 41646) || !travel.Valid || travel.Baseline is < 5.99f or > 6.61f) return null;
+        return (Math.Min(id == 41646 ? 12 : 7.8f, travel.Baseline * (id == 41646 ? 2 : 1.3f)), 10);
+    }
 
     internal static bool SprintEnabled(uint id, AssistancePreferences settings, Class job)
         => settings.UseSprint && (id == 3 || id == 41646 && settings.UsePhantomGapClosers && settings.IsPhantomGapCloserJobEnabled((uint)job));

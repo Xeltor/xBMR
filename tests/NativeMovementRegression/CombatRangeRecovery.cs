@@ -6,6 +6,7 @@ public static partial class Checks
 {
     private static void CombatRangeRecovery()
     {
+        FastCombatApproach();
         var partyWorld = (WorldState)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldState));
         typeof(WorldState).GetField(nameof(WorldState.Party))!.SetValue(partyWorld, new PartyState(new ActorState()));
         partyWorld.Party.Members[1] = new(0, 20, false); // Duty Support buddy, no player content ID.
@@ -246,5 +247,60 @@ public static partial class Checks
             "The warning/next-readiness workload retains a complete verified contact and escape plan over the native map.");
         Console.WriteLine($"Synthetic 1600-cell warning/readiness contact: {measured.SearchMilliseconds:F3}ms, {measured.ExpandedStates} expansions, {measured.Status}/{measured.Bound}; excludes framework capture and live delivery.");
 
+    }
+
+    private static void FastCombatApproach()
+    {
+        var map = Grid(41, 1);
+        var origin = Context(map, 0, speed: 6);
+        var range = new PlanningRange(10, Point(map, 40), 2, RecoverExecution: true);
+        var dash = new MobilityMechanics(16010, MobilityMechanic.Directional, 0, 15, 0, 0, .2f, 0);
+        var sprint = new PlanningUtility(3, PlanningUtilityEffect.MovementSpeed, 10, .6f, 0, 1, 7.8f);
+        MovementPlanningContext Input(ulong charges, bool sprintEnabled = false, PlanningRange? objective = null)
+            => new(origin.Identity, map, 0, 0, Enumerable.Repeat(true, 41).ToArray(), new float[41], [], [], charges,
+                range: objective ?? range, mobilityMechanics: [dash], utilities: sprintEnabled ? [sprint] : []);
+        MovementPlan Fast(MovementPlanningContext input)
+            => JointMovementSearch.Search(input, Exhaustive with { Expansions = 64 },
+                stopAtCurrentOpportunity: true, includeSpatialMobilityActions: false);
+        var walking = Fast(Input(0));
+        var single = Fast(Input(1));
+        var doubleInput = Input(2);
+        var twice = Fast(doubleInput);
+        var running = Fast(Input(0x10, true));
+        var mixedInput = Input(0x12, true);
+        var mixed = Fast(mixedInput);
+        Check(walking.RangeAccess is { Loss: 0 } && single.RangeAccess is { Loss: 0 }
+            && twice.RangeAccess is { Loss: 0 } && running.RangeAccess is { Loss: 0 } && mixed.RangeAccess is { Loss: 0 },
+            "The initial pass finds complete distant recovery with walking, Sprint, one gap closer, two gap closers, and their combination.");
+        Check(twice.Stages.Count(s => s.ActionId == 16010) == 2
+            && twice.RangeAccess!.Value.At < single.RangeAccess!.Value.At
+            && single.RangeAccess.Value.At < walking.RangeAccess!.Value.At
+            && running.RangeAccess!.Value.At < walking.RangeAccess.Value.At
+            && mixed.Stages.Any(s => s.ActionId == 3) && mixed.RangeAccess!.Value.At < twice.RangeAccess.Value.At,
+            "Actual walking speed, Sprint's movement/lock timing and both charges compete by recovered uptime before resource conservation.");
+        Check(MovementPlanValidation.Validate(twice, doubleInput, 0, true, origin.Identity.CapturedTimestamp).Allowed
+            && MovementPlanValidation.Validate(mixed, mixedInput, 0, true, origin.Identity.CapturedTimestamp).Allowed,
+            "Fast multi-action approaches pass the same full route, timing and inventory validation as exhaustive alternatives.");
+        var patient = Fast(Input(0x12, true, range with { RecoveryReadyIn = 10 }));
+        Check(patient.RemainingResources == 0x12 && patient.Stages.All(s => s.ActionId == 0),
+            "When walking recovers the same observed attack window, both gap-closer charges and Sprint are conserved.");
+        var distantInput = Input(0, objective: range with { Center = new(200, .5f) });
+        var distant = Fast(distantInput);
+        Check(distant.HasVerifiedRoute && distant.UsefulDestination.X > distantInput.Origin.X
+            && distantInput.Range!.Loss(distant.UsefulDestination) > 0
+            && MovementPlanValidation.Validate(distant, distantInput, 0, true, origin.Identity.CapturedTimestamp).Allowed,
+            "A target beyond the captured map and time horizon still produces verified walking progress without claiming restored attack range.");
+        map.PixelMaxG[8] = -1;
+        var blockedInput = Input(2);
+        var blocked = Fast(blockedInput);
+        Check(blocked.UsefulDestination.X < Point(map, 8).X && blocked.Stages.All(s => s.ActionId != 16010),
+            "A fast approach proposal cannot cross a physical obstruction with walking or chained dashes.");
+
+        var owner = new MovementIntent(Range: range with { RecoverExecution = false });
+        var combat = new MovementCombatIntent([], 0, true, RangeRecovery: range with { RecoveryReadyIn = 2 });
+        Check(NativeMovementHost.ResolveRange(owner, combat, true) is { RecoverExecution: true, RecoveryReadyIn: 2 }
+            && NativeMovementHost.ResolveRange(owner, combat, false) == owner.Range
+            && NativeMovementHost.ResolveRange(owner, combat with { RangeRecovery = range with { TargetId = 20 } }, true) == owner.Range,
+            "Normal movement retains its requested radius while enabling same-target combat recovery; disabled assistance and different target instructions keep their own semantics.");
     }
 }

@@ -1,11 +1,14 @@
 using BossMod;
 using BossMod.CombatAssistance.Planning;
+using BossMod.Pathfinding;
+using System.Diagnostics;
 using System.Numerics;
 
 public static partial class Checks
 {
     private static void IngressRecovery()
     {
+        RecoveryDeferral();
         var now = DateTime.UtcNow;
         var hints = new AIHints();
         Vector3? Flat(Vector3 p, Vector3 direction, float _) => direction.Y < -0.9f ? new(p.X, 0, p.Z) : null;
@@ -38,5 +41,44 @@ public static partial class Checks
         hints.PathfindMapArenaProjectionLayer = null;
         hints.Teleporters.Add(new(new(3, 0), new(6, 0), 1, false));
         Check(!Route(), "entry does not mistake an authored teleporter for ordinary ground");
+    }
+
+    private static void RecoveryDeferral()
+    {
+        // Match both reported arena types: an origin beyond the rectangular map,
+        // and an origin inside the map rectangle but outside the circular arena.
+        foreach (var (bounds, origin) in new (ArenaBounds, WPos)[]
+        {
+            (new ArenaBoundsSquare(20), new(0, 21)),
+            (new ArenaBoundsCircle(15), new(11, 11))
+        })
+        {
+            var identity = new NavigationIdentity(1, DateTime.UtcNow, DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(),
+                origin, false, 6, 0, null, 7, 1, 1);
+            var input = new NavigationDecision.CapturedInput(new(bounds, default, null, default), [], [],
+                new([]), true, [], identity, true);
+            var native = NativeNavigationSnapshot.Capture(input);
+            MovementPlanningContext ContextAt(NativeNavigationSnapshot snapshot)
+                => new(snapshot.Identity, snapshot.CopyStrictMap(), 0, 0,
+                    Enumerable.Repeat(true, snapshot.Cells).ToArray(), new float[snapshot.Cells], [], [], native: snapshot);
+            var context = ContextAt(native);
+            var recovery = NativeMovementSearch.Recover(context, new());
+            Check(!NativeMovementHost.CanDeferRecovery(context, recovery),
+                "An outside origin cannot borrow positive leeway from the clamped native map to wait for optimization.");
+            var inside = NativeNavigationSnapshot.Capture(input with { Identity = identity with { Origin = default } });
+            var insideContext = ContextAt(inside);
+            Check(NativeMovementHost.CanDeferRecovery(insideContext, NativeMovementSearch.Recover(insideContext, new())),
+                "An actually safe origin retains its optional optimization and casting window.");
+            var blocked = NativeNavigationSnapshot.Capture(input with
+            {
+                Identity = identity with { Origin = default }, Obstacles = [new SDCircle(default, 2)]
+            });
+            var blockedContext = ContextAt(blocked);
+            var positiveButBlocked = NativeMovementSearch.Recover(blockedContext, new());
+            positiveButBlocked = positiveButBlocked with
+            { NativeRecovery = new NavigationDecision { LeewaySeconds = float.MaxValue } };
+            Check(!NativeMovementHost.CanDeferRecovery(blockedContext, positiveButBlocked),
+                "Positive recovery leeway alone cannot authorize waiting in blocked physical geometry.");
+        }
     }
 }

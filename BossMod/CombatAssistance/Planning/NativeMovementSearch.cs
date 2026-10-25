@@ -28,8 +28,18 @@ internal static class NativeMovementSearch
     internal static MovementPlan Run(MovementPlanningContext context, CancellationToken cancel, Action<MovementPlan> publish,
         NavigationDecision.Context recoveryContext)
     {
+        MovementPlan Refine(MovementPlan plan) => NativeMechanicClearance.Refine(context, plan, cancel);
+        void Publish(MovementPlan plan)
+        {
+            // An inside search incumbent is not an outside-space fallback until
+            // the current search pass has actually returned. Native safety
+            // recovery remains independently available while it runs.
+            if (plan.Status == MovementSearchStatus.Searching && (!context.PreferredEnemyEndpoint(plan.UsefulDestination)
+                || !context.PreferredArenaEndpoint(plan.UsefulDestination))) return;
+            publish(Refine(plan));
+        }
         if (context.ForcedMovement != null || context.Native is not { } native)
-            return JointMovementSearch.Search(context, cancellation: cancel, publishBest: publish);
+            return Refine(JointMovementSearch.Search(context, cancellation: cancel, publishBest: Publish));
         cancel.ThrowIfCancellationRequested();
         var recoveryPlan = Recover(context, recoveryContext, cancel);
         var recovery = recoveryPlan.NativeRecovery!.Value;
@@ -39,40 +49,48 @@ internal static class NativeMovementSearch
             return recoveryPlan;
         // The owner may need mandatory native recovery before elective optimization
         // finishes. Publish it promptly, with recovery status rather than a safety proof.
-        publish(recoveryPlan with { OptimizationPending = true });
+        Publish(recoveryPlan with { OptimizationPending = true });
         var incumbent = recovery.Publication is { } publication ? NativeMovementIncumbent.Capture(context, publication) : null;
+        if (NativeWalkingApproach.Search(context, cancel, plan => Publish(plan with { NativeRecovery = recovery })) is { } approach)
+            incumbent = approach;
         if (!context.Actions.IsEmpty || context.Range?.NeedsRecovery(context.Origin) == true
-            || context.HealingCoverage?.Satisfied(context.Origin) == false)
+            || context.PartyContact?.Loss(context.Origin) > 0
+            || context.HealingCoverage?.Satisfied(context.Origin) == false
+            || incumbent is { } nativeRoute && !nativeRoute.UsefulDestination.AlmostEqual(context.Origin, MovementPlanValidation.ArrivalTolerance))
         {
-            // Search walking plus finite legal anchors/returns before enumerating
-            // every ground point and facing. A walking-only first publication can
-            // otherwise commit lost uptime before the useful dash is considered.
-            // The full pass still considers every supported mobility mechanic.
-            var walking = JointMovementSearch.Search(context, cancellation: cancel, nativeIncumbent: incumbent,
+            // Compare walking, Sprint, anchors, returns and deliberate spatial
+            // approaches together before full map/facing enumeration. The full
+            // pass still considers every supported mobility mechanic and landing.
+            var opportunity = JointMovementSearch.Search(context, cancellation: cancel, nativeIncumbent: incumbent,
                 stopAtCurrentOpportunity: true, includeSpatialMobilityActions: false,
                 publishBest: plan =>
                 {
-                    // A complete mobility route must not remain private until
-                    // this pass exhausts its walking/position alternatives.
-                    // Initial native walking seeds still wait for comparison.
-                    if (plan.Stages.Any(s => s.Kind is MovementStageKind.TargetDash or MovementStageKind.DirectionalMovement
+                    // Publish useful complete walking progress too: a distant or
+                    // moving target must not leave us idle while alternatives
+                    // are enumerated. Keep present actions and preparation intact.
+                    if (context.PreservesPresent(plan.DeliveredActions) && context.CompletePreparation(plan.DeliveredActions)
+                        && (context.Range is { } range && range.NeedsRecovery(context.Origin)
+                            && range.Loss(plan.UsefulDestination) < range.Loss(context.Origin)
+                        || context.PartyContact is { } contact && contact.Loss(plan.UsefulDestination) < contact.Loss(context.Origin)
+                        || context.HealingCoverage?.Compare(plan.UsefulDestination, context.Origin) > 0
+                        || plan.Stages.Any(s => s.Kind is MovementStageKind.TargetDash or MovementStageKind.DirectionalMovement
                         or MovementStageKind.GroundMovement or MovementStageKind.Return
                         || s.Kind == MovementStageKind.UtilityAction && context.Utilities.Any(u => u.ActionId == s.ActionId
-                            && u.Effect == PlanningUtilityEffect.MovementSpeed)))
-                        publish(plan with { NativeRecovery = recovery });
+                            && u.Effect == PlanningUtilityEffect.MovementSpeed))))
+                        Publish(plan with { NativeRecovery = recovery });
                 });
-            if (walking.Status == MovementSearchStatus.Invalidated) return walking;
-            if (walking.HasVerifiedRoute && context.PreservesPresent(walking.DeliveredActions))
+            if (opportunity.Status == MovementSearchStatus.Invalidated) return opportunity;
+            if (opportunity.HasVerifiedRoute && context.PreservesPresent(opportunity.DeliveredActions))
             {
-                incumbent = walking;
-                publish(walking with { NativeRecovery = recovery });
+                incumbent = opportunity;
+                Publish(opportunity with { NativeRecovery = recovery });
             }
         }
         var result = JointMovementSearch.Search(context, cancellation: cancel, nativeIncumbent: incumbent,
-            publishBest: plan => publish(plan with { NativeRecovery = recovery }));
+            publishBest: plan => Publish(plan with { NativeRecovery = recovery }));
         if (result.Status == MovementSearchStatus.Invalidated)
             return result;
-        return result.HasVerifiedRoute ? result with { NativeRecovery = recovery }
+        return result.HasVerifiedRoute ? Refine(result with { NativeRecovery = recovery })
             : recoveryPlan with { Bound = result.Bound, ExpandedStates = result.ExpandedStates, SearchMilliseconds = result.SearchMilliseconds };
     }
 }

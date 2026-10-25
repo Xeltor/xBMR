@@ -56,7 +56,7 @@ internal sealed class MovementPlanningService : IDisposable
         // without tolerances on hazards, recipients or manual authority.
         var carried = CarryVerifiedAlternative(_running, _mailbox?.Read(), _pending)
             ?? CarryVerifiedAlternative(_published, _plan, _pending);
-        // A utility lock/readiness estimate alone must not starve the search.
+        // A utility or mobility lock/readiness estimate alone must not starve the search.
         // No result is executable through this exception: publication must still
         // pass full route/action/resource validation against the latest capture.
         if (_running is { } running && !SameIntent(running, _pending)
@@ -115,10 +115,7 @@ internal sealed class MovementPlanningService : IDisposable
         Pump();
         if (_published is not { } published || published.Owner != owner || published.Revision != revision || _plan is not { } plan)
             return null;
-        var elapsed = (_clock() - plan.Input.CapturedTimestamp) / (double)Stopwatch.Frequency;
-        var worldElapsed = (worldTime - plan.Input.WorldTime).TotalSeconds;
-        // Both clocks matter: pauses in WorldState cannot renew an old deadline.
-        return elapsed is >= 0 and < 0.25 && worldElapsed is >= 0 and < 0.25 ? plan : null;
+        return Fresh(plan, worldTime) ? plan : null;
     }
 
     internal void Release(string owner)
@@ -175,6 +172,14 @@ internal sealed class MovementPlanningService : IDisposable
         }
         if (_worker != null || _pending == null || _disposed)
             return;
+        // A completed equivalent search has already considered its alternatives.
+        // Continue consuming it while it is fresh instead of launching it again
+        // on every frame. Changed intent and the native freshness ceiling still
+        // require new work; no recheck renews the published input timestamps.
+        if (_published is { } complete && SameIntent(complete, _pending)
+            && _plan is { Status: MovementSearchStatus.Complete } settled
+            && Fresh(settled, _pending.Context.Identity.WorldTime))
+            return;
         // Do not repeatedly search an identical capture. A later equivalent capture is still useful.
         if (_lastAttempt == _pending)
             return;
@@ -205,6 +210,14 @@ internal sealed class MovementPlanningService : IDisposable
     private static bool SameIntent(Request a, Request b) => a.Owner == b.Owner && a.Revision == b.Revision
         && a.Context.Identity.ActorId == b.Context.Identity.ActorId && a.Context.Identity.ZoneId == b.Context.Identity.ZoneId
         && a.Context.Identity.ContentId == b.Context.Identity.ContentId;
+
+    private bool Fresh(MovementPlan plan, DateTime worldTime)
+    {
+        var elapsed = (_clock() - plan.Input.CapturedTimestamp) / (double)Stopwatch.Frequency;
+        var worldElapsed = (worldTime - plan.Input.WorldTime).TotalSeconds;
+        // Both clocks matter: pauses in WorldState cannot renew an old deadline.
+        return elapsed is >= 0 and < 0.25 && worldElapsed is >= 0 and < 0.25;
+    }
 
     public void Dispose()
     {

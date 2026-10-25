@@ -12,6 +12,7 @@ internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<
     private readonly Dictionary<uint, RsrOriginalActionSelectionLease> _leases = [];
     private readonly HashSet<uint> _yielded = [];
     private object? _rotation;
+    private object? _duty;
     private DateTime _validUntil;
     private bool Fresh => DateTime.UtcNow < _validUntil && allowed();
     internal ImmutableHashSet<uint> Owned => Fresh
@@ -28,6 +29,39 @@ internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<
             is { } property && action.IsAssignableFrom(property.PropertyType) ? name : null;
     }
 
+    internal static object? CurrentDuty(Assembly basic)
+        => basic.GetType("RotationSolver.Basic.DataCenter")?.GetProperty("CurrentDutyRotation",
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null);
+
+    internal static object? SelectionOwner(uint id, object rotation, object? duty)
+        => NativePhantomMobility.Contains(id) ? duty : rotation;
+
+    // Read only the movement actions, including their original saved opt-outs.
+    // DutyRotation.AllActions is slot-filtered and is not the job's AllBaseActions.
+    internal static IEnumerable<object> DutyActions(Assembly basic)
+    {
+        if (CurrentDuty(basic) is not { } duty) return [];
+        var ids = basic.GetType("RotationSolver.Basic.Data.ActionID", true)!;
+        var action = basic.GetType("RotationSolver.Basic.Actions.IBaseAction", true)!;
+        return DutyActions(duty, ids, action);
+    }
+
+    internal static IEnumerable<object> DutyActions(object duty, Type ids, Type action)
+    {
+        foreach (var id in NativePhantomMobility.ActionIds)
+        {
+            object? value;
+            try
+            {
+                var name = Property(duty.GetType(), ids, action, id);
+                value = name == null ? null : duty.GetType().GetProperty(name,
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(duty);
+            }
+            catch (Exception) { continue; } // One changed duty getter cannot erase ordinary action settings.
+            if (value != null) yield return value;
+        }
+    }
+
     internal void Update(Class job)
     {
         if (!allowed()) { Dispose(); return; }
@@ -35,10 +69,12 @@ internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<
         {
             if (!runtime.TryGetSupportContext(out _, out var basic, out var rotation) || RsrRuntimeAccess.Job(rotation) != (uint)job)
             { Dispose(); return; }
-            if (!ReferenceEquals(rotation, _rotation))
+            var duty = CurrentDuty(basic);
+            if (!ReferenceEquals(rotation, _rotation) || !ReferenceEquals(duty, _duty))
             {
                 Dispose();
                 _rotation = rotation;
+                _duty = duty;
             }
             // The saved feature gates select which actions the planner may use.
             // They must not reopen an independent automatic movement writer.
@@ -58,11 +94,12 @@ internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<
             foreach (var id in desired)
             {
                 if (_leases.ContainsKey(id) || _yielded.Contains(id)) continue;
-                var name = Property(rotation.GetType(), ids, action, id);
+                var owner = SelectionOwner(id, rotation, duty);
+                var name = owner == null ? null : Property(owner.GetType(), ids, action, id);
                 if (name == null) { _yielded.Add(id); continue; }
                 try
                 {
-                    var lease = RsrOriginalActionSelectionLease.Acquire(rotation, name, (original, method, args) =>
+                    var lease = RsrOriginalActionSelectionLease.Acquire(owner!, name, (original, method, args) =>
                     {
                         var result = RsrOriginalActionSelectionProxy.Forward(original, method, args);
                         if (result is not true) return result;
@@ -110,6 +147,7 @@ internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<
         _leases.Clear();
         _yielded.Clear();
         _rotation = null;
+        _duty = null;
         Status = "RSR retains mobility";
     }
 }

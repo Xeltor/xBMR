@@ -370,8 +370,12 @@ public sealed class Plugin : IAsyncDalamudPlugin
 
     private void DrawUI()
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var cpuStarted = FrameworkThreadClock.ReadCpuTicks();
+        var gcPause = GC.GetTotalPauseDuration();
         using var observations = CombatAssistance.Integrations.ReflectionObjectSearch.BeginObservation(_dalamud);
         UpdateAssistanceSettings();
+        var settingsDone = System.Diagnostics.Stopwatch.GetTimestamp();
         RebornMaterial.M3.BeginFrame();
         var tsStart = DateTime.Now;
         var moveImminent = _movementOverride.IsMoveRequested() && (!_amex.PreventMovingWhileCasting || _movementOverride.IsForceUnblocked());
@@ -382,16 +386,23 @@ public sealed class Plugin : IAsyncDalamudPlugin
         _rotation.MovementPlanning.Assistance?.BeginNativeUpdate();
         _assistanceDiagnostics.Observe(_ws);
         _partyRoles.Update();
+        var worldDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _bossmod.Update();
         _zonemod.ActiveModule?.Update();
+        var modulesDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _hintsBuilder.Update(_hints, PartyState.PlayerSlot, moveImminent);
         _amex.QueueManualActions();
+        var hintsDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _rotation.MovementPlanning.Assistance?.BeforeRotationUpdate();
+        var assistanceDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _rotation.Update(_amex.AnimationLockDelayEstimate, _movementOverride.IsMoving(), Service.Condition[ConditionFlag.DutyRecorderPlayback]);
+        var rotationDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _ai.Update();
+        var aiDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _rotation.MovementPlanning.Assistance?.UpdatePresentation();
         _broadcast.Update();
         _amex.FinishActionGather();
+        var presentationDone = System.Diagnostics.Stopwatch.GetTimestamp();
 
         var uiHidden = Service.GameGui.GameUiHidden || Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.WatchingCutscene];
         UpdateScreenRiskBorder(uiHidden);
@@ -399,11 +410,19 @@ public sealed class Plugin : IAsyncDalamudPlugin
         {
             Service.WindowSystem?.Draw();
         }
+        var windowsDone = System.Diagnostics.Stopwatch.GetTimestamp();
 
         ExecuteHints();
 
         Camera.Instance?.DrawWorldPrimitives();
         _prevUpdateTime = DateTime.Now - tsStart;
+        var finished = System.Diagnostics.Stopwatch.GetTimestamp();
+        // Attribute the existing 100 ms UI hitch threshold to the actual phase.
+        // Timings allocate only when reporting a hitch; no histories or live objects leave this thread.
+        if (System.Diagnostics.Stopwatch.GetElapsedTime(started, finished).TotalMilliseconds >= 100)
+            Service.Logger.Warning($"[FrameHitch] combat={_ws.Party.Player()?.InCombat} total={Milliseconds(started, finished):f1}ms CPU={FrameworkThreadClock.CpuMillisecondsSince(cpuStarted)?.ToString("f1") ?? "unavailable"}ms GC={(GC.GetTotalPauseDuration() - gcPause).TotalMilliseconds:f1}ms settings={Milliseconds(started, settingsDone):f1} world={Milliseconds(settingsDone, worldDone):f1} modules={Milliseconds(worldDone, modulesDone):f1} hints={Milliseconds(modulesDone, hintsDone):f1} assistance={Milliseconds(hintsDone, assistanceDone):f1} rotation={Milliseconds(assistanceDone, rotationDone):f1} AI={Milliseconds(rotationDone, aiDone):f1} presentation={Milliseconds(aiDone, presentationDone):f1} windows={Milliseconds(presentationDone, windowsDone):f1} execution={Milliseconds(windowsDone, finished):f1}");
+
+        static double Milliseconds(long from, long to) => System.Diagnostics.Stopwatch.GetElapsedTime(from, to).TotalMilliseconds;
     }
 
     private void UpdateScreenRiskBorder(bool uiHidden)

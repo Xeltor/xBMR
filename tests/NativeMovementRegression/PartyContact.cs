@@ -5,6 +5,7 @@ public static partial class Checks
 {
     private static void PartyContact()
     {
+        FastPullContact();
         var policy = new NativePartyContact();
         var now = DateTime.UtcNow;
         var observation = new PartyContactObservation(now, 7, new(10, 0), 2, true, false, true, false, true);
@@ -92,5 +93,46 @@ public static partial class Checks
             Check(false, "Invalid contact evidence must reject capture.");
         }
         catch (ArgumentException) { Check(true, "Invalid contact evidence rejects capture."); }
+    }
+
+    private static void FastPullContact()
+    {
+        var map = Grid(41, 1);
+        var origin = Context(map, 0, speed: 6);
+        var contact = new PlanningRange(7, Point(map, 40), 10);
+        MovementPlanningContext Input(ulong charges, PlanningAction[]? actions = null)
+            => new(origin.Identity, map, 0, 0, Enumerable.Repeat(true, 41).ToArray(), new float[41], actions ?? [], [], charges,
+                partyContact: contact, mobilityMechanics: [new(155, MobilityMechanic.Target, 30, 0, 0, 0, .2f, 0,
+                    [new(7, Point(map, 30), 0)])],
+                utilities: [new(3, PlanningUtilityEffect.MovementSpeed, 10, .6f, 0, 1, 7.8f)]);
+        MovementPlan Fast(MovementPlanningContext input)
+            => JointMovementSearch.Search(input, Exhaustive with { Expansions = 128 },
+                stopAtCurrentOpportunity: true, includeSpatialMobilityActions: false);
+        var walk = Fast(Input(0));
+        var sprint = Fast(Input(0x10));
+        var relayInput = Input(1);
+        var relay = Fast(relayInput);
+        Check(contact.Loss(walk.UsefulDestination) == 0 && contact.Loss(sprint.UsefulDestination) == 0
+            && contact.Loss(relay.UsefulDestination) == 0 && sprint.DurationSeconds < walk.DurationSeconds
+            && relay.DurationSeconds < sprint.DurationSeconds && relay.Stages.Any(s => s.ActionId == 155),
+            "An advancing tank receives prompt walking, Sprint and friendly-relay alternatives compared by useful arrival, rather than always conserving mobility while falling behind.");
+        Check(MovementPlanValidation.Validate(relay, relayInput, 0, true, origin.Identity.CapturedTimestamp).Allowed,
+            "Pull pursuit retains complete route and real anchor validation.");
+        var alreadyInAttackRange = new MovementPlanningContext(origin.Identity, map, 0, 0,
+            Enumerable.Repeat(true, 41).ToArray(), new float[41], [], [],
+            range: new(10, origin.Origin, 25, RecoverExecution: true), partyContact: contact);
+        Check(Fast(alreadyInAttackRange).UsefulDestination != origin.Origin,
+            "An already available ranged attack cannot terminate the initial search before advancing-pull contact is considered.");
+        var cast = Action(map, 10, 0, new ulong[41], Enumerable.Repeat(1f, 41).ToArray(), cast: 1);
+        var castInput = Input(0x11, [cast]);
+        var castThenFollow = Fast(castInput);
+        Check(castThenFollow.DeliveredActions == 1 && castThenFollow.DeliveryTimes[0] == 1
+            && contact.Loss(castThenFollow.UsefulDestination) == 0,
+            "Following the pull preserves the current cast and its recipients before closing tank distance.");
+        var shifted = new MovementPlanningContext(origin.Identity, map, 0, 0, Enumerable.Repeat(true, 41).ToArray(),
+            new float[41], [], [], partyContact: contact with { Center = new(200, .5f) });
+        var progress = Fast(shifted);
+        Check(progress.HasVerifiedRoute && progress.UsefulDestination.X > origin.Origin.X,
+            "A tank beyond the local map still yields safe forward progress instead of waiting for complete contact.");
     }
 }

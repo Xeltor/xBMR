@@ -169,11 +169,15 @@ sealed class HoppingMad(BossModule module) : Components.GenericAOEs(module)
         ref var aoe = ref _aoes.Ref(0);
         if (aoe.Shape is AOEShapeCircle circle)
         {
-            hints.AddForbiddenZone(new SDInvertedCircle(aoe.Origin, circle.Radius + 2f), aoe.Activation); // stay close to border of circle to move into donut fast
+            // Prepare near the circle for its following donut, but never turn
+            // preparation into a hard arrival that closes an Outburst escape.
+            // The actual circle/donut and every other component retain their
+            // own timed forbidden zones and transit constraints.
+            hints.GoalZones.Add(AIHints.GoalDonut(aoe.Origin, circle.Radius, circle.Radius + 2f, 100f));
         }
         else if (aoe.Shape is AOEShapeDonut donut)
         {
-            hints.AddForbiddenZone(new SDCircle(aoe.Origin, donut.InnerRadius - 2f), aoe.Activation); // stay close to border of donut to move to next circle fast
+            hints.GoalZones.Add(AIHints.GoalDonut(aoe.Origin, Math.Max(0, donut.InnerRadius - 2f), donut.InnerRadius, 100f));
         }
     }
 }

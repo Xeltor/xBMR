@@ -7,6 +7,7 @@ public static partial class Checks
 {
     private static void PlanningBuffers()
     {
+        PlanningComparisonAllocations();
         var identity = new NavigationIdentity(1, DateTime.UtcNow, DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(),
             new(-2, -2), false, 6, 1, null, 1, 1, 1);
         var source = NavigationMapSource.Capture(new ArenaBoundsSquare(4, mapResolution: 1), default, null, default, false);
@@ -70,5 +71,43 @@ public static partial class Checks
         allowed[0] = false; scores[0] = 99; map.PixelPriority[0] = 99;
         Check(copied.DestinationAllowed(0) && copied.Presentation(0) == 0 && copied.NativePriority(0) == 0,
             "Ordinary context callers retain defensive copies of mutable maps and score arrays.");
+    }
+
+    private static void PlanningComparisonAllocations()
+    {
+        var rules = new PlanningExecutionRules(2, 4, [new(default, default, 3)], 5, 6);
+        var travel = new PlanningTravel(6, 8, 3);
+        var other = new PlanningTravel(6, 7, 4);
+        float[] times = [0, 1, 2, 3, 4, 5, 6, float.MaxValue, float.PositiveInfinity, float.NaN];
+        foreach (var a in times)
+            foreach (var b in times)
+            {
+                var expected = new[] { rules.MovementStopsAt, rules.MovementResumesAt, rules.ActionsStopAt, rules.ActionsResumeAt }
+                    .Concat(rules.ForbiddenFacing.Select(d => d.Activation)).All(t => (a >= t) == (b >= t));
+                Check(rules.SameTemporalPhase(a, b) == expected,
+                    "Temporal phase comparison preserves exact stop, release and facing boundaries.");
+            }
+        foreach (var from in times)
+            foreach (var first in new[] { travel, other, new PlanningTravel(0, 8, 3), new PlanningTravel(6) })
+                foreach (var second in new[] { travel, other, new PlanningTravel(0, 8, 3), new PlanningTravel(6) })
+                    Check(first.Dominates(second, from) == new[] { from, first.Until, second.Until }
+                        .Where(t => t >= from).All(t => first.At(t) >= second.At(t)),
+                        "Travel dominance preserves boost expiry and unknown baseline behavior.");
+        // Warm both paths before measuring thread-local managed allocations.
+        for (var i = 0; i < 20000; ++i)
+        {
+            _ = rules.SameTemporalPhase(i % 7, (i + 1) % 7);
+            _ = travel.Dominates(other, i % 7);
+        }
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var matches = 0;
+        for (var i = 0; i < 10000; ++i)
+        {
+            if (rules.SameTemporalPhase(i % 7, (i + 1) % 7)) ++matches;
+            if (travel.Dominates(other, i % 7)) ++matches;
+        }
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Console.WriteLine($"Frontier timing/speed comparisons: 20000 calls, {allocated} allocated bytes.");
+        Check(matches > 0 && allocated == 0, "Frontier timing and speed comparisons allocate no managed memory.");
     }
 }

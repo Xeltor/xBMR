@@ -331,7 +331,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     {
         _requestedNavigation = true;
         return autorot.MovementPlanning.Update("follow", WorldState, autorot.Hints, player,
-            WorldState.Client.MoveSpeed, _config.PreferredDistance, _naviCtx, new((float)_config.MoveDelay));
+            WorldState.Client.MoveSpeed, _config.PreferredDistance, _naviCtx, new((float)_config.MoveDelay), autorot.Bossmods.ActiveModule);
     }
 
     private void FocusMaster(Actor master)

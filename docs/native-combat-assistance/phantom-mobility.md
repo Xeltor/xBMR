@@ -1,0 +1,11 @@
+# Phantom movement integration
+
+The native planner already described Phantom Kick (fixed 15y toward a hostile target), Occult Featherfoot (15y forward), Step Forth (fixed 10y toward ground), Steadfast Stance (friendly target dash), and Occult Sprint (finite running-speed utility). Those definitions were unreachable because ownership and saved enabled-action capture inspected only RSR's regular job rotation. Phantom actions belong to `DataCenter.CurrentDutyRotation`.
+
+Movement ownership now leases the matching generated action on the current duty rotation. Saved enabled flags are read from those same duty actions, independently of the regular job action list and the slot-filtered duty action list. A job/duty rotation replacement releases the old leases; absent selectors remain unavailable. Existing manual/forced selection, previews, user opt-outs, framework capture, native action availability, cooldown resources, target eligibility, route deadlines and the one movement executor remain authoritative.
+
+Phantom job statuses are checked independently of the regular combat job: Monk 4360, Ranger 4361, Dragoon 5331, Dancer 4805 and Thief 4369. Movement is restricted to South/North Horn (1252/1346); Step Forth retains the prior North Horn restriction. Frozen movement availability ends with the job status. Occult Sprint still requires Use Sprint and Phantom movement, and retains the existing conservative baseline-speed checks: startup during an existing speed buff cannot invent an unboosted baseline. This repair does not change movement geometry or assume an unseen speed.
+
+Current combat diagnostics report the bounded Phantom action IDs owned by the planner and those available in the current capture. Ownership, availability, planned selection, actual use, and accepted gameplay are separate observations.
+
+Validation covers duty action discovery and lease restoration, saved opt-out forwarding, correct Phantom status and territory, status expiry, regular job/Phantom feature opt-outs, and finite Sprint forecasting. The installed RSR contract check verifies the actual duty selector/getter fields. Release build and native regression results are recorded with delivery; live use of each Phantom job still requires representative in-game evidence.

@@ -485,7 +485,11 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
                 if (stacksIFzTarget.Count > 0)
                 {
                     if (!isSpreadTarget)
-                        Pathfinding.NativeStackGathering.AddGoal(hints, gatheringPeers, Pathfinding.NativeStackGathering.InteriorRadius(radius));
+                    {
+                        var boss = Module.PrimaryActor is { IsTargetable: true, IsAlly: false, IsDead: false } primary ? primary : null;
+                        Pathfinding.NativeStackGathering.AddGoal(hints, gatheringPeers, Pathfinding.NativeStackGathering.InteriorRadius(radius),
+                            boss?.Position, (boss?.HitboxRadius ?? 0) + 2f);
+                    }
                     hints.AddForbiddenZone(new SDIntersection([.. stacksIFzTarget]), s.Activation,
                         arenaProjectionLayer: ArenaProjectionLayerForAI(s.ResolveArenaProjectionLayer(Module), s.RestrictToArenaProjectionLayer));
                 }

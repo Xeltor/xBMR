@@ -58,7 +58,7 @@ static partial class Regression
         Service.LuminaGameData = game;
         Service.Config.Initialize();
         List<string> failures = [];
-        foreach (var test in new Action[] { Elm, Queen, Acclaim, Book, Windpipe, Roulette, ShinryuDirections, ShinryuResolution, ShinryuAssignments, ShinryuBootstrap, PromathiaGenesis, PromathiaKnockback, PromathiaRingDeadlines, PromathiaTowerPuddles, PromathiaIslandSupport, PromathiaLinkedPuddles, PromathiaRebirthKnockback, AlZahbiKnockback, AlZahbiExaflares, AlZahbiWave1, CleaveReach, CleaveAim, CleaveRecipients, CleavePetsAndLifecycle, CleaveOtherHazards, CleaveVictimGeometry })
+        foreach (var test in new Action[] { Elm, Queen, Acclaim, Book, Windpipe, Roulette, ShinryuDirections, ShinryuResolution, ShinryuAssignments, ShinryuBootstrap, PromathiaGenesis, PromathiaKnockback, PromathiaRingDeadlines, PromathiaTowerPuddles, PromathiaIslandSupport, PromathiaLinkedPuddles, PromathiaRebirthKnockback, SerpentLabyrinth, AlZahbiKnockback, AlZahbiExaflares, AlZahbiWave1, CleaveReach, CleaveAim, CleaveRecipients, CleavePetsAndLifecycle, CleaveOtherHazards, CleaveVictimGeometry })
         {
             try { test(); }
             catch (Exception error) { failures.Add(test.Method.Name + ": " + error); }

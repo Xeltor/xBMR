@@ -40,7 +40,11 @@ public struct NavigationDecision
 
     internal sealed record CapturedInput(NavigationMapSource MapSource, ShapeDistance[] Obstacles,
         (ShapeDistance shapeDistance, DateTime activation, ulong Source)[] Warnings, GoalInput Goals, bool GoalsEnabled,
-        Teleporter[] Teleporters, NavigationIdentity Identity, bool PublishRaster);
+        Teleporter[] Teleporters, NavigationIdentity Identity, bool PublishRaster)
+    {
+        // Captured policy only; keep authored warning timestamps/provenance intact.
+        internal float WarningTimeCushion { get; init; } = ActivationTimeCushion;
+    }
 
     internal static CapturedInput CaptureInput(DateTime currentTime, AIHints hints, Actor player, float speed = 6f, float cushion = 0f, ushort zoneId = 0, ushort contentId = 0)
     {
@@ -111,7 +115,7 @@ public struct NavigationDecision
                 if (blocks[i] == 0 && map.PixelMaxG[i] < 0)
                     blocks[i] = 3;
         var relaxed = false;
-        var unrelaxed = input.Warnings.Length == 0 ? null : RasterizeForbiddenZonesCore(map, input.Warnings, input.Identity.WorldTime, captureStrict || blocks != null, out relaxed, true, !freezeCallbacks);
+        var unrelaxed = input.Warnings.Length == 0 ? null : RasterizeForbiddenZonesCore(map, input.Warnings, input.Identity.WorldTime, captureStrict || blocks != null, out relaxed, true, !freezeCallbacks, input.WarningTimeCushion);
         if (input.GoalsEnabled && !input.Identity.Casting)
         {
             var gridPos = map.WorldToGrid(pos);
@@ -243,11 +247,12 @@ public struct NavigationDecision
         map.MaxPriority = globalMax;
     }
 
-    internal static float[]? RasterizeForbiddenZones(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation = true)
-        => RasterizeForbiddenZonesCore(map, zones, current, captureSafetyLimits, out relaxed, allowRelaxation, true);
+    internal static float[]? RasterizeForbiddenZones(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation = true,
+        bool parallel = true, float activationTimeCushion = ActivationTimeCushion)
+        => RasterizeForbiddenZonesCore(map, zones, current, captureSafetyLimits, out relaxed, allowRelaxation, parallel, activationTimeCushion);
 
     private static float[]? RasterizeForbiddenZonesCore(Map map, (ShapeDistance shapeDistance, DateTime activation, ulong source)[] zones,
-        DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation, bool parallel)
+        DateTime current, bool captureSafetyLimits, out bool relaxed, bool allowRelaxation, bool parallel, float activationTimeCushion = ActivationTimeCushion)
     {
         relaxed = false;
         // very slight difference in activation times cause issues for pathfinding - cluster them together
@@ -260,15 +265,28 @@ public struct NavigationDecision
         for (var i = 0; i < lenZones; ++i)
         {
             ref var zone = ref zones[i];
+            zonesFixed[i] = zone.shapeDistance;
+            // MaxValue means no known activation, not two minutes of safe
+            // uptime. Untimed requirements are due NOW, independently of the
+            // neighboring timed-warning cluster. Keep the authored input intact.
+            if (zone.activation == default || zone.activation == DateTime.MaxValue)
+            {
+                gFixed[i] = 0;
+                continue;
+            }
             var activation = zone.activation.Clamp(globalStart, globalEnd);
             if (activation > clusterEnd)
             {
-                clusterG = ActivationToG(activation, current);
+                clusterG = Math.Max(0f, (float)(activation - current).TotalSeconds - activationTimeCushion);
                 clusterEnd = activation.AddSeconds(0.5d);
             }
-            zonesFixed[i] = zone.shapeDistance;
             gFixed[i] = clusterG;
         }
+
+        // Geometry sampling stops at its first matching warning. MaxValue was
+        // sorted last in the authored list; its effective NOW deadline must
+        // precede timed hazards, including at overlapping corners and centers.
+        Array.Sort(gFixed, zonesFixed);
 
         var width = map.Width;
         var pixelMaxG = map.PixelMaxG;
@@ -510,7 +528,6 @@ public struct NavigationDecision
             }
             return float.MaxValue;
         }
-        static float ActivationToG(DateTime activation, DateTime current) => Math.Max(0f, (float)(activation - current).TotalSeconds - ActivationTimeCushion);
     }
 
     public static void RasterizeGoalZones(Map map, Func<WPos, float>[] goals)

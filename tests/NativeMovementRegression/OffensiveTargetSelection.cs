@@ -8,6 +8,7 @@ public static partial class Checks
 {
     private static void OffensiveTargetSelection()
     {
+        FateArrivalAcquisition();
         var activeFate = FateTargetPolicy.Matches(123, 123, true, 99);
         Check(activeFate && !FateTargetPolicy.Matches(0, 0, true, 0)
             && !FateTargetPolicy.Matches(456, 123, true, 0)

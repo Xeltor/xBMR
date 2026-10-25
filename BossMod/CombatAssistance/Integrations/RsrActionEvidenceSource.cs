@@ -98,69 +98,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
                 Status = "Waiting for RSR's current rotation to select an action";
                 return null;
             }
-            var targetResult = Read(action, "Target");
-            if (targetResult == null || Read(targetResult, "Target") is not IGameObject wrapper || !wrapper.IsValid() || wrapper.Address == 0)
-            {
-                Status = "RSR selected target is unavailable";
-                return null;
-            }
-            // Capture identity before consulting any more external data. Native actor
-            // lookup supplies the geometry later; never retain the wrapper.
-            var targetId = wrapper.GameObjectId;
-            var point = Read(targetResult, "Position") is Vector3 position ? position : wrapper.Position;
-            var id = Convert.ToUInt32(Read(action, "AdjustedID") ?? 0u);
-            var targetInfo = Read(action, "TargetInfo");
-            var setting = Read(action, "Setting");
-            var nativeAction = new ActionID(ActionType.Spell, id);
-            var definition = RsrNativeActionDefinition.Find(id, static action => ActionDefinitions.Instance[action]);
-            if (id == 0 || targetId == 0 || targetInfo == null || setting == null || definition == null
-                || !data.GetExcelSheet<Lumina.Excel.Sheets.Action>().TryGetRow(id, out var row))
-            {
-                Status = "RSR selected action has no supported native definition";
-                return null;
-            }
-            if (immediate) ImmediateSelection = (id, targetId, definition.IsGCD);
-            // Only RSR's actually selected party ability is added. This is not a
-            // scan for hypothetical future heals or a new rotation predictor.
-            // Offensive abilities can share mobility gauges; they need explicit
-            // resource effects before belonging to a multi-action forecast.
-            if (immediate && (definition.IsGCD || !Planning.NativeRotationalMobility.Contains(id) && !Planning.NativeRotationalPreparation.IsImmediateSetup(id)
-                && (!Planning.NativeActionSequence.IsImmediatePartyHeal(id)
-                || Read(setting, "IsFriendly") is not true || row.CastType != 2
-                || Number(Read(targetInfo, "Range")) != 0 || Number(Read(targetInfo, "EffectRange")) <= 0))) return null;
-            var affected = ImmutableArray.CreateBuilder<ulong>();
-            if (Read(targetResult, "AffectedTargets") is IEnumerable targets)
-                foreach (var target in targets)
-                    if (target is IGameObject recipient && recipient.IsValid() && recipient.Address != 0)
-                    {
-                        var recipientId = recipient.GameObjectId;
-                        if (recipientId != 0 && !affected.Contains(recipientId))
-                            affected.Add(recipientId);
-                    }
-            var proc = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.CastTimeProc.None;
-            var cast = manager.GetAdjustedCastTime(nativeAction, true, &proc) * 0.001f;
-            var withoutProc = manager.GetAdjustedCastTime(nativeAction, false) * 0.001f;
-            var clockId = Planning.NativeRotationalPreparation.SharedClockAction(id);
-            if (!data.GetExcelSheet<Lumina.Excel.Sheets.Action>().TryGetRow(clockId, out var clockRow))
-            { Status = "Selected action shared-clock definition is unavailable"; return null; }
-            var recast = definition.IsGCD ? manager.GetAdjustedRecastTime(new(ActionType.Spell, clockId)) * 0.001f : 0;
-            var ready = Math.Max(immediate ? 0 : Number(_remain?.GetValue(null)), manager.EffectiveAnimationLock);
-            var total = Number(_total?.GetValue(null));
-            var ahead = Number(_ahead?.GetValue(null));
-            var range = Number(Read(targetInfo, "Range"));
-            var effect = Number(Read(targetInfo, "EffectRange"));
-            if (!FiniteNonnegative(cast, withoutProc, recast, ready, total, ahead, range, effect) || total == 0 || definition.IsGCD && recast <= 0)
-            {
-                Status = "RSR action timing or range evidence is incomplete";
-                return null;
-            }
-            var result = new RsrActionEvidence(id, targetId, point, affected.ToImmutable(),
-                Read(setting, "IsFriendly") is true, Read(targetInfo, "IsTargetArea") is true,
-                row.CastType, range, effect, row.XAxisModifier > 0 ? row.XAxisModifier / 2f : 0,
-                ready, recast, ahead, cast, cast > 0 ? definition.CastAnimLock : definition.InstantAnimLock,
-                (byte)proc, withoutProc, row.Cast100ms * 0.1f, CapturePositional(action, setting, id), definition.IsGCD ? clockRow.Recast100ms * 0.1f : 0);
-            Status = $"RSR selected action {id}; {affected.Count} evidenced recipients";
-            return result;
+            return CaptureSelectedAction(manager, action, immediate);
         }
         catch (Exception error)
         {
@@ -170,6 +108,73 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
             Reset(reason);
             return null;
         }
+    }
+
+    private unsafe RsrActionEvidence? CaptureSelectedAction(ActionManagerEx manager, object action, bool immediate)
+    {
+        var targetResult = Read(action, "Target");
+        if (targetResult == null || Read(targetResult, "Target") is not IGameObject wrapper || !wrapper.IsValid() || wrapper.Address == 0)
+        {
+            Status = "RSR selected target is unavailable";
+            return null;
+        }
+        // Capture identity before consulting any more external data. Native actor
+        // lookup supplies the geometry later; never retain the wrapper.
+        var targetId = wrapper.GameObjectId;
+        var point = Read(targetResult, "Position") is Vector3 position ? position : wrapper.Position;
+        var id = Convert.ToUInt32(Read(action, "AdjustedID") ?? 0u);
+        var targetInfo = Read(action, "TargetInfo");
+        var setting = Read(action, "Setting");
+        var nativeAction = new ActionID(ActionType.Spell, id);
+        var definition = RsrNativeActionDefinition.Find(id, static action => ActionDefinitions.Instance[action]);
+        if (id == 0 || targetId == 0 || targetInfo == null || setting == null || definition == null
+            || !data.GetExcelSheet<Lumina.Excel.Sheets.Action>().TryGetRow(id, out var row))
+        {
+            Status = "RSR selected action has no supported native definition";
+            return null;
+        }
+        if (immediate) ImmediateSelection = (id, targetId, definition.IsGCD);
+        // Only RSR's actually selected healing/party ability is added. This is not a
+        // scan for hypothetical future heals or a new rotation predictor.
+        // Offensive abilities can share mobility gauges; they need explicit
+        // resource effects before belonging to a multi-action forecast.
+        if (immediate && (definition.IsGCD || !Planning.NativeRotationalMobility.Contains(id) && !Planning.NativeRotationalPreparation.IsImmediateSetup(id)
+            && (Read(setting, "IsFriendly") is not true || !Planning.NativeHealingActions.Supported(id)
+                && (!Planning.NativeActionSequence.IsImmediatePartyHeal(id) || row.CastType != 2
+                    || Number(Read(targetInfo, "Range")) != 0 || Number(Read(targetInfo, "EffectRange")) <= 0)))) return null;
+        var affected = ImmutableArray.CreateBuilder<ulong>();
+        if (Read(targetResult, "AffectedTargets") is IEnumerable targets)
+            foreach (var target in targets)
+                if (target is IGameObject recipient && recipient.IsValid() && recipient.Address != 0)
+                {
+                    var recipientId = recipient.GameObjectId;
+                    if (recipientId != 0 && !affected.Contains(recipientId))
+                        affected.Add(recipientId);
+                }
+        var proc = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.CastTimeProc.None;
+        var cast = manager.GetAdjustedCastTime(nativeAction, true, &proc) * 0.001f;
+        var withoutProc = manager.GetAdjustedCastTime(nativeAction, false) * 0.001f;
+        var clockId = Planning.NativeRotationalPreparation.SharedClockAction(id);
+        if (!data.GetExcelSheet<Lumina.Excel.Sheets.Action>().TryGetRow(clockId, out var clockRow))
+        { Status = "Selected action shared-clock definition is unavailable"; return null; }
+        var recast = definition.IsGCD ? manager.GetAdjustedRecastTime(new(ActionType.Spell, clockId)) * 0.001f : 0;
+        var ready = Math.Max(immediate ? 0 : Number(_remain?.GetValue(null)), manager.EffectiveAnimationLock);
+        var total = Number(_total?.GetValue(null));
+        var ahead = Number(_ahead?.GetValue(null));
+        var range = Number(Read(targetInfo, "Range"));
+        var effect = Number(Read(targetInfo, "EffectRange"));
+        if (!FiniteNonnegative(cast, withoutProc, recast, ready, total, ahead, range, effect) || total == 0 || definition.IsGCD && recast <= 0)
+        {
+            Status = "RSR action timing or range evidence is incomplete";
+            return null;
+        }
+        var result = new RsrActionEvidence(id, targetId, point, affected.ToImmutable(),
+            Read(setting, "IsFriendly") is true, Read(targetInfo, "IsTargetArea") is true,
+            row.CastType, range, effect, row.XAxisModifier > 0 ? row.XAxisModifier / 2f : 0,
+            ready, recast, ahead, cast, cast > 0 ? definition.CastAnimLock : definition.InstantAnimLock,
+            (byte)proc, withoutProc, row.Cast100ms * 0.1f, CapturePositional(action, setting, id), definition.IsGCD ? clockRow.Recast100ms * 0.1f : 0);
+        Status = $"RSR selected action {id}; {affected.Count} evidenced recipients";
+        return result;
     }
 
     internal ImmutableHashSet<uint> EnabledActions(Class job, bool originalIds = false)
@@ -185,7 +190,9 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
                 || Read(rotation, "AllBaseActions") is not IEnumerable actions)
                 return [];
             var result = ImmutableHashSet.CreateBuilder<uint>();
-            foreach (var action in actions)
+            var basic = RsrRuntimeAccess.ResolveReferencedAssemblyInLoadContext(_assembly, "RotationSolver.Basic");
+            var configuredActions = actions.Cast<object>().Concat(basic == null ? [] : RsrNativeMobilitySelection.DutyActions(basic));
+            foreach (var action in configuredActions)
             {
                 if (action == null || Read(action, "Config") is not { } config)
                     continue;

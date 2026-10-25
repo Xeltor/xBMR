@@ -98,11 +98,17 @@ internal sealed class RsrSelectionScopeOwner(RsrRuntimeAccess runtime, Func<bool
         {
             foreach (var registration in registrations)
             {
+                var started = System.Diagnostics.Stopwatch.GetTimestamp();
                 try
                 {
                     if (registration.Enter() is { } scope) entered.Add((scope, registration.Failure));
                 }
                 catch (Exception error) { registration.Failure(error); }
+                finally
+                {
+                    var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                    if (elapsed >= 50) Service.Logger.Warning($"[RsrScopeHitch] scope={registration.Enter.Method.DeclaringType?.Name} elapsed={elapsed:f1}ms");
+                }
             }
             return entered.Count == 0 ? null : new EnteredScopes(entered);
         }

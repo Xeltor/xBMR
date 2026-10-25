@@ -23,6 +23,17 @@ internal sealed class PlanningHealingCoverage
             throw new ArgumentException("Incomplete configured healing-range evidence.");
     }
     internal bool Satisfied(WPos caster) => Requirements.All(r => r.Loss(caster) <= MovementPlanValidation.ArrivalTolerance);
+    internal IEnumerable<PlanningRange> ApproachRanges()
+    {
+        foreach (var requirement in Requirements)
+        {
+            var reach = requirement.Alternatives.Max(a => a.Radius);
+            var height = requirement.HeightOffset;
+            if (Math.Abs(height) <= reach)
+                yield return new(requirement.RecipientId, requirement.Position,
+                    MathF.Sqrt(reach * reach - height * height));
+        }
+    }
     internal int Compare(WPos a, WPos b)
     {
         // Each recipient and its eligible categories stay explicit. A large sum of extra healing

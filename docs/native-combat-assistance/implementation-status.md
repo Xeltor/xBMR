@@ -6,6 +6,176 @@ All 72 provenance-identified XCAI-only integration registrations have been
 removed. The 67 upstream endpoint names remain. Cutover is not yet complete:
 remaining behavioral parity and live validation are recorded below.
 
+## Required escapes and panic exposure — 2026-10-25
+
+Required native recovery no longer waits for pending combat optimization merely
+because positive cast leeway remains. Panic recovery separately assesses complete
+walking witnesses against independent timed warnings and compares lower-exposure
+native alternatives, including an explicit hold when it avoids adding mechanics.
+See [required-recovery-and-panic.md](required-recovery-and-panic.md) for the
+Neo Garula failure, fallback limitations and focused checks, and
+[unbridled-overlap.md](unbridled-overlap.md) for the reproduced next-mechanic
+preparation constraint that closed a nearby escape. Live acceptance is pending.
+
+## Untimed mechanics are immediate — 2026-10-25
+
+Shared forbidden-zone rasterization treats both unspecified activation and
+`DateTime.MaxValue` as due now. The latter previously became a synthetic
+120-second deadline; live Calamity Bound tower diagnostics showed the optimizer
+waiting with about 118 seconds of leeway. Unknown timing cannot authorize a
+cast, healing hold, late-departure preference or optimization wait outside the
+required position. Effective deadlines are ordered before geometry sampling so
+an overlapping timed warning cannot conceal an untimed requirement. Authored
+timestamps, shapes and source attribution remain unchanged. Real finite timers
+retain existing cushions and complete-route validation for safe uptime.
+
+`UntimedMechanicUrgency` covers both sentinels, a tower-shaped requirement,
+ordinary/frozen recovery parity, pending optimizer and cast behavior, overlapping
+warnings, safe casting with known timing, and cancellation. This establishes
+timing/route behavior, not live tower completion or missing mechanic coverage.
+The combined Release build passed with zero errors, the full native suite passed
+143,375 assertions, and automatic development reload was verified at version
+`7.5.6.3522`, MVID `ee2fbe5e-a855-405f-ac25-5ea662a7ddca`. The combined build also
+contains the arena-interior and FATE-arrival changes. Live untimed tower completion
+remains unverified.
+
+## Arena-edge arrival preference — 2026-10-25
+
+The existing 2.5-yalm edge preference now participates in endpoint selection
+before walking cost and cosmetic continuity, using the selected native arena's
+real contour, holes and projection layer. Usable interior routes can replace
+edge-directed walks; required edge pockets and assignments remain available.
+See [arena-edge-arrivals.md](arena-edge-arrivals.md) for policy and validation scope.
+
+## Alexander movement intent and boss endpoints — 2026-10-25
+
+The current Alexander Resurrected capture shows party-contact-driven proposals
+inside the boss while no configured healing demand was reported. Standalone
+preparatory healer centering is removed. Required mechanic moves can opportunistically
+improve party coverage without creating a separate adjustment. Complete enemy
+footprints now distinguish outside arrivals from necessary inside fallbacks;
+crossing and retaining a pose covered by a moving boss remain legal. See
+[alexander-movement-intent.md](alexander-movement-intent.md) for evidence and limits.
+
+## Mechanic arrival clearance — 2026-10-25
+
+An enabled extra-space preference could lose to shorter caster movement and
+walking continuity, leaving a pixel-edge arrival. The worker now refines a
+complete required escape before commitment, adding bounded verified walking
+clearance when current actions, recipients and native constraints permit it.
+Tight pockets and urgent execution retain the original arrival. Archived XCAI
+references, scope and regression evidence are in
+[mechanic-overstep.md](mechanic-overstep.md).
+
+## Unified combat/healing reach movement — 2026-10-25
+
+Walking, Sprint, target dashes and deliberate reverse-jump-forward now compete
+in the early joint opportunity pass for combat, configured healing and party
+contact. Injured-recipient access compares useful arrival before charge saving.
+An ongoing valid walk can yield to a freshly validated mobility improvement;
+cosmetic replacements retain continuity. Archived XCAI comparisons, constraints,
+regressions and remaining live acceptance are documented in
+[unified-range-movement.md](unified-range-movement.md).
+
+## Job-aware movement value — 2026-10-25
+
+Caster/healer routes now compare stationary time lost to walking and mobility
+locks before conserving charges, after current execution and concrete native,
+healing, range and contact objectives tie. Observed GCD/recast windows permit
+free movement; mobile jobs retain resource conservation. Resource pruning and
+frontier dominance account for this objective. See
+[job-movement-value.md](job-movement-value.md) for policy and evidence limits.
+Representative live caster movement acceptance remains pending.
+
+## Social destacking interference — 2026-10-25
+
+The maintainer reports that optional destacking interferes with combat more than
+retired XCAI did. Source comparison identified an unconditional 1.15-yalm penalty
+around all party actors in native presentation capture. It included Duty Support
+NPCs, dead actors and different floors, and omitted the old overlap/yield and
+combat-positioning settling guards. A live combat snapshot confirms the native
+client is loaded, but does not isolate a particular unwanted step as social.
+
+`NativeSocialSpacing` now captures only nearby living visible player actors on
+the same floor. It restores XCAI-derived one-yalm activation, brief-overlap and
+first-arrival holds, observed separation, equal-peer yielding, a bounded melee
+first-yield window, dense-stack suppression, active-cast/holding-tank/Black Mage
+position protection, and 500ms settling after mechanic/native positioning.
+Forbidden zones, forced movement, directions, obstacles, knockbacks and native
+priority recovery defer this optional preference. Settings/manual authority,
+identity changes, stale observations and clock reversal retire its observations.
+
+First arrival now takes precedence over an arriving player's casting/tank/melee
+priority for optional destacking. An observed resident keeps the original spot
+without an expiry while remaining within its 0.35-yalm positional tolerance.
+Leaving it relinquishes the claim; observing a new clear spot settled for 300ms
+can establish a new claim. The anchor is not advanced on every non-overlap frame,
+so gradually walking into a stationary player does not claim their occupied space.
+Arrival order remains unknown if observation starts after players already overlap.
+This changes only cosmetic destacking; native hazards and assignments still apply.
+
+The frozen destination field rewards only 0.75–2.25-yalm local adjustments, with
+a stable overlap origin and deterministic personal bias. Straight local paths
+cannot cut into an occupied priority ally's space. This preference neither
+creates forbidden zones nor certifies a route: native traversal, arena bounds,
+assignments, action recipients, delivery timing and resources remain authoritative.
+It deliberately defers spacing during all authored hazards; exact parity with
+XCAI's role approach lanes and predictive passer-by handling is not claimed.
+
+Focused regressions cover overlap lifecycle, NPC/death/floor filtering, priority
+space, dense stacks, melee yielding, stable destinations, native assignments and
+current action delivery. Build/offline results and runtime delivery are recorded
+separately; representative social movement acceptance remains pending.
+
+## Combat pursuit and moving pulls — 2026-10-25
+
+The maintainer reports stalled re-engagement and lost tank contact during moving
+pulls. Current client samples include native optimization waits while combat is
+active. The retired XCAI pull-contact goal and Sprint controller provide historical
+behavior context; they are not restored as runtime dependencies.
+
+Normal movement now retains combat recovery semantics and the observed readiness
+clock when its own same-target range instruction supplies the radius. The joint
+search proposes a direct timed approach from each walking, Sprint and mobility
+state, validating the complete leg and endpoint on the unchanged native map.
+Targets beyond the local map or prediction horizon still permit verified partial
+progress. Ordinary neighbor expansion remains available for blocked direct legs.
+The initial pass publishes useful complete walking/contact routes while further
+alternatives are searched. Early completion must satisfy active pull contact too.
+
+Walking, Sprint, one or multiple gap closers share real speed, expiry, locks and
+charge accounting. Equal observed attack windows preserve resources. Advancing
+pulls compare useful tank-contact arrival before saving mobility, after current
+actions, recipients and native constraints. Existing opt-outs, manual authority,
+hazards, physical obstructions, arena bounds and freshness remain binding.
+Focused regressions cover these choices, distant objectives, blocked routes,
+selected casts and simultaneous attack range/pull contact. Build and offline
+validation are separate from client reload and representative gameplay acceptance.
+
+## Stack gathering regression — 2026-10-25
+
+The maintainer's Clyteum recording reproduces a shared movement regression:
+at Penetrator Missile (recorded 17:47:20.5–17:47:24.8), the marked player remains
+at the same position while fresh native routes are repeatedly deferred for
+optional optimization. Approaching peers shorten the route and extend its
+positive leeway; that is not evidence that remaining isolated is appropriate.
+Gluttonous Wire also shows repeated optimization waits between movements.
+These are sampled client observations, not verified server snapshot deadlines.
+
+Typed native gathering goals now retain a separate frozen score field. A complete
+strict native route that improves gathering can proceed between current locks
+while optimization is pending. Eligibility, capacity, floors, hazards, movement
+prohibitions and stationary-only authority remain binding. Regression coverage
+includes the translated recorded carrier geometry, joining, cancellation,
+disabled goals, immutable capture, cast/action locks and blocked destinations.
+Equal eligible groups now prefer boss contact for the carrier; this avoids
+choosing the isolated ranged peer over the group near the boss in the recording.
+Validation: Release build and all 142,428 native movement assertions pass;
+468 focused assertions also cover stack gathering and adjacent movement rules.
+The development client reports the validated module loaded. A matching live stack
+after this repair remains unverified; build, reload and gameplay acceptance are
+separate.
+
 ## Repair release candidate — 2026-10-24
 
 Release candidate `7.5.6.35.20` includes the repaired native targeting, combat
@@ -398,6 +568,30 @@ retains the saved boundary-entry preference, and withholds an unverified entry.
 Synthetic checks cover missing floor, unloaded collision, walls, successive
 warnings and no-movement/pyretic constraints. No past live incident is attributed
 to this verified source defect.
+
+On 2026-10-25, the maintainer reported lingering outside both the Eye of the
+Scorpion and Chort arenas as AST. AI following bypassed the entry check that
+Normal Movement used. Both owners now provide their active module to the shared
+host, which applies that check before ordinary optimization. In addition,
+recovery's positive leeway no longer permits waiting unless the actual origin
+passes strict native traversal checks; ThetaStar's clamped start cell alone is
+insufficient. The first-boss capture `f632c4591da84a1b9e58f31b976d2524`, revision
+`79cb7cbb5abd4d32a29a5b14faaaba4f`, records repeated optimization waits from
+16:46:06.428 to 16:46:19.066 UTC. Its stage-free recovery frames omitted the actual
+origin, so that capture alone does not prove the exact outside position. Chort's
+capture `3dfc666d30d54050ba862de3b415ca5d`, revision
+`8016d49b42214d61a29613b93ff13185`, likewise records repeated optimization waits
+during its opening (including 16:51:12.445–16:51:22.553 UTC). Current
+diagnostics now include the captured origin. Regression cases cover rectangular
+out-of-map origins, circular out-of-arena origins, blocked geometry and safe
+interior waiting. This is a shared movement repair; encounter geometry is
+unchanged. Release build passed with six existing obsolete-API warnings; the
+native movement suite passed 142,363 assertions and the two source contract
+checks passed. After a fresh idle-client check, the watched development output
+refreshed automatically; DevBridge observed version `7.5.6.3522`, MVID
+`8a59a7ce-8423-4aa9-831b-6170324491df`, loaded with assistance inactive and no
+reported failure. This verifies build, offline checks and reload, not live
+arena-entry acceptance.
 
 The joint search now captures authored teleporters as typed compound transitions.
 The approach, entrance wait and exact landing have separate checks; intervening

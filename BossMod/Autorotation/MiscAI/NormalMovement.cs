@@ -101,11 +101,7 @@ public sealed class NormalMovement : RotationModule
     private NavigationDecision GetDecision(float speed, float cushionSize, CombatAssistance.Planning.MovementIntent intent)
     {
         _requestedNavigation = true;
-        _lastDecision = intent.ExplicitDestination == null && Bossmods.ActiveModule is
-        { Info.Category: BossModuleInfo.Category.Dungeon or BossModuleInfo.Category.VariantCriterion, StateMachine.ActivePhase: not null } module
-            && !module.Arena.InBounds(Player.Position)
-                ? Manager.MovementPlanning.UpdateIngress("normal", World, Hints, Player, module, speed, intent)
-                : Manager.MovementPlanning.Update("normal", World, Hints, Player, speed, cushionSize, _navCtx, intent);
+        _lastDecision = Manager.MovementPlanning.Update("normal", World, Hints, Player, speed, cushionSize, _navCtx, intent, Bossmods.ActiveModule);
         PublishedNavigation = _lastDecision.Publication;
         return _lastDecision;
     }

@@ -8,7 +8,10 @@ namespace BossMod.CombatAssistance.Planning;
 internal sealed class NativeRoutePhysicalObservation
 {
     internal sealed record Block(WPos Position, Vector3 From, Vector3 Step, float Radius, string Reason);
-    private sealed record Observation(Block Block, NativePhysicalObstacle Surface, Vector3 ProbeFrom, Vector3 ProbeDirection, float ProbeDistance);
+    private sealed record Observation(Block Block, NativePhysicalObstacle Surface, Vector3 ProbeFrom, Vector3 ProbeDirection, float ProbeDistance,
+        NativeMovementCollision.Hit? Collision);
+    internal sealed record DiagnosticBlock(float[] From, float[] Step, float Radius, string Reason,
+        float[] SurfaceA, float[] SurfaceB, float SurfaceRadius, float[]? HitPoint, float[]? HitNormal, string? Material, float? HitDistance);
     private readonly Dictionary<NativePhysicalObstacle, Observation> _blocks = [];
     private readonly List<NativePhysicalObstacle> _removed = [];
     private (ulong Actor, ushort Zone, int? Layer) _identity;
@@ -22,6 +25,17 @@ internal sealed class NativeRoutePhysicalObservation
     internal int RefreshQueries { get; private set; }
     internal bool QueryAvailable { get; private set; }
     internal int KnownSurfaces => _blocks.Count;
+    // Only current retained obstacles, with copied numeric values. DevBridge
+    // owns history; this does not retain a second collision event stream.
+    internal DiagnosticBlock[] CurrentBlocks => _blocks.Values.TakeLast(2)
+        .Select(o => Describe(o.Block, o.Surface, o.Collision)).ToArray();
+
+    internal static DiagnosticBlock Describe(Block block, NativePhysicalObstacle surface, NativeMovementCollision.Hit? hit)
+        => new([block.From.X, block.From.Y, block.From.Z], [block.Step.X, block.Step.Y, block.Step.Z], block.Radius, block.Reason,
+            [surface.A.X, surface.A.Z], [surface.B.X, surface.B.Z], surface.Radius,
+            hit is { } point ? [point.Point.X, point.Point.Y, point.Point.Z] : null,
+            hit is { } normal ? [normal.Normal.X, normal.Normal.Y, normal.Normal.Z] : null,
+            hit?.Material.ToString("X16"), hit?.Distance);
 
     internal void Refresh(Actor actor, ushort zone, int? layer, NavigationMapSource source)
     {
@@ -75,7 +89,7 @@ internal sealed class NativeRoutePhysicalObservation
         var surface = block.Reason == "observed-movement-collision" && _lastHit is { } hit
             ? NativePhysicalObstacle.FromHit(hit, Math.Max(0.1f, block.Radius))
             : new NativePhysicalObstacle(block.Position, block.Position, 0);
-        _blocks[surface] = new(block, surface, _lastFrom, _lastDirection, _lastDistance);
+        _blocks[surface] = new(block, surface, _lastFrom, _lastDirection, _lastDistance, _lastHit);
         LastReason = block.Reason;
         return false;
     }

@@ -48,5 +48,21 @@ public static partial class Checks
             "stale native recovery cannot execute");
         Check(executor.AdvanceRecovery(recovery, input.Identity with { ProjectionLayer = 1 }, true, true, now).Kind == MovementExecutionKind.Invalidated,
             "native recovery cannot cross an unverified projection layer");
+
+        foreach (var score in Enum.GetValues<ThetaStar.Score>())
+        {
+            var stopped = new NavigationDecision { LeewaySeconds = 0 };
+            stopped.Publication = new(input.Identity, null, [input.Origin], true, false, score, stopped, false);
+            var result = executor.AdvanceRecovery(recovery with { NativeRecovery = stopped }, input.Identity, true, true, now);
+            var safeEndpoint = score is ThetaStar.Score.UltimatelySafe or >= ThetaStar.Score.Safe;
+            Check(result.Kind == (safeEndpoint ? MovementExecutionKind.Arrived : MovementExecutionKind.Invalidated),
+                "a stationary recovery only reports arrival at a native-safe destination: " + score);
+            Check(safeEndpoint || executor.CommittedDestination == null,
+                "an unsafe recovery cannot retain an arrived destination: " + score);
+            var egress = new NavigationDecision { Destination = Point(map, 6), LeewaySeconds = 0 };
+            egress.Publication = new(input.Identity, null, [input.Origin, Point(map, 6)], true, false, score, egress, false);
+            Check(executor.AdvanceRecovery(recovery with { NativeRecovery = egress }, input.Identity, true, true, now).Kind == MovementExecutionKind.Walk,
+                "native least-harm egress is preserved for every recovery score: " + score);
+        }
     }
 }

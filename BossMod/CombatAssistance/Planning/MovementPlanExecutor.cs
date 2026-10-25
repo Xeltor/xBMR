@@ -92,10 +92,34 @@ internal sealed class MovementPlanExecutor
         var publication = source.Publish();
         if (!publication.TryRemainingLeeway(current.WorldTime, current.ActorId, current.ZoneId, current.ContentId, out var remaining, timestamp))
             return Invalidate("stale native recovery input");
+        if (publication.Destination is { } destination && !current.Origin.AlmostEqual(destination, MovementPlanValidation.ArrivalTolerance))
+        {
+            CommittedDestination = publication.Endpoint;
+            return new(MovementExecutionKind.Walk, "native recovery: " + publication.NativeScore, destination, DepartureSeconds: remaining);
+        }
+        if (publication.RecoveryHoldForFewerExposures)
+            return new(MovementExecutionKind.Wait, "panic recovery holds for fewer predicted mechanic exposures", DepartureSeconds: 0);
+        // No next step can also mean every escape is blocked. A least-bad
+        // unsafe starting cell is not successful mechanic completion.
+        if (!publication.NativeDestinationSafe)
+            return Invalidate("native recovery has no safe destination: " + publication.NativeScore);
         CommittedDestination = publication.Endpoint;
-        return publication.Destination is { } destination && !current.Origin.AlmostEqual(destination, MovementPlanValidation.ArrivalTolerance)
-            ? new(MovementExecutionKind.Walk, "native recovery: " + publication.NativeScore, destination, DepartureSeconds: remaining)
-            : new(MovementExecutionKind.Arrived, "native recovery destination reached", DepartureSeconds: remaining);
+        return new(MovementExecutionKind.Arrived, "native recovery destination reached", DepartureSeconds: remaining);
+    }
+
+    internal bool CanContinueWalking(MovementPlan plan, MovementPlanningContext current, long? timestamp = null)
+    {
+        var stage = ReferenceEquals(plan, _plan) ? _stage : 0;
+        while (stage < plan.Stages.Length && plan.Stages[stage].Kind == MovementStageKind.Walk
+            && current.Origin.AlmostEqual(plan.Stages[stage].To, MovementPlanValidation.ArrivalTolerance)) ++stage;
+        var destination = current.Cell(plan.UsefulDestination);
+        return stage < plan.Stages.Length && plan.Stages[stage].Kind == MovementStageKind.Walk
+            && destination >= 0 && !Enumerable.Range(0, current.Cells).Any(i => current.DestinationAllowed(i)
+                && current.HasPermanentCell(i) && current.NativePriority(i) > current.NativePriority(destination))
+            && current.HealingCoverage?.Satisfied(plan.UsefulDestination) != false
+            && current.PreservesPresent(plan.DeliveredActions)
+            && MovementPlanValidation.Validate(plan, current, stage, true, timestamp,
+                continuingCommittedRoute: ReferenceEquals(plan, _plan)).Allowed;
     }
 
     internal MovementExecution Advance(MovementPlan plan, MovementPlanningContext current,

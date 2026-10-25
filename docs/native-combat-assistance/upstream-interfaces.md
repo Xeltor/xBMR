@@ -10,13 +10,14 @@ cutover acceptance; the adjacent status file lists remaining work.
 | `Framework/Plugin` | Own assistance settings, Material frame/theme lifetime, diagnostics, support updates, opt-in recording sharing, mandatory legacy XCAI removal and its persistent post-removal acknowledgement modal. Existing activation still gates automation. Scope repeated plugin-inventory reads to the synchronous update and expose its existing update timer in current diagnostics. |
 | `AI/AIManager`, `AIManagementWindow` | Material management window and compatible commands; legacy /xcai switches use shared assistance settings and a non-registering shell fallback, yielding to standalone. The native AI config remains the source for overlapping controls. Dungeon contact checks both saved and active leader selection without changing either. |
 | `Autorotation/RotationModuleManager` | Own one native movement service and its lifecycle. Collect the current RSR target before movement and refresh the loop target after automatic selection on the assisted path. Expose only whether a native automatic-target module is active. After module policy resolution, submit stationary target assistance through the same host only when no normal/follow owner is running; do not apply a recovery walk from that caller. |
-| `Autorotation/MiscAI/NormalMovement` | Submit automatic and explicit destination intent through the same capture/publication/executor. Resolve existing explicit range/greed choices before search; preserve the exact requested endpoint and its arrival deadline. Native arena entry now follows movement locks and validates its whole physical corridor. |
-| `AI/AIBehaviour`, `AIController` | Submit follow planning through the same host; preserve leader/follow/manual semantics. Native combat Sprint yields to owned native utility planning and saved Sprint opt-outs. |
+| `Autorotation/MiscAI/NormalMovement` | Submit automatic and explicit destination intent through the same capture/publication/executor. Resolve existing explicit range/greed choices before search; preserve the exact requested endpoint and its arrival deadline. Native arena entry now follows movement locks and validates its whole physical corridor. Same-target range intent retains combat recovery and the observed readiness clock rather than masking it as optional spacing. |
+| `AI/AIBehaviour`, `AIController` | Submit follow planning and active encounter identity through the same host, including the shared dungeon-arena entry check; preserve leader/follow/manual semantics. Native combat Sprint yields to owned native utility planning and saved Sprint opt-outs. |
 | `AI/AIConfig`, `AI/AIBehaviour` combat target range | `UseCombatPositioningRange` selects job reach for the identified generic follow-target goal while native RSR combat assistance is active. Exact action geometry remains in the joint planner. Turning it off restores the saved fixed distance. Both native and Material windows bind to that one setting; presets, leader following and unrelated goals retain their contracts. |
 | `BossModule/AIHints` | Freeze actor-dependent target goal values; retain separate native constraints and temporary obstacles. Distinguish native automatic target intents from authored assignments while preserving the public `ForcedTarget` field. Local correction requests do not replace authored hints. |
 | `BossModule/AIHints.CastSources` | Preserve exact cast producer identity without the former transport source-count limit. Native cast control never removes a hazard after merely submitting an interrupt or stun. |
-| `Pathfinding/NavigationDecision`, `NavigationPublication` | Coherent capture and native recovery; complete witnesses, original deadline aging and cancellation. |
+| `Pathfinding/NavigationDecision`, `NavigationPublication` | Coherent capture and native recovery; complete witnesses, original deadline aging and cancellation. Captured warning cushions let the shared host require earlier healer/physical-ranged clearance without changing authored timestamps or provenance; see `early-mechanic-clearance.md`. Unspecified and `DateTime.MaxValue` forbidden-zone activations are due now, ordered before timed warnings during raster sampling; unknown timing cannot create a two-minute wait. |
 | `Pathfinding/TimedTraversal` | Shared swept-cell traversal and exit-deadline checks for native recovery and joint planning. Exact separable interval clipping accelerates long diagonal routes while retaining the native footprint and deadline arithmetic. |
+| `Pathfinding/NavigationPublication` recovery assessment | Optional independent-warning exposure count and explicit panic-hold flag retain original source timestamps. Shared rasterization accepts framework-only single-warning capture; no public IPC endpoint or serialized transport is added. |
 | `Framework/MovementOverride` | Current native manual-input observation, without consumer leases or callback transport. |
 | `Framework/ActionManagerEx` | Exact planned-action submission and synchronous, conditional restoration of the auto-face option. Manual input and native availability remain binding. |
 | `Components/Knockback` | Share native scalar direction/pull arithmetic and participant/immunity applicability with typed capture. Public class/source identities, shape, wall, safe-wall and destination semantics remain unchanged; native reference/wall fixtures validate the factor. |
@@ -73,3 +74,20 @@ Frozen positions are captured when hints are built; workers never read party act
 Validation: Release build and 142,241 native assertions pass, including interior
 selection, safe fallback, capacity/exclusion and line-stack grouping checks.
 Actual live stack positioning still needs a matching mechanic observation.
+
+Gathering goals retain a typed native identity during framework-thread capture.
+The frozen snapshot keeps their scores separately so a complete, freshly verified
+gathering walk can run while optional optimization is pending. Positive native
+leeway alone cannot indefinitely hold a stack carrier as peers approach. Current
+cast/action locks, stationary-only authority, authored movement prohibitions and
+the strict route witness remain binding; arbitrary goal scores do not enable this
+fallback. Clear/cancel/disabled goals remove it with the next capture.
+For equal eligible group sizes, circle-stack carriers prefer contact with a live,
+targetable primary boss. The contact plateau includes the hitbox plus 2y; larger
+groups, original eligibility and hard route safety retain precedence. Joiners
+still follow the actual stack carrier.
+
+Phantom movement uses the existing external RSR `DataCenter.CurrentDutyRotation`
+identity and generated `IBaseAction` getters/Lazy fields, alongside regular job
+rotation ownership. Saved enable flags come from the original duty actions; no
+new upstream IPC or action writer is introduced. See [Phantom movement](phantom-mobility.md).

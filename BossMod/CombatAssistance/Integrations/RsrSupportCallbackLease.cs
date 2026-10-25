@@ -61,12 +61,17 @@ internal sealed class RsrSupportCallbackLease : IDisposable
 
     private void Update(IFramework value)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var cpuStarted = FrameworkThreadClock.ReadCpuTicks();
+        var gcPause = GC.GetTotalPauseDuration();
         IDisposable? scope = null;
         if (!this.disposed)
         {
             try { scope = this.enter(); }
             catch (Exception ex) { this.failure(ex); }
         }
+        var entered = System.Diagnostics.Stopwatch.GetTimestamp();
+        var originalDone = entered;
 
         try
         {
@@ -75,8 +80,12 @@ internal sealed class RsrSupportCallbackLease : IDisposable
         }
         finally
         {
+            originalDone = System.Diagnostics.Stopwatch.GetTimestamp();
             try { scope?.Dispose(); }
             catch (Exception ex) { this.failure(ex); }
+            var finished = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(started, finished).TotalMilliseconds >= 50)
+                Service.Logger.Warning($"[RsrCallbackHitch] enter={System.Diagnostics.Stopwatch.GetElapsedTime(started, entered).TotalMilliseconds:f1}ms original={System.Diagnostics.Stopwatch.GetElapsedTime(entered, originalDone).TotalMilliseconds:f1}ms exit={System.Diagnostics.Stopwatch.GetElapsedTime(originalDone, finished).TotalMilliseconds:f1}ms CPU={FrameworkThreadClock.CpuMillisecondsSince(cpuStarted)?.ToString("f1") ?? "unavailable"}ms GC={(GC.GetTotalPauseDuration() - gcPause).TotalMilliseconds:f1}ms");
         }
     }
 

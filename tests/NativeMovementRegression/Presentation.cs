@@ -27,6 +27,26 @@ public static partial class Checks
         option.Restore();
         Check(mode == 1, "camera preserves an already selected legacy movement mode");
 
+        mode = 0;
+        option.Update(true, false, now.AddSeconds(10));
+        option.Update(false, true, now.AddSeconds(10.1)); // camera input hook, between framework updates
+        Check(mode == 0 && !option.Active && option.Paused(now.AddSeconds(10.1)),
+            "camera input restores the player's mode in the input tick and pauses both camera and option");
+        option.Update(true, false, now.AddSeconds(12));
+        option.Update(false, true, now.AddSeconds(12.5)); // continued manual camera input
+        option.Update(true, false, now.AddSeconds(15.4));
+        Check(mode == 0 && option.Paused(now.AddSeconds(15.4)),
+            "held camera input keeps the original mode until three seconds after the last input");
+        option.Update(true, false, now.AddSeconds(15.5));
+        Check(mode == 1 && option.Active && !option.Paused(now.AddSeconds(15.5)),
+            "camera and movement mode resume together without extending the pause on idle frames");
+        option.Update(false, false, now.AddSeconds(16));
+        Check(mode == 0 && !option.Active, "loss of automation authority restores the original mode");
+        option.Update(true, false, now.AddSeconds(17));
+        mode = 2;
+        option.Update(false, true, now.AddSeconds(17.1));
+        Check(mode == 2 && !option.Active, "manual camera handoff preserves a concurrent player mode edit");
+
         var context = Context(Grid(3, 1), 0);
         var plan = JointMovementSearch.Search(context, Exhaustive) with
         {

@@ -465,13 +465,11 @@
     },
     {
       "source": "XelsCombatAI/Combat/CrowdedSocialSpacingPolicy.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
@@ -1019,7 +1017,8 @@
         "BossMod/CombatAssistance/Planning/NativeNavigationSnapshot.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanValidation.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanExecutor.cs",
-        "BossMod/CombatAssistance/Planning/NativeDeparturePreference.cs"
+        "BossMod/CombatAssistance/Planning/NativeDeparturePreference.cs",
+        "BossMod/CombatAssistance/Planning/NativeMechanicClearance.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
@@ -1124,7 +1123,8 @@
         "BossMod/CombatAssistance/Runtime/CombatAssistanceRuntime.cs",
         "BossMod/CombatAssistance/Planning/NativeMovementHost.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanningContext.cs",
-        "BossMod/CombatAssistance/Planning/PlanningTravel.cs"
+        "BossMod/CombatAssistance/Planning/PlanningTravel.cs",
+        "BossMod/CombatAssistance/Planning/NativeMechanicClearance.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
@@ -1383,6 +1383,7 @@
       "featureGroup": "movement-search",
       "destination": [
         "BossMod/CombatAssistance/Planning/JointMovementSearch.cs",
+        "BossMod/CombatAssistance/Planning/PlanningMovementValue.cs",
         "BossMod/CombatAssistance/Planning/NativeNavigationSnapshot.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanValidation.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanExecutor.cs",
@@ -1396,6 +1397,7 @@
       "featureGroup": "movement-search",
       "destination": [
         "BossMod/CombatAssistance/Planning/JointMovementSearch.cs",
+        "BossMod/CombatAssistance/Planning/PlanningMovementValue.cs",
         "BossMod/CombatAssistance/Planning/NativeNavigationSnapshot.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanValidation.cs",
         "BossMod/CombatAssistance/Planning/MovementPlanExecutor.cs",
@@ -1626,13 +1628,11 @@
     },
     {
       "source": "XelsCombatAI/Combat/PartyPositionResponsibilityPolicy.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
@@ -1663,13 +1663,11 @@
     },
     {
       "source": "XelsCombatAI/Combat/PartySeparationTracker.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
@@ -1978,49 +1976,41 @@
     },
     {
       "source": "XelsCombatAI/Combat/SocialSpacingHandoffPolicy.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
     {
       "source": "XelsCombatAI/Combat/SocialSpacingPositioningController.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
     {
       "source": "XelsCombatAI/Combat/SocialSpacingScore.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },
     {
       "source": "XelsCombatAI/Combat/SocialYieldPolicy.cs",
-      "review": "Native utility coverage and deterministic formation/presentation own the feature. Edge/center avoidance, spacing and facing are tie-breakers after current execution/native goals; callback contributors and handoff leases retire.",
+      "review": "NativeSocialSpacing restores optional overlap/yield, casting/role holds, dense-stack and combat-settling guards with a frozen local destination field. NPCs/dead/different-floor actors are excluded. Native action delivery, assignments and safety remain authoritative. See the dated social destacking implementation status for remaining parity and acceptance limits.",
       "featureGroup": "party-utility-and-spacing",
       "destination": [
-        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs",
-        "BossMod/CombatAssistance/Planning/NativeFormationPreference.cs",
-        "BossMod/CombatAssistance/Planning/PartyFacingPreference.cs",
-        "BossMod/CombatAssistance/Planning/NativeUtilityZones.cs"
+        "BossMod/CombatAssistance/Planning/NativeSocialSpacing.cs",
+        "BossMod/CombatAssistance/Planning/NativePresentationCapture.cs"
       ],
       "reviewLevel": "Subsystem responsibility mapping, not a line-for-line helper port or live acceptance claim."
     },

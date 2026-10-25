@@ -111,6 +111,14 @@ internal sealed class MovementPlanningContext
     internal ImmutableArray<PlanningZone> Zones { get; }
     internal float PositionalBypassUntil { get; }
     internal PlanningTravel Travel { get; }
+    internal PlanningMovementValue MovementValue { get; }
+    internal PlanningMechanicClearance? MechanicClearance { get; }
+    internal ImmutableArray<PlanningEnemyFootprint> EnemyFootprints { get; }
+    internal PlanningArenaInterior? ArenaInterior { get; }
+    internal bool HasEndpointPreferences => !EnemyFootprints.IsEmpty || ArenaInterior != null;
+    internal bool PreferredArenaEndpoint(WPos point) => ArenaInterior == null || Cell(point) is var cell && cell >= 0 && ArenaInterior.Cells[cell];
+    internal bool PreferredEnemyEndpoint(WPos point) => EnemyFootprints.All(e => !point.InCircle(e.Center, e.Radius))
+        || point.AlmostEqual(Origin, MovementPlanValidation.ArrivalTolerance);
     internal Angle? DowntimeFacing { get; }
     internal WPos? RequiredDestination { get; }
     internal float ArrivalDeadline { get; }
@@ -125,6 +133,12 @@ internal sealed class MovementPlanningContext
     internal int Height => _map.Height;
     internal ImmutableArray<FrozenPlanningAction> Actions => _actions;
     internal PlanningHealingCoverage? HealingCoverage { get; }
+    internal Map CopyMap()
+    {
+        var result = new Map();
+        result.Init(_map, _map.Center);
+        return result;
+    }
     internal bool HasTargetChoices { get; }
     internal FrozenPlanningAction? ResolveTarget(FrozenPlanningAction action, ulong target)
     {
@@ -218,6 +232,10 @@ internal sealed class MovementPlanningContext
         Zones = source.Zones;
         PositionalBypassUntil = source.PositionalBypassUntil;
         Travel = source.Travel;
+        MovementValue = source.MovementValue;
+        MechanicClearance = source.MechanicClearance;
+        EnemyFootprints = source.EnemyFootprints;
+        ArenaInterior = source.ArenaInterior;
         DowntimeFacing = source.DowntimeFacing;
         RequiredDestination = source.RequiredDestination;
         ArrivalDeadline = source.ArrivalDeadline;
@@ -252,8 +270,13 @@ internal sealed class MovementPlanningContext
         IEnumerable<PlanningTeleport>? teleports = null, ForcedMovementChoices? forcedMovement = null, PlanningRange? partyContact = null,
         PlanningComboRecovery? comboRecovery = null, PlanningPersonalField? personalField = null, PlanningFieldPlacement? fieldPlacement = null, NativeKnockbackPhases? knockbackPhases = null, bool stationaryOnly = false,
         Knockback.KnockbackCompletionEvidence? knockbackCompletion = null, PlanningHealingCoverage? healingCoverage = null,
-        bool takeOwnership = false)
+        bool takeOwnership = false, PlanningMovementValue? movementValue = null, PlanningMechanicClearance? mechanicClearance = null,
+        IEnumerable<PlanningEnemyFootprint>? enemyFootprints = null, PlanningArenaInterior? arenaInterior = null)
     {
+        ArenaInterior = arenaInterior;
+        EnemyFootprints = enemyFootprints?.ToImmutableArray() ?? [];
+        MovementValue = movementValue ?? PlanningMovementValue.None;
+        MechanicClearance = mechanicClearance;
         StationaryOnly = stationaryOnly;
         ForcedMovement = forcedMovement;
         KnockbackPhases = knockbackPhases;
@@ -335,6 +358,11 @@ internal sealed class MovementPlanningContext
             throw new ArgumentException("Cast timing and personal field must belong to one coherent capture.");
         _mobility = mobility.ToImmutableArray();
         if (_allowedDestinations.Length != Cells || _presentation.Length != Cells || _actions.Length > MaximumActions
+            || arenaInterior != null && arenaInterior.Cells.Length != Cells
+            || EnemyFootprints.Any(e => e.Id == 0 || !float.IsFinite(e.Center.X) || !float.IsFinite(e.Center.Z)
+                || !float.IsFinite(e.Radius) || e.Radius < 0)
+            || mechanicClearance != null && (mechanicClearance.Values.Length != Cells || !float.IsFinite(mechanicClearance.Distance)
+                || mechanicClearance.Distance is <= 0 or > 3 || mechanicClearance.Values.Any(v => !float.IsFinite(v) || v < 0 || v > mechanicClearance.Distance))
             || range is { Valid: false } || partyContact is { Valid: false } || comboRecovery is { Valid: false }
             || _presentation.Any(v => !float.IsFinite(v)) || _map.PixelPriority.Take(Cells).Any(v => !float.IsFinite(v))
             || _actions.Any(a => !Enum.IsDefined(a.Preparation) || a.Id == 0 || a.Opportunity == null && (a.RecipientsByCell.Length != Cells || a.ValueByCell.Length != Cells)
@@ -396,16 +424,46 @@ internal sealed class MovementPlanningContext
         return _map.InBounds(grid.x, grid.y) ? _map.GridToIndex(grid) : -1;
     }
     internal WPos Point(int cell) => _map.GridToWorld(cell % Width, cell / Width, 0.5f, 0.5f);
+    // A proposal only: the ordinary timed traversal and endpoint checks must
+    // still prove the whole leg. A target beyond this map/horizon still gives
+    // useful progress, without extending either geometry or freshness.
+    internal WPos? Approach(PlanningRange? range, WPos from, float time, PlanningTravel travel)
+    {
+        if (range == null || range.Loss(from) <= MovementPlanValidation.ArrivalTolerance) return null;
+        var delta = range.Center - from;
+        var distance = delta.Length();
+        var available = travel.Distance(Math.Max(0, MaximumHorizonSeconds - time), time);
+        var reaches = available >= Math.Max(0, distance - range.Radius);
+        var point = reaches ? range.Center - delta / distance * range.Radius : from + delta / distance * available;
+        // Correct only floating-point spill beyond the exact range boundary.
+        if (reaches && range.Radius > 0 && range.Loss(point) > 0)
+            point = range.Center - delta / distance * Math.Max(0, range.Radius - .001f);
+        var grid = _map.WorldToGrid(point);
+        return _map.InBounds(grid.x, grid.y) ? point : Point(_map.GridToIndex(_map.ClampToGrid(grid)));
+    }
     internal WPos MobilityOrigin(PlanningMobility mobility) => mobility.SourcePosition ?? Point(mobility.SourceCell);
     internal WPos MobilityLanding(PlanningMobility mobility) => mobility.LandingPosition ?? Point(mobility.DestinationCell);
-    internal IEnumerable<PlanningMobility> MobilityFrom(WPos position, Func<ulong, bool>? canSpend = null, PlanningPersonalField? relocatedField = null, bool includeSpatial = true)
+    internal IEnumerable<PlanningRange> ApproachRanges()
+    {
+        if (Range is { RecoverExecution: true } range) yield return range;
+        if (PartyContact is { } contact) yield return contact;
+        foreach (var healing in HealingCoverage?.ApproachRanges() ?? []) yield return healing;
+    }
+    internal IEnumerable<WPos> MobilityApproachTargets()
+    {
+        foreach (var range in ApproachRanges()) yield return range.Center;
+        if (RequiredDestination is { } required) yield return required;
+        if (CommittedDestination is { } committed) yield return committed;
+    }
+    internal IEnumerable<PlanningMobility> MobilityFrom(WPos position, Func<ulong, bool>? canSpend = null, PlanningPersonalField? relocatedField = null, bool includeSpatial = true,
+        WPos? recoveryDestination = null)
         => _mobility.Where(m => MobilityOrigin(m).AlmostEqual(position, 0.001f) && (canSpend?.Invoke(m.ResourceCost) ?? true)
                 && !(m.ActionId == 7419 && relocatedField != null))
             .Concat(MobilityMechanics.Where(m => canSpend?.Invoke(m.ResourceCost) ?? true)
                 .SelectMany(m => includeSpatial || m.Mechanic is MobilityMechanic.Target or MobilityMechanic.FixedTowardTarget or MobilityMechanic.TargetBackstep or MobilityMechanic.Return
                     ? m.From(this, position, m.ActionId == 7419 ? relocatedField?.Center : null)
-                    : Range is { RecoverExecution: true } range && m.Toward(this, position, range.Center) is { } aimed
-                        ? [aimed] : []))
+                    : MobilityApproachTargets().Concat(recoveryDestination is { } recovery ? [recovery] : []).Distinct()
+                        .Select(target => m.Toward(this, position, target)).OfType<PlanningMobility>()))
             .Where(m => !RejectedMobility.Any(rejected => rejected.Matches(this, m)));
     internal PlanningMobility? ResolveMobility(WPos position, MovementStage stage, PlanningPersonalField? relocatedField = null)
         => _mobility.Where(m => m.ActionId != 7419 || relocatedField == null)
@@ -510,6 +568,12 @@ internal sealed class MovementPlanningContext
         if (Zones.Where((z, i) => !z.Same(previous.Zones[i], age)).Any()) return "friendly zone";
         if (Math.Abs(PositionalBypassUntil - Math.Max(0, previous.PositionalBypassUntil - age)) > 0.01f) return "positional status deadline";
         if (!Travel.Same(previous.Travel, age)) return "travel speed";
+        if (!MovementValue.Same(previous.MovementValue, age)) return "job movement value";
+        if (MechanicClearance == null ? previous.MechanicClearance != null
+            : previous.MechanicClearance == null || !MechanicClearance.Same(previous.MechanicClearance)) return "mechanic clearance preference";
+        if (!forRevalidation && !EnemyFootprints.SequenceEqual(previous.EnemyFootprints)) return "enemy footprints";
+        if (!forRevalidation && (ArenaInterior == null ? previous.ArenaInterior != null
+            : previous.ArenaInterior == null || !ArenaInterior.Same(previous.ArenaInterior))) return "arena interior preference";
         if (DowntimeFacing != previous.DowntimeFacing) return "DowntimeFacing";
         if (RequiredDestination != previous.RequiredDestination) return "RequiredDestination";
         if (LateDepartureMargin != previous.LateDepartureMargin) return "LateDepartureMargin";
@@ -595,6 +659,7 @@ internal sealed record MovementPlan(NavigationIdentity Input, MovementSearchStat
     internal PlanningHealingCoverage? HealingCoverage { get; init; }
     internal PlanningRangeAccess? RangeAccess { get; init; }
     internal float EndGcdReadyAt { get; init; }
+    internal float MovementLossSeconds { get; init; }
     internal ulong TargetId { get; init; }
     internal PlanningFieldPlacement? FieldPlacement { get; init; }
     internal float FieldPlacementGain { get; init; }

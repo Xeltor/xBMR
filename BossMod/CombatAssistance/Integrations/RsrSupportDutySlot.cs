@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 
 namespace BossMod.CombatAssistance.Integrations;
 
@@ -11,6 +12,15 @@ namespace BossMod.CombatAssistance.Integrations;
 // never installed in RSR's rotation catalogue or retained across its updater.
 internal sealed class RsrSupportDutySlot
 {
+    // Metadata only: no rotation, callback or authority is shared. The weak key
+    // allows a replaced provider and its collectible generated type to unload.
+    private sealed class FactoryEntry
+    {
+        internal readonly object Gate = new();
+        internal MethodInfo[]? Selectors;
+        internal Func<Func<string, object?[], bool>, object>? Create;
+    }
+    private static readonly ConditionalWeakTable<Type, FactoryEntry> Factories = new();
     private readonly object adapter;
     private readonly PropertyInfo currentDuty;
     private object? original;
@@ -82,6 +92,40 @@ internal sealed class RsrSupportDutySlot
     }
 
     internal static Func<Func<string, object?[], bool>, object> CreateFactory(Type baseType, MethodInfo[] selectors)
+    {
+        var ordered = selectors.OrderBy(method => method.Name, StringComparer.Ordinal).ToArray();
+        if (!baseType.IsClass || baseType.IsSealed || baseType.ContainsGenericParameters || ordered.Length == 0
+            || ordered.Select(method => method.Name).Distinct(StringComparer.Ordinal).Count() != ordered.Length)
+            throw new InvalidOperationException("Unsupported RSR duty selector contract.");
+        foreach (var method in ordered)
+        {
+            if (method.DeclaringType?.IsAssignableFrom(baseType) != true || method.IsStatic || !method.IsVirtual || method.IsFinal
+                || method.IsGenericMethod || method.ReturnType != typeof(bool)
+                || method.GetParameters().Any(parameter => Unsupported(parameter.ParameterType)
+                    || parameter.ParameterType.IsByRef && (!parameter.IsOut || Unsupported(parameter.ParameterType.GetElementType()!))))
+                throw new InvalidOperationException("Unsupported RSR duty selector signature: " + method.Name);
+        }
+        var entry = Factories.GetValue(baseType, static _ => new());
+        lock (entry.Gate)
+        {
+            if (entry.Create is { } cached)
+            {
+                if (!entry.Selectors!.AsSpan().SequenceEqual(ordered.AsSpan()))
+                    throw new InvalidOperationException("RSR duty selector contract changed for the cached provider type.");
+                return cached;
+            }
+            // Only one caller may emit for this provider type. Failed validation
+            // or emission never publishes a partial factory or poisons a retry.
+            var created = EmitFactory(baseType, ordered);
+            entry.Selectors = ordered;
+            entry.Create = created;
+            return created;
+        }
+
+        static bool Unsupported(Type type) => type.IsPointer || type.IsFunctionPointer || type.IsByRefLike || type.ContainsGenericParameters;
+    }
+
+    private static Func<Func<string, object?[], bool>, object> EmitFactory(Type baseType, MethodInfo[] selectors)
     {
         var assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("BossMod.SupportSlot"), AssemblyBuilderAccess.RunAndCollect);
         var module = assembly.DefineDynamicModule("SupportSlot");

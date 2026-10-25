@@ -1,6 +1,5 @@
 // Adapted from XCAI 4a0f7968; external RSR selection remains scoped to its original update.
 using System;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 
@@ -112,8 +111,7 @@ internal sealed class RsrSupportActionLease : IDisposable
         var originalAction = property.GetValue(rotation) ?? throw new InvalidOperationException("Missing RSR action");
         var proxy = (RsrSupportActionProxy)DispatchProxy.Create(property.PropertyType, typeof(RsrSupportActionProxy));
         proxy.Initialize(originalAction, (method, args) => intercept(originalAction, method, args));
-        var factoryType = typeof(Func<>).MakeGenericType(property.PropertyType);
-        var factory = Expression.Lambda(factoryType, Expression.Convert(Expression.Constant(proxy), property.PropertyType)).Compile();
+        var factory = RsrActionFactory.Create(property.PropertyType, proxy);
         var ownedLazy = Activator.CreateInstance(field.FieldType, factory)
             ?? throw new InvalidOperationException("Could not construct RSR action lease");
         var lease = new RsrSupportActionLease(rotation, field, originalLazy, ownedLazy, proxy, originalAction);

@@ -9,6 +9,7 @@ internal sealed class LegacyMovementOption(Func<uint?> read, Action<uint> write,
     private uint? _original;
     private DateTime _resumeAfter;
     internal bool Active => _original.HasValue;
+    internal bool Paused(DateTime now) => now < _resumeAfter;
 
     private DateTime _retryAfter;
     internal void Update(bool automated, bool manual, DateTime now)

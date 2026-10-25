@@ -51,11 +51,20 @@ public static partial class Checks
         RsrEvidence();
         SelectedPartySequence();
         ConfiguredHealingCoverage();
+        HealingDelivery();
         RedMageComboRecovery();
         RedMagePreparation();
         Execution();
         OwnerInstructions();
         DeparturePreference();
+        EarlyMechanicClearance();
+        UntimedMechanicUrgency();
+        UnbridledOverlap();
+        RequiredRecoveryProgress();
+        PanicRecovery();
+        MechanicOverstep();
+        EnemyEndpoints();
+        ArenaEndpoints();
         UtilityZones();
         CastTiming();
         LeyLinesTiming();
@@ -74,6 +83,9 @@ public static partial class Checks
         MobilityMechanics();
         ResourcePruning();
         CombatRangeRecovery();
+        SagePackApproach();
+        WalkingApproach();
+        UnifiedRangeMovement();
         EscapeCommitment();
         GriffinWarningRecovery();
         MobilityRebinding();
@@ -83,7 +95,10 @@ public static partial class Checks
         MeleeRecoveryDelivery();
         UtilityPlanning();
         SprintPlanning();
+        PhantomMobility();
+        JobMovementValue();
         Presentation();
+        SocialSpacing();
         PartyFacing();
         Formation();
         PartyContact();
@@ -121,6 +136,7 @@ public static partial class Checks
         RsrSupportLeaseTests.SharedSelectionScopes();
         RsrSupportLeaseTests.LeaseAndExecution();
         RsrSupportDutyTests.PriorityAndRestoration();
+        RsrFactoryReuse();
         RsrRemainingAbilityTests.Run();
         RsrMitigationSelectionTests.Run();
         RsrMeleeFallbackTests.Regression();
@@ -621,8 +637,8 @@ public static partial class Checks
             mobilityMechanics: [new(7, MobilityMechanic.Target, 20, 0, 0, 0, .1f, 0, [new(10, new(2.5f, 2.5f), 0)])]);
         var publications = new List<MovementPlan>();
         NativeMovementSearch.Run(mobilityContext, default, publications.Add);
-        Check(publications.Count > 1 && publications[1].Status == MovementSearchStatus.Searching
-            && publications[1].Stages.Any(s => s.ActionId == 7),
+        Check(publications.Skip(1).Any(p => p.Status == MovementSearchStatus.Searching
+            && p.Stages.Any(s => s.ActionId == 7)),
             "A complete useful dash is published from the initial opportunity pass while its other alternatives are still being searched.");
 
         var urgent = input with { Warnings = [(new SDCircle(identity.Origin, 1.1f), identity.WorldTime.AddSeconds(1.8), 1)],

@@ -18,6 +18,9 @@ public static partial class Checks
         Check(root.GetProperty("ok").GetBoolean() && root.GetProperty("schemaVersion").GetInt32() == 1
             && root.GetProperty("plugin").GetString() == "BossModReborn" && root.GetProperty("stream").GetString() == "combat",
             "Current diagnostics use xBMR identity and the existing DevBridge provider envelope.");
+        var origin = root.GetProperty("snapshot").GetProperty("movement").GetProperty("origin");
+        Check(origin.GetProperty("x").GetSingle() == context.Origin.X && origin.GetProperty("z").GetSingle() == context.Origin.Z,
+            "Recovery diagnostics retain the actual origin even when the plan contains no stages.");
         var id = root.GetProperty("lifecycle").GetProperty("id").GetString();
         var epoch = root.GetProperty("epoch").GetString();
         Check(root.GetProperty("snapshot").GetProperty("movement").GetProperty("status").GetString() == "Complete",

@@ -157,6 +157,7 @@ internal sealed class NativeDiagnosticSnapshot
         targetId = plan.TargetId,
         capturedAtUtc = plan.Input.CapturedUtc,
         inputWorldTime = plan.Input.WorldTime,
+        origin = Position(plan.Input.Origin),
         friendlyEffects = plan.UsefulZones.Take(displayedStages).Select(z => new
         {
             z.ActionId,
@@ -185,11 +186,22 @@ internal sealed class NativeDiagnosticSnapshot
         downtimeFacing = plan.DowntimeFacing?.Rad,
         departureSecondsAtCapture = FiniteDeadline(plan.DepartureDeadlineSeconds),
         durationSeconds = FiniteDeadline(plan.DurationSeconds),
+        plan.MovementLossSeconds,
         additionalPlanDelayAtCapture = FiniteDeadline(plan.PlanSlackSeconds),
         plan.ExpandedStates,
         plan.ResourcePrunedActions,
         plan.SearchMilliseconds,
         plan.Evidence,
+        recovery = plan.NativeRecovery?.Publication is { } recovery ? new
+        {
+            recovery.NativeScore,
+            recovery.NativeDestinationSafe,
+            recovery.NativeRelaxedWarnings,
+            recovery.WitnessComplete,
+            recovery.RecoveryExposureCount,
+            recovery.RecoveryHoldForFewerExposures,
+            endpoint = Position(recovery.Endpoint)
+        } : null,
         plan.RemainingResources,
         plan.NativePriority,
         plan.OriginNativePriority,

@@ -46,7 +46,9 @@ internal sealed record CombatCameraStatus(string State, long Updates, float? Yaw
 internal sealed unsafe class CombatCameraController : IDisposable
 {
     private delegate float CalculateYawDelegate(NativeCamera* camera);
-    private static readonly InputId[] CameraKeys = [InputId.CAMERA_UP, InputId.CAMERA_DOWN,
+    private static readonly InputId[] ManualControlKeys = [InputId.MOVE_FORE, InputId.MOVE_BACK,
+        InputId.MOVE_LEFT, InputId.MOVE_RIGHT, InputId.MOVE_STRIFE_L, InputId.MOVE_STRIFE_R, InputId.MOVE_AND_STEER,
+        InputId.CAMERA_UP, InputId.CAMERA_DOWN,
         InputId.CAMERA_LEFT, InputId.CAMERA_RIGHT, InputId.CAMERA_ZOOMIN, InputId.CAMERA_ZOOMOUT,
         InputId.CAMERA_RESET, InputId.CAMERA_LOOKING];
     private readonly Func<Config.AssistancePreferences> preferences;
@@ -55,6 +57,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
     private readonly IPluginLog log;
     private readonly IGameInteropProvider interop;
     private readonly Func<bool> automationAllowed;
+    private readonly LegacyMovementOption movementOption;
     private CameraScene? scene;
     private float targetDistance;
     private Vector3 playerPosition;
@@ -75,7 +78,6 @@ internal sealed unsafe class CombatCameraController : IDisposable
     private float? yaw;
     private long lastTick;
     private long updates;
-    private DateTime manualUntil;
     private DateTime retryAfter;
     private bool eligible;
     private bool faulted;
@@ -91,18 +93,17 @@ internal sealed unsafe class CombatCameraController : IDisposable
     private int evaluatedViews;
     private int prunedViews;
 
-    internal bool ManualPause => DateTime.UtcNow < this.manualUntil;
-
     public CombatCameraStatus Status { get; private set; } = new("disabled", 0, null, null);
 
     internal CombatCameraController(Func<Config.AssistancePreferences> preferences, IObjectTable objects,
-        IPluginLog log, IGameInteropProvider interop, Func<bool> automationAllowed)
+        IPluginLog log, IGameInteropProvider interop, Func<bool> automationAllowed, LegacyMovementOption movementOption)
     {
         this.preferences = preferences;
         this.objects = objects;
         this.log = log;
         this.interop = interop;
         this.automationAllowed = automationAllowed;
+        this.movementOption = movementOption;
     }
 
     // Called once after native hints and movement intent have been gathered. The
@@ -187,9 +188,21 @@ internal sealed unsafe class CombatCameraController : IDisposable
 
     private void ReadCameraInput(NativeCamera* camera, int inputMode, float speedH, float speedV)
     {
+        var frameworkInput = Environment.CurrentManagedThreadId == this.frameworkThread;
+        // Return the borrowed mode before the game consumes the player's input.
+        // Deltas still contain the previous automatic step here; only inspect raw
+        // input until the original reader has replaced them with native values.
+        if (frameworkInput && (nint)camera == this.hookedCamera &&
+            (inputMode != 0 || HasManualInput(camera, includeDeltas: false)))
+            this.movementOption.Update(false, true, DateTime.UtcNow);
         this.inputHook!.Original(camera, inputMode, speedH, speedV);
-        if (Environment.CurrentManagedThreadId != this.frameworkThread || !this.eligible || !this.automationAllowed())
+        if (!frameworkInput)
             return;
+        if (!this.eligible || !this.automationAllowed())
+        {
+            this.movementOption.Restore();
+            return;
+        }
         var started = Stopwatch.GetTimestamp();
         try
         {
@@ -204,11 +217,11 @@ internal sealed unsafe class CombatCameraController : IDisposable
             }
             if (inputMode != 0 || HasManualInput(camera))
             {
-                this.manualUntil = DateTime.UtcNow.AddSeconds(3);
+                this.movementOption.Update(false, true, DateTime.UtcNow);
                 this.Hold("manual camera input");
                 return;
             }
-            if (DateTime.UtcNow < this.manualUntil)
+            if (this.movementOption.Paused(DateTime.UtcNow))
             {
                 this.Hold("manual camera pause");
                 return;
@@ -670,18 +683,20 @@ internal sealed unsafe class CombatCameraController : IDisposable
         return new(hit, hit ? (Vector3)result.Point : default);
     }
 
-    private static bool HasManualInput(NativeCamera* camera)
+    private static bool HasManualInput(NativeCamera* camera, bool includeDeltas = true)
     {
         var input = UIInputData.Instance();
         // Window focus is not camera input: automated combat can run in the background.
         if (input == null ||
-            camera->InputDeltaH != 0f || camera->InputDeltaV != 0f ||
+            includeDeltas && (camera->InputDeltaH != 0f || camera->InputDeltaV != 0f) ||
             input->CurrentMouseDragButtons != 0 ||
             input->CursorInputs.MouseButtonHeldFlags != 0 || input->CursorInputs.MouseWheel != 0 ||
+            Math.Abs(input->GamepadInputs.LeftStickX) > 0.1f || Math.Abs(input->GamepadInputs.LeftStickY) > 0.1f ||
+            Math.Abs(input->GamepadInputs2.LeftStickX) > 0.1f || Math.Abs(input->GamepadInputs2.LeftStickY) > 0.1f ||
             Math.Abs(input->GamepadInputs.RightStickX) > 0.1f || Math.Abs(input->GamepadInputs.RightStickY) > 0.1f ||
             Math.Abs(input->GamepadInputs2.RightStickX) > 0.1f || Math.Abs(input->GamepadInputs2.RightStickY) > 0.1f)
             return true;
-        foreach (var key in CameraKeys)
+        foreach (var key in ManualControlKeys)
         {
             if (input->IsInputIdDown(key))
                 return true;

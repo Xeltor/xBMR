@@ -31,8 +31,17 @@ internal sealed record PlanningExecutionRules(float MovementStopsAt, float Actio
     internal IEnumerable<float> ReleasesAfter(float time)
         => new[] { MovementResumesAt, ActionsResumeAt }.Distinct().Where(t => t > time && t <= MovementPlanningContext.MaximumHorizonSeconds);
     internal bool SameTemporalPhase(float a, float b)
-        => new[] { MovementStopsAt, MovementResumesAt, ActionsStopAt, ActionsResumeAt }
-            .Concat(ForbiddenFacing.Select(d => d.Activation)).All(t => (a >= t) == (b >= t));
+    {
+        // This is called for pairs of frontier labels. Enumerators and closures
+        // here multiply allocation pressure throughout the search.
+        if ((a >= MovementStopsAt) != (b >= MovementStopsAt)
+            || (a >= MovementResumesAt) != (b >= MovementResumesAt)
+            || (a >= ActionsStopAt) != (b >= ActionsStopAt)
+            || (a >= ActionsResumeAt) != (b >= ActionsResumeAt)) return false;
+        foreach (var direction in ForbiddenFacing)
+            if ((a >= direction.Activation) != (b >= direction.Activation)) return false;
+        return true;
+    }
     internal bool SameRules(PlanningExecutionRules previous, float age)
         => Countdown(MovementStopsAt, previous.MovementStopsAt, age) && Countdown(ActionsStopAt, previous.ActionsStopAt, age)
             && Countdown(MovementResumesAt, previous.MovementResumesAt, age) && Countdown(ActionsResumeAt, previous.ActionsResumeAt, age)

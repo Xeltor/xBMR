@@ -56,6 +56,7 @@ internal sealed class NavigationPublication
     internal readonly bool NativeRelaxedWarnings;
     internal readonly string NativeScore;
     internal readonly bool NativeMaxGoalReached;
+    internal readonly bool NativeDestinationSafe;
     internal readonly WPos? Destination;
     internal readonly WPos? NextWaypoint;
     internal readonly WPos Endpoint;
@@ -63,6 +64,10 @@ internal sealed class NavigationPublication
     internal readonly float LeewaySeconds;
     internal readonly bool HasTeleporters;
     internal readonly NavigationMapSource? MapSource;
+    // Independent timed-warning assessment of the complete recovery witness.
+    // Positive counts are least-bad recovery, never a complete safety proof.
+    internal int? RecoveryExposureCount { get; init; }
+    internal bool RecoveryHoldForFewerExposures { get; init; }
 
     internal bool TryRemainingLeeway(DateTime worldTime, ulong actorId, ushort zoneId, ushort contentId, out float leeway, long? timestamp = null)
     {
@@ -89,6 +94,7 @@ internal sealed class NavigationPublication
         NativeRelaxedWarnings = relaxed;
         NativeScore = score.ToString();
         NativeMaxGoalReached = score == ThetaStar.Score.SafeMaxPrio;
+        NativeDestinationSafe = score is ThetaStar.Score.UltimatelySafe or >= ThetaStar.Score.Safe;
         Destination = decision.Destination;
         NextWaypoint = decision.NextWaypoint;
         Endpoint = witness.Length > 0 ? witness[^1] : source.Origin;
@@ -98,17 +104,18 @@ internal sealed class NavigationPublication
         MapSource = mapSource;
     }
 
-    private NavigationPublication(NavigationPublication built)
+    private NavigationPublication(NavigationPublication built, bool publish = true)
     {
         Source = built.Source;
         BuildCompletedUtc = built.BuildCompletedUtc;
-        PublishedUtc = DateTimeOffset.UtcNow;
+        PublishedUtc = publish ? DateTimeOffset.UtcNow : built.PublishedUtc;
         Raster = built.Raster;
         _witness = built._witness;
         WitnessComplete = built.WitnessComplete;
         NativeRelaxedWarnings = built.NativeRelaxedWarnings;
         NativeScore = built.NativeScore;
         NativeMaxGoalReached = built.NativeMaxGoalReached;
+        NativeDestinationSafe = built.NativeDestinationSafe;
         Destination = built.Destination;
         NextWaypoint = built.NextWaypoint;
         Endpoint = built.Endpoint;
@@ -116,9 +123,12 @@ internal sealed class NavigationPublication
         LeewaySeconds = built.LeewaySeconds;
         HasTeleporters = built.HasTeleporters;
         MapSource = built.MapSource;
+        RecoveryExposureCount = built.RecoveryExposureCount;
+        RecoveryHoldForFewerExposures = built.RecoveryHoldForFewerExposures;
     }
 
     internal NavigationPublication Publish() => PublishedUtc != null ? this : new(this);
+    internal NavigationPublication WithRecoveryExposure(int count) => new(this, false) { RecoveryExposureCount = count };
     internal WPos[] CopyWitness() => _witness.ToArray();
     internal double AgeSeconds => (Stopwatch.GetTimestamp() - Source.CapturedTimestamp) / (double)Stopwatch.Frequency;
 }

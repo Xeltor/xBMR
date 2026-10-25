@@ -232,6 +232,15 @@ internal static class RsrSupportLeaseTests
                 ("Sage", 24295), ("WhiteMage", 37008), ("BlackMage", 155), ("Pictomancer", 34684) })
                 Require(RsrNativeMobilitySelection.Property(basic.GetType($"RotationSolver.Basic.Rotations.Basic.{job}Rotation", true)!,
                     actionIds, actionType, id) != null, "Installed native movement selection: " + job);
+            var dutyType = basic.GetType("RotationSolver.Basic.Rotations.Duties.DutyRotation", true)!;
+            Require(basic.GetType("RotationSolver.Basic.DataCenter", true)!.GetProperty("CurrentDutyRotation")?.PropertyType == dutyType,
+                "Installed RSR current duty rotation identity");
+            foreach (var id in BossMod.CombatAssistance.Planning.NativePhantomMobility.ActionIds)
+            {
+                var name = RsrNativeMobilitySelection.Property(dutyType, actionIds, actionType, id);
+                Require(name != null && dutyType.GetField("_" + name + "Creator", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.FieldType == typeof(Lazy<>).MakeGenericType(actionType), "Installed Phantom movement lease: " + id);
+            }
             var statusType = basic.GetType("RotationSolver.Basic.Data.StatusID", true)!;
             Require(Enum.IsDefined(statusType, "Scalebound") && Enum.IsDefined(statusType, "ShackledHealing"),
                 "Installed Horn healing restrictions");

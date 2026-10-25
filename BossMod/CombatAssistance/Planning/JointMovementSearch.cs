@@ -49,6 +49,8 @@ internal static class JointMovementSearch
         public float ImmunityPossibleFrom { get; set; } = ImmunityPossibleFrom;
         public float ImmunityPossibleUntil { get; set; } = ImmunityPossibleUntil;
         public PlanningRangeAccess? RangeAccess { get; set; } = RangeAccess;
+        public float MovementLossSeconds { get; set; }
+        public float MovementCoveredUntil { get; set; }
         // Queue membership only; never used as movement or safety evidence.
         public bool Retired { get; set; }
     }
@@ -57,7 +59,7 @@ internal static class JointMovementSearch
         MovementPlan? nativeIncumbent = null, Action<MovementPlan>? publishBest = null,
         bool includeMobilityActions = true, bool stopAtCurrentOpportunity = false, bool pruneResourceInferiorMobility = true,
         bool pruneExecutionInferiorStates = true, bool includeSpatialMobilityActions = true, bool proveCompleteOptimum = true,
-        bool partitionFrontier = true)
+        bool partitionFrontier = true, IReadOnlySet<int>? walkingCorridor = null)
     {
         limits ??= new();
         var clock = Stopwatch.StartNew();
@@ -74,6 +76,7 @@ internal static class JointMovementSearch
         var maximumPresentation = Enumerable.Range(0, context.Cells).Select(context.Presentation).Max();
         var maximumComboValue = context.ComboRecovery?.MaximumValue ?? 0;
         var canImprovePlacement = context.FieldPlacement?.MayImprove(context) == true;
+        var ownStars = context.Zones.Where(z => z.ActionId == (uint)AST.AID.EarthlyStar && z.OwnerId == context.Identity.ActorId).ToArray();
         var restrictFieldEntry = context.Actions.Any(a => a.Timing?.FieldEntryByAbility == true);
         var maximumActionValues = context.Actions.Select(action => action.Opportunity is { } opportunity
             // Match the evaluator's ordered float arithmetic. A wider-precision
@@ -157,8 +160,10 @@ internal static class JointMovementSearch
             // must not commit an inside-hitbox point when an equally timely,
             // resource-equivalent useful position remains in the frontier.
             if (stopAtCurrentOpportunity && knockbacks.IsEmpty && best != null && (context.Actions.Length != 0
-                    || context.Range?.RecoverExecution == true || context.HealingCoverage?.Satisfied(context.Origin) == false)
+                    || context.Range?.RecoverExecution == true || context.PartyContact?.Loss(context.Origin) > 0
+                    || context.HealingCoverage?.Satisfied(context.Origin) == false)
                 && context.PreservesPresent(best.Actions)
+                && PreferredEndpoint(best)
                 && (context.ComboRecovery == null || ComboValue(best) >= maximumComboValue)
                 && (context.PartyContact == null || context.PartyContact.Loss(best.Position) == 0)
                 && (context.HealingCoverage == null || context.HealingCoverage.Satisfied(best.Position))
@@ -166,8 +171,10 @@ internal static class JointMovementSearch
                     covered.Benefit == zone.Benefit && covered.Contains(best.Position, best.Time, best.RelocatedField)))
                 && (context.Range?.RecoverExecution != true || RangeOutcome(best) is { Loss: 0 })
                 && queue.Peek().Time > (context.Range?.RecoverExecution == true
+                    || context.PartyContact?.Loss(context.Origin) > 0
                     || context.HealingCoverage?.Satisfied(context.Origin) == false
-                        ? Math.Max(best.Time, best.RangeAccess?.ReadyAt ?? 0) : best.DeliveryTimes.Max()))
+                        ? Math.Max(Math.Max(best.Time, best.RangeAccess?.ReadyAt ?? 0),
+                            context.HealingCoverage?.Satisfied(context.Origin) == false ? best.ActionReadyAt : 0) : best.DeliveryTimes.Max()))
                 return BuildPlan(best, MovementSearchStatus.Bounded, MovementSearchBound.SearchInProgress);
             // A complete no-spend native witness already realizes the absolute
             // current instant opportunity and its next readiness contact. Only
@@ -175,7 +182,9 @@ internal static class JointMovementSearch
             // reaches the ceiling: a center-directed seed is not a final arrival.
             if (stopAtCurrentOpportunity && best != null && knockbacks.IsEmpty && context.PreparationMask == 0
                 && context.PreservesPresent(best.Actions) && !best.SpentResources
+                && PreferredEndpoint(best)
                 && context.HealingCoverage == null && context.ComboRecovery == null && context.Zones.IsEmpty && !canImprovePlacement
+                && (context.PartyContact == null || context.PartyContact.Loss(best.Position) == 0)
                 && frames[best.Knockbacks].NativePriority(best.Cell) == maximumNativePriority
                 && context.Presentation(best.Cell) == maximumPresentation
                 // Being in attack range does not settle continuity. An ongoing
@@ -238,6 +247,13 @@ internal static class JointMovementSearch
                         [new(MovementStageKind.Wait, current.Position, current.Position, current.Time, release)]));
             var x = current.Cell % context.Width;
             var y = current.Cell / context.Width;
+            // Try a complete approach immediately, at this label's real speed.
+            // Sprint and every gap-closer landing get the same continuation;
+            // nearby-cell expansion remains available for obstacles and detours.
+            foreach (var range in frame.ApproachRanges())
+                if (frame.Approach(range, current.Position, current.Time, current.Travel!) is { } approach
+                    && frame.Cell(approach) is var approachCell && approachCell >= 0)
+                    WalkTo(approachCell, approach);
             foreach (var zone in context.Zones)
                 if (context.Cell(zone.EffectiveCenter(current.RelocatedField)) is var zoneCell && zoneCell >= 0
                     && Math.Abs(zoneCell % context.Width - x) <= 1 && Math.Abs(zoneCell / context.Width - y) <= 1)
@@ -245,8 +261,13 @@ internal static class JointMovementSearch
             if (context.RequiredDestination is { } required && context.Cell(required) is var requiredCell && requiredCell >= 0
                 && Math.Abs(requiredCell % context.Width - x) <= 1 && Math.Abs(requiredCell / context.Width - y) <= 1)
                 WalkTo(requiredCell, required);
+            // Consider the exact ongoing destination from the origin and after
+            // an action, without exploring every intervening cell first. Other
+            // walking labels keep local expansion, avoiding a long ray query at
+            // every cell. WalkTo still proves the complete timed chord.
             if (context.CommittedDestination is { } committed && context.Cell(committed) is var committedCell && committedCell >= 0
-                && Math.Abs(committedCell % context.Width - x) <= 1 && Math.Abs(committedCell / context.Width - y) <= 1)
+                && (current.Position == context.Origin || current.Stages.Any(s => s.Kind is not (MovementStageKind.Walk or MovementStageKind.Wait))
+                    || Math.Abs(committedCell % context.Width - x) <= 1 && Math.Abs(committedCell / context.Width - y) <= 1))
                 WalkTo(committedCell, committed);
             for (var dy = -1; dy <= 1; ++dy)
                 for (var dx = -1; dx <= 1; ++dx)
@@ -260,6 +281,7 @@ internal static class JointMovementSearch
 
             void WalkTo(int cell, WPos destination)
             {
+                if (walkingCorridor != null && !walkingCorridor.Contains(cell)) return;
                 var length = (destination - current.Position).Length();
                 if (context.StationaryOnly || length <= 1e-6f)
                     return;
@@ -363,7 +385,7 @@ internal static class JointMovementSearch
                 }
             }
 
-            foreach (var utility in context.StationaryOnly || context.PreparationLocksActions(current.Actions) ? [] : context.Utilities)
+            foreach (var utility in walkingCorridor != null || context.StationaryOnly || context.PreparationLocksActions(current.Actions) ? [] : context.Utilities)
             {
                 if (!context.CanChooseStationaryAction(current.Position)
                     || !current.Inventory.Ready(utility.ResourceCost, Math.Max(Math.Max(current.Time, current.ActionReadyAt), utility.ReadyIn), context.Recharges, out var begin)
@@ -413,7 +435,8 @@ internal static class JointMovementSearch
                     && context.Native is { } frozen) SeedEscape(applied, frozen);
             }
 
-            foreach (var mobility in includeMobilityActions && !context.StationaryOnly && !context.PreparationLocksActions(current.Actions) ? frame.MobilityFrom(current.Position, CanSpend, current.RelocatedField, includeSpatialMobilityActions) : [])
+            foreach (var mobility in includeMobilityActions && !context.StationaryOnly && !context.PreparationLocksActions(current.Actions) ? frame.MobilityFrom(current.Position, CanSpend, current.RelocatedField, includeSpatialMobilityActions,
+                nativeIncumbent?.UsefulDestination) : [])
             {
                 if ((current.Actions & mobility.RequiredEarlierActions) != mobility.RequiredEarlierActions) continue;
                 if (cancellation.IsCancellationRequested)
@@ -525,7 +548,13 @@ internal static class JointMovementSearch
             var next = nextStage?.Kind is MovementStageKind.ForcedMovement or MovementStageKind.Knockback ? (WPos?)null : nextStage?.Transit?.Entrance ?? nextStage?.To;
             var result = new MovementPlan(context.Identity, status, route, best.Position, next, best.Slack, best.Time, best.Inventory.Charges,
                 best.Actions, best.Values, frames[best.Knockbacks].NativePriority(best.Cell), expansions, clock.Elapsed.TotalMilliseconds,
-                "unrelaxed native geometry; every segment and wait clears exit deadlines; final position requires no invented expiry")
+                "unrelaxed native geometry; every segment and wait clears exit deadlines; final position requires no invented expiry"
+                    + (context.EnemyFootprints.IsEmpty ? "" : PreferredEnemyEndpoint(best)
+                        ? "; enemy endpoint: outside footprint or retained current pose"
+                        : "; enemy endpoint fallback: no stronger usable outside route verified")
+                    + (context.ArenaInterior == null ? "" : context.PreferredArenaEndpoint(best.Position)
+                        ? "; arena endpoint: interior margin retained"
+                        : "; arena-edge fallback: no stronger usable interior route verified"))
             {
                 TargetId = context.TargetId,
                 FirstDepartureDeadline = best.FirstDeparture,
@@ -541,6 +570,7 @@ internal static class JointMovementSearch
                 PartyContact = context.PartyContact,
                 HealingCoverage = context.HealingCoverage,
                 EndGcdReadyAt = best.GcdReadyAt,
+                MovementLossSeconds = best.MovementLossSeconds,
                 RangeAccess = RangeOutcome(best),
                 ComboRecovery = context.ComboRecovery,
                 ComboReadyAt = best.ComboReadyAt,
@@ -616,7 +646,11 @@ internal static class JointMovementSearch
         {
             if (canImprovePlacement || !pruneResourceInferiorMobility || context.Actions.Any(a => a.GrantedResources != 0)
                 || context.Range?.RecoverExecution == true
+                || context.PartyContact?.Loss(context.Origin) > 0
+                || context.HealingCoverage?.Satisfied(context.Origin) == false
                 || context.ForcedMovement != null || best == null || best.SpentResources
+                || !PreferredEndpoint(best)
+                || context.MovementValue.CastBound && best.MovementLossSeconds > 0
                 || frames[best.Knockbacks].NativePriority(best.Cell) != maximumNativePriority
                 || context.Range?.Loss(best.Position) > 0 || context.PartyContact?.Loss(best.Position) > 0
                 || context.HealingCoverage?.Satisfied(best.Position) == false
@@ -662,6 +696,11 @@ internal static class JointMovementSearch
         bool CannotImproveExecution(Label label)
         {
             if (!pruneExecutionInferiorStates || best == null || context.Actions.Any(a => a.Preparation == PlanningPreparationMode.Optional)) return false;
+            // Earlier inside delivery cannot discard an outside endpoint before
+            // its complete usable route and current coverage are compared.
+            if (context.HasEndpointPreferences && (!PreferredEndpoint(best)
+                || frames[best.Knockbacks].NativePriority(best.Cell) != maximumNativePriority
+                || context.HealingCoverage != null || best.Values.Where((value, i) => value < maximumActionValues[i]).Any())) return false;
             // This is an objective upper bound against a COMPLETE verified plan,
             // not same-cell dominance. No future transition can undo a delivered
             // action or deliver an undelivered one before this label's time.
@@ -681,11 +720,14 @@ internal static class JointMovementSearch
                     return label.RecoveryTimes[i] > best.RecoveryTimes[i];
             }
             if (context.Range?.RecoverExecution == true && RangeOutcome(best) is { Loss: 0 } bestContact
+                && ownStars.Length == 0
+                && context.HealingCoverage?.Satisfied(context.Origin) != false
                 && frames[best.Knockbacks].NativePriority(best.Cell) == maximumNativePriority
                 && (context.HealingCoverage == null || context.HealingCoverage.Satisfied(best.Position))
                 && label.RangeAccess is { } pendingContact && pendingContact.Loss > 0 && label.Time > bestContact.At)
                 return true;
             if (!context.StationaryOnly && canImprovePlacement && context.FieldPlacement is { } placement && PlacementValue(best) > 0
+                && ownStars.Length == 0
                 && frames[best.Knockbacks].NativePriority(best.Cell) == maximumNativePriority
                 && context.Range?.RecoverExecution != true
                 && (context.PartyContact == null || context.PartyContact.Loss(best.Position) == 0)
@@ -714,6 +756,7 @@ internal static class JointMovementSearch
             // earliest instant delivery/recovery, maximal native/presentation
             // values and an unspent inventory without resource generation.
             if (best == null || best.Distance != 0 || best.Position != context.Origin || best.SpentResources
+                || !context.PreferredArenaEndpoint(best.Position)
                 || best.FocusTarget != context.TargetId || !knockbacks.IsEmpty || context.ForcedMovement != null
                 || context.HealingCoverage != null || context.ComboRecovery != null || !context.Zones.IsEmpty
                 || context.FieldPlacement != null || context.PersonalField != null || context.RequiredDestination != null
@@ -760,6 +803,8 @@ internal static class JointMovementSearch
 
         void Add(Label label)
         {
+            (label.MovementLossSeconds, label.MovementCoveredUntil) = context.MovementValue.Accumulate(context, label.Stages,
+                label.Parent?.MovementLossSeconds ?? 0, label.Parent?.MovementCoveredUntil ?? 0, label.Parent?.GcdReadyAt ?? 0);
             var ownImmunity = label.ImmunityActionId != 0;
             var ownPlacement = label.FieldPlacementAt != null;
             if (label.Knockbacks < 0) label.Knockbacks = label.Parent?.Knockbacks ?? 0;
@@ -908,6 +953,13 @@ internal static class JointMovementSearch
                 && a.ComboReadyAt <= b.ComboReadyAt
                 && a.ActionReadyAt <= b.ActionReadyAt
                 && a.GcdReadyAt <= b.GcdReadyAt
+                && (!context.MovementValue.CastBound || a.MovementLossSeconds <= b.MovementLossSeconds
+                    // Unequal remaining free windows or prepaid overlapping
+                    // locks can change the cost of the same future walking leg.
+                    && Math.Max(b.Time, Math.Max(context.MovementValue.ReadyIn, a.GcdReadyAt))
+                        == Math.Max(b.Time, Math.Max(context.MovementValue.ReadyIn, b.GcdReadyAt))
+                    && (a.MovementCoveredUntil <= a.Time && b.MovementCoveredUntil <= b.Time
+                        || a.MovementCoveredUntil == b.MovementCoveredUntil))
                 && (a.RangeAccess == null && b.RangeAccess == null || a.RangeAccess is { } access && b.RangeAccess is { } otherAccess && access.Dominates(otherAccess))
                 // Longer immunity may block a useful later push. Neither lifetime
                 // dominates a different one merely because it prevents more motion.
@@ -966,8 +1018,35 @@ internal static class JointMovementSearch
             return 0;
         }
 
+        bool PreferredEnemyEndpoint(Label label) => context.PreferredEnemyEndpoint(label.Position)
+            && (label.Distance == 0 && context.PreferredArenaEndpoint(label.Position)
+                || context.EnemyFootprints.All(e => !label.Position.InCircle(e.Center, e.Radius)));
+        bool PreferredEndpoint(Label label) => PreferredEnemyEndpoint(label) && context.PreferredArenaEndpoint(label.Position);
+
         bool Better(Label a, Label b)
         {
+            if (context.HasEndpointPreferences)
+            {
+                // Outside usable space precedes squeezing an earlier delivery
+                // out of the boss interior. Required actions/value, individual
+                // recipients and native assignments remain prerequisites.
+                for (var i = 0; i < context.Actions.Length; ++i)
+                {
+                    if (context.Actions[i].Preparation == PlanningPreparationMode.Optional) continue;
+                    var delivered = ((a.Actions >> i) & 1).CompareTo((b.Actions >> i) & 1);
+                    if (delivered != 0) return delivered > 0;
+                    var value = a.Values[i].CompareTo(b.Values[i]);
+                    if (value != 0) return value > 0;
+                }
+                var assignment = frames[a.Knockbacks].NativePriority(a.Cell).CompareTo(frames[b.Knockbacks].NativePriority(b.Cell));
+                if (assignment != 0) return assignment > 0;
+                var configuredHealing = context.HealingCoverage?.Compare(a.Position, b.Position) ?? 0;
+                if (configuredHealing != 0) return configuredHealing > 0;
+                var outside = PreferredEnemyEndpoint(a).CompareTo(PreferredEnemyEndpoint(b));
+                if (outside != 0) return outside > 0;
+                var interior = context.PreferredArenaEndpoint(a.Position).CompareTo(context.PreferredArenaEndpoint(b.Position));
+                if (interior != 0) return interior > 0;
+            }
             var present = CompareActions(a, b, optional: false);
             if (present != 0) return present > 0;
             // Native goals keep their original relative ranking. Their aggregate
@@ -981,7 +1060,21 @@ internal static class JointMovementSearch
             {
                 var coverage = healing.Compare(a.Position, b.Position);
                 if (coverage != 0) return coverage > 0;
+                // An observed injured recipient needs access now. Once coverage
+                // ties, compare complete arrival before conserving a charge.
+                if (!healing.Satisfied(context.Origin) && healing.Satisfied(a.Position))
+                {
+                    var arrival = PlanningMovementValue.Compare(Math.Max(a.Time, a.ActionReadyAt), Math.Max(b.Time, b.ActionReadyAt));
+                    if (arrival != 0) return arrival < 0;
+                }
             }
+            // Prepare inside our own delayed heal before damage arrives. Only a
+            // no-spend return outranks generic combat range and party contact;
+            // present actions/recipients, native goals and all route constraints
+            // above still apply. A star cannot buy a mobility charge.
+            var aStar = !a.SpentResources && ownStars.Any(z => z.Contains(a.Position, a.Time));
+            var bStar = !b.SpentResources && ownStars.Any(z => z.Contains(b.Position, b.Time));
+            if (aStar != bStar) return aStar;
             if (context.Range is { } range)
             {
                 if (a.RangeAccess is { } first && b.RangeAccess is { } second)
@@ -1027,10 +1120,21 @@ internal static class JointMovementSearch
             {
                 var contactLoss = contact.Loss(a.Position).CompareTo(contact.Loss(b.Position));
                 if (contactLoss != 0) return contactLoss < 0;
+                // This region exists only for an observed advancing pull. Merely
+                // arriving eventually cannot keep pace with the moving tank.
+                // Compare useful arrival before conserving mobility, while all
+                // present actions, recipients and native constraints stay above it.
+                if (contact.Loss(context.Origin) > 0 && contact.Loss(a.Position) == 0 && a.Time != b.Time)
+                    return a.Time < b.Time;
             }
             var placementGain = PlacementValue(a).CompareTo(PlacementValue(b));
             if (placementGain != 0) return placementGain > 0;
             if (PlacementValue(a) == 0 && (a.FieldPlacementAt == null) != (b.FieldPlacementAt == null)) return a.FieldPlacementAt == null;
+            // After evidenced execution and required useful positions tie,
+            // casters value available stationary time before saving mobility.
+            // Mobile jobs keep the existing inventory-first comparison.
+            var movementLoss = PlanningMovementValue.Compare(a.MovementLossSeconds, b.MovementLossSeconds);
+            if (movementLoss != 0) return movementLoss < 0;
             var aInventory = a.Inventory.At(compareAt, context.Recharges);
             var bInventory = b.Inventory.At(compareAt, context.Recharges);
             var aResources = MovementPlanningContext.NoFewerResources(aInventory.Charges, bInventory.Charges);

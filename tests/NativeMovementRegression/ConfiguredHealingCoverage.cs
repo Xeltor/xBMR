@@ -23,7 +23,8 @@ public static partial class Checks
         Check(alternativeCategories.Satisfied(identity.Origin),
             "An eligible heal already covering the recipient does not force movement into every other healing category's smaller radius.");
         var plan = JointMovementSearch.Search(context, Exhaustive);
-        Check(plan.UsefulDestination == Point(map, 3) && demand.Satisfied(plan.UsefulDestination) && plan.DeliveredActions == 0,
+        Check(plan.UsefulDestination.X >= Point(map, 4).X - 1.05f - .001f
+            && plan.UsefulDestination.X <= Point(map, 3).X && demand.Satisfied(plan.UsefulDestination) && plan.DeliveredActions == 0,
             "Configured healing need restores access to both out-of-range recipients without inventing a selected heal or claiming its delivery.");
         Check(plan.HealingCoverage == demand && plan.Stages.All(s => s.Kind == MovementStageKind.Walk),
             "Each healing requirement remains identifiable in one native movement plan.");

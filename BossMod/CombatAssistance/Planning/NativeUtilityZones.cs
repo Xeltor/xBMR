@@ -111,7 +111,10 @@ internal sealed class NativeUtilityZones : IDisposable
                 {
                     case 188: Add(placed, "Sacred Soil", 15, PlanningZoneBenefit.Mitigation, remaining); break;
                     case 3569 when healingUseful: Add(placed, "Asylum", 15, PlanningZoneBenefit.Healing, remaining); break;
-                    case 7439 when healingUseful: Add(placed, "Earthly Star", 20, PlanningZoneBenefit.Healing, remaining); break;
+                    // Our delayed burst is a useful place to prepare before HP falls.
+                    // Other stars retain the existing personal healing-need gate.
+                    case 7439 when healingUseful || placed.Owner == player.InstanceID && player.Class == Class.AST:
+                        Add(placed, "Earthly Star", 20, PlanningZoneBenefit.Healing, remaining); break;
                 }
         }
         foreach (var ally in _world.Party.WithoutSlot(excludeAlliance: true).OrderBy(a => a.InstanceID))

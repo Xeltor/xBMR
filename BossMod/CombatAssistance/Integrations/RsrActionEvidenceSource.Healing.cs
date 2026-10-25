@@ -12,6 +12,66 @@ internal sealed partial class RsrActionEvidenceSource
     internal string HealingStatus { get; private set; } = "No configured healing demand";
     internal void ClearHealingDemand() => HealingStatus = "No current configured healing capture";
 
+    // Only consumed by a required escape's arrival preference. This does not
+    // publish party contact or request movement from a safe current pose.
+    internal PlanningRange? CaptureHealingEscapePosture(WorldState world, Actor player)
+    {
+        if (player.Role != Role.Healer || !player.InCombat || _rotation?.GetValue(null) is not { } rotation
+            || Convert.ToUInt32(Read(rotation, "Job") ?? 0) != (uint)player.Class) return null;
+        try
+        {
+            var allies = world.Party.WithoutSlot(excludeAlliance: true)
+                .Where(a => a.InstanceID != player.InstanceID && !a.IsDead && !a.IsDestroyed).ToArray();
+            if (allies.Length < 2) return null;
+            var radii = new List<float>();
+            foreach (var id in EnabledActions(player.Class))
+            {
+                if (!NativeHealingActions.Supported(id)
+                    || ActionDefinitions.Instance[new(ActionType.Spell, id)] is not { } definition || !definition.IsUnlocked(world, player)
+                    || definition.IsGCD && Read(rotation, "GCDHeal") is false
+                    || !data.GetExcelSheet<Lumina.Excel.Sheets.Action>().TryGetRow(id, out var row)
+                    || row.CastType != 2 || row.Range != 0 || row.TargetArea || row.EffectRange == 0) continue;
+                radii.Add(row.EffectRange);
+            }
+            if (radii.Count == 0) return null;
+            var anchor = allies.OrderByDescending(a => a.Role == Role.Tank).ThenBy(a => a.InstanceID).First();
+            var actors = allies.Select(a => new ExecutionActor(a.InstanceID, a.Position, a.PosRot.Y, a.HitboxRadius, a.Rotation)).ToArray();
+            return NativeRadialCoverageRegion.Capture(new(player.InstanceID, player.Position, player.PosRot.Y, player.HitboxRadius, player.Rotation),
+                anchor.InstanceID, radii.Min(), actors.Length, actors, [], 0);
+        }
+        catch (Exception error)
+        {
+            log.Verbose($"Healing escape posture unavailable: {error.GetBaseException().Message}");
+            return null;
+        }
+    }
+
+    // Sage explicitly retains the chosen follow-up while Eukrasia itself is the
+    // selected self action. Its setup does not mean the party shield landed.
+    internal RsrActionEvidence? CaptureSageShield(ActionManagerEx manager, RsrActionEvidence? selected)
+    {
+        if (selected?.ActionId != (uint)SGE.AID.Eukrasia || _rotation?.GetValue(null) is not { } rotation)
+            return null;
+        try
+        {
+            object? aim = null;
+            for (var type = rotation.GetType(); type != null && aim == null; type = type.BaseType)
+                aim = type.GetField("_EukrasiaActionAim", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)?.GetValue(rotation);
+            if (aim == null || !IsSageShield(Convert.ToUInt32(Read(aim, "AdjustedID") ?? 0u))) return null;
+            var result = CaptureSelectedAction(manager, aim, false);
+            return result is { Friendly: true } && EnabledActions(Class.SGE).Contains(result.ActionId)
+                ? result with { ReadyIn = Math.Max(result.ReadyIn, selected.ReadyIn + selected.Recast) } : null;
+        }
+        catch (Exception error)
+        {
+            log.Verbose("RSR Sage shield delivery evidence unavailable: " + error.GetBaseException().Message);
+            return null;
+        }
+    }
+
+    internal static bool IsSageShield(uint action)
+        => (SGE.AID)action is SGE.AID.EukrasianDiagnosis or SGE.AID.EukrasianPrognosis or SGE.AID.EukrasianPrognosisII;
+
     // Ask RSR's original range-independent need predicates using its live saved
     // thresholds and HoT rules. Do not call CanUse/target selection: those filter
     // by current range and would recreate the dependency this capture removes.

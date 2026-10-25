@@ -83,6 +83,7 @@ public static partial class Checks
             Check(completed.Wait(1000), "Cancelled test worker exits before its fixtures are disposed.");
         }
         UtilityTimingChurn();
+        PlannerContinuity();
     }
 
     private static void UtilityTimingChurn()

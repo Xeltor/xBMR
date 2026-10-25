@@ -30,7 +30,7 @@ internal sealed class NativeMovementHost : IDisposable
     internal long InputRevision => _revision;
     internal ImmutableArray<RejectedMobility> RejectedMobility => _rejectedMobility;
     internal object PhysicalObservation => new { _physical.QueryAvailable, _physical.LastReason,
-        LastRouteQueries = _physical.LastQueries, _physical.RefreshQueries, _physical.KnownSurfaces };
+        LastRouteQueries = _physical.LastQueries, _physical.RefreshQueries, _physical.KnownSurfaces, _physical.CurrentBlocks };
     internal MovementPlanningCost LastCost { get; private set; }
     internal MovementSearchCost? LastWorkerCost => _service.LastWorkerCost;
     private long _inputCost, _combatCost, _contextCost, _serviceCost;
@@ -41,9 +41,13 @@ internal sealed class NativeMovementHost : IDisposable
 
     internal void Configure(Runtime.CombatAssistanceRuntime assistance) => Assistance = assistance;
 
-    internal static MovementPlan? CommitCandidate(MovementPlan? candidate, MovementPlanningContext context)
+    internal static MovementPlan? CommitCandidate(MovementPlan? candidate, MovementPlanningContext context, long? timestamp = null)
     {
         if (!context.Optimize || candidate is not { HasVerifiedRoute: true } || !context.CompletePreparation(candidate.DeliveredActions)) return null;
+        // A replacement is not allowed to evict a still-valid committed route
+        // before proving itself against this frame. Equivalent input revisions
+        // and a worker's completion status do not establish current execution.
+        if (!MovementPlanValidation.Validate(candidate, context, 0, true, timestamp).Allowed) return null;
         if (candidate.Status is MovementSearchStatus.Complete or MovementSearchStatus.Bounded) return candidate;
         // The worker publishes complete verified routes while alternatives are
         // still being searched. Do not confuse unfinished optimization with an
@@ -62,8 +66,92 @@ internal sealed class NativeMovementHost : IDisposable
         => intent.ExplicitDestination == null && combat is { Enabled: true, NativeRecoveryReason: null,
             UnlockSeconds: <= MovementPlanningContext.MaximumHorizonSeconds };
 
+    // Walking continuity prevents jitter, but cannot veto a faster, freshly
+    // executable mobility or outside-footprint alternative for the same need.
+    internal static bool MobilityImprovesWalking(MovementPlan walking, int stage, MovementPlan candidate,
+        MovementPlanningContext current, long? timestamp = null)
+    {
+        var oldProof = MovementPlanValidation.Validate(walking, current, stage, true, timestamp, continuingCommittedRoute: true);
+        var newProof = MovementPlanValidation.Validate(candidate, current, 0, true, timestamp);
+        if (!oldProof.Allowed || !newProof.Allowed) return false;
+        var outsideImproved = !current.PreferredEnemyEndpoint(walking.UsefulDestination) && current.PreferredEnemyEndpoint(candidate.UsefulDestination);
+        var interiorImproved = !current.PreferredArenaEndpoint(walking.UsefulDestination) && current.PreferredArenaEndpoint(candidate.UsefulDestination)
+            && current.PreferredEnemyEndpoint(walking.UsefulDestination) == current.PreferredEnemyEndpoint(candidate.UsefulDestination);
+        if (!outsideImproved && !interiorImproved && !candidate.Stages.Any(s => s.Kind is MovementStageKind.TargetDash or MovementStageKind.GroundMovement
+                or MovementStageKind.DirectionalMovement or MovementStageKind.Return
+                || s.Kind == MovementStageKind.UtilityAction && current.Utilities.Any(u => u.ActionId == s.ActionId
+                    && u.Effect == PlanningUtilityEffect.MovementSpeed))
+            || !current.PreservesPresent(candidate.DeliveredActions)
+            || current.PreferredEnemyEndpoint(walking.UsefulDestination) && !current.PreferredEnemyEndpoint(candidate.UsefulDestination)
+            || !outsideImproved && current.PreferredArenaEndpoint(walking.UsefulDestination) && !current.PreferredArenaEndpoint(candidate.UsefulDestination)
+            || current.NativePriority(current.Cell(candidate.UsefulDestination)) < current.NativePriority(current.Cell(walking.UsefulDestination))
+            || current.HealingCoverage?.Compare(candidate.UsefulDestination, walking.UsefulDestination) < 0
+            || current.Range is { } range && range.Loss(candidate.UsefulDestination) > range.Loss(walking.UsefulDestination)
+            || current.PartyContact is { } contact && contact.Loss(candidate.UsefulDestination) > contact.Loss(walking.UsefulDestination)
+            || candidate.ComboExecutionValue < walking.ComboExecutionValue || candidate.FieldPlacementGain < walking.FieldPlacementGain
+            || walking.UsefulZones.Any(z => !candidate.UsefulZones.Any(next => next.Benefit == z.Benefit)))
+            return false;
+        var age = Math.Max(0, (float)(current.Identity.WorldTime - walking.Input.WorldTime).TotalSeconds);
+        var candidateAge = Math.Max(0, (float)(current.Identity.WorldTime - candidate.Input.WorldTime).TotalSeconds);
+        var executionImproved = false;
+        foreach (var action in walking.ActionEvidence)
+        {
+            var next = candidate.ActionEvidence.FirstOrDefault(a => a.Id == action.Id && a.TargetId == action.TargetId
+                && a.RequiredRecipientIds.SequenceEqual(action.RequiredRecipientIds));
+            if (next == null || next.Value < action.Value) return false;
+            var before = Math.Max(0, walking.DeliveryTimes[action.SourceActionIndex] - age);
+            var after = Math.Max(0, candidate.DeliveryTimes[next.SourceActionIndex] - candidateAge);
+            var delivery = PlanningMovementValue.Compare(after, before);
+            if (delivery > 0 && !outsideImproved && !interiorImproved) return false;
+            executionImproved |= delivery < 0;
+        }
+        var needsArrival = current.Range?.NeedsRecovery(current.Origin) == true
+            || current.PartyContact?.Loss(current.Origin) > MovementPlanValidation.ArrivalTolerance
+            || current.HealingCoverage?.Satisfied(current.Origin) == false
+            || !current.CanRemain(current.Origin) || current.RequiredDestination != null
+            || current.MovementValue.CastBound;
+        return outsideImproved || interiorImproved || executionImproved || needsArrival
+            && PlanningMovementValue.Compare(newProof.CompletionSeconds, oldProof.CompletionSeconds) < 0;
+    }
+
+    // A rotation selection can disappear between GCDs while its approach is
+    // still useful. Retain only the already selected walking corridor, never
+    // the retired action, wait, mobility or resource prediction.
+    internal static MovementPlan? ContinueWalkingWithoutAction(MovementPlan plan, MovementPlanningContext current, int stage, long? timestamp = null)
+    {
+        if (!current.Optimize || current.StationaryOnly || !current.Actions.IsEmpty || current.RequiredDestination != null
+            || current.ForcedMovement != null || current.KnockbackPhases?.Phases.IsEmpty == false || !current.Teleports.IsEmpty
+            || current.ComboRecovery != null || current.HealingCoverage != null || current.FieldPlacement != null || plan.FieldPlacement != null
+            || plan.ComboRecovery != null || plan.HealingCoverage != null || !plan.UsefulZones.IsEmpty
+            || plan.Input.ActorId != current.Identity.ActorId || plan.Input.ZoneId != current.Identity.ZoneId
+            || plan.Input.ContentId != current.Identity.ContentId || plan.Input.ProjectionLayer != current.Identity.ProjectionLayer
+            || plan.TargetId != current.TargetId || RetiredContact(plan.PartyContact, current.PartyContact)) return null;
+        var remaining = plan.Stages.Skip(stage).ToArray();
+        if (remaining.Length == 0 || remaining[0].Kind != MovementStageKind.Walk
+            || remaining.Any(s => s.Kind is not (MovementStageKind.Walk or MovementStageKind.Wait or MovementStageKind.Cast))
+            || plan.ActionEvidence.Any(a => a.Preparation != PlanningPreparationMode.None)) return null;
+        var walks = remaining.Where(s => s.Kind == MovementStageKind.Walk).ToArray();
+        if (walks.Length == 0 || !walks[^1].To.AlmostEqual(plan.UsefulDestination, MovementPlanValidation.ArrivalTolerance)) return null;
+        var destination = walks[^1].To;
+        var useful = current.Range is { } range && range.NeedsRecovery(current.Origin) && range.Loss(destination) < range.Loss(current.Origin)
+            || current.PartyContact is { } contact && contact.Loss(current.Origin) > MovementPlanValidation.ArrivalTolerance
+                && contact.Loss(destination) < contact.Loss(current.Origin);
+        var cell = current.Cell(destination);
+        if (!useful || cell < 0 || Enumerable.Range(0, current.Cells).Any(i => current.DestinationAllowed(i)
+            && current.HasPermanentCell(i) && current.NativePriority(i) > current.NativePriority(cell))) return null;
+        var continued = NativeMovementIncumbent.CaptureRoute(current, new[] { current.Origin }.Concat(walks.Select(s => s.To)).ToArray());
+        return continued != null && MovementPlanValidation.Validate(continued, current, 0, true, timestamp).Allowed
+            ? continued with { PartyContact = current.PartyContact, Evidence = "committed walking approach; retired action removed; complete route freshly revalidated" } : null;
+    }
+
+    internal static PlanningRange? ResolveRange(MovementIntent intent, Runtime.MovementCombatIntent? combat, bool optimizeCombat)
+        => intent.Range is { } range
+            ? optimizeCombat && combat?.RangeRecovery is { RecoverExecution: true } recovery && recovery.TargetId == range.TargetId
+                ? range with { RecoverExecution = true, RecoveryReadyIn = recovery.RecoveryReadyIn } : range
+            : optimizeCombat ? combat?.RangeRecovery : null;
+
     internal NavigationDecision Update(string owner, WorldState world, AIHints hints, Actor player, float speed,
-        float cushion, NavigationDecision.Context inspection, MovementIntent? intent = null)
+        float cushion, NavigationDecision.Context inspection, MovementIntent? intent = null, BossModule? module = null)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var allocated = GC.GetAllocatedBytesForCurrentThread();
@@ -74,7 +162,15 @@ internal sealed class NativeMovementHost : IDisposable
         {
             LastFailure = null;
             _lastOwnerUpdate = world.CurrentTime;
-            var result = CaptureAndUpdate(owner, world, hints, player, speed, cushion, inspection, intent ?? new());
+            var instruction = intent ?? new();
+            // Both native movement owners must enter the authored dungeon arena
+            // before optimization. ThetaStar clamps outside origins to its map;
+            // positive leeway at that clamped cell does not permit staying outside.
+            var result = instruction.ExplicitDestination == null && module is
+                { Info.Category: BossModuleInfo.Category.Dungeon or BossModuleInfo.Category.VariantCriterion, StateMachine.ActivePhase: not null }
+                && !module.Arena.InBounds(player.Position)
+                    ? UpdateIngress(owner, world, hints, player, module, speed, instruction)
+                    : CaptureAndUpdate(owner, world, hints, player, speed, cushion, inspection, instruction);
             LastFailure ??= _service.LastFailure;
             return result;
         }
@@ -126,7 +222,7 @@ internal sealed class NativeMovementHost : IDisposable
         _ = Update(owner, world, hints, player, world.Client.MoveSpeed, 0, _stationaryInspection);
     }
 
-    internal NavigationDecision UpdateIngress(string owner, WorldState world, AIHints hints, Actor player, BossModule module,
+    private NavigationDecision UpdateIngress(string owner, WorldState world, AIHints hints, Actor player, BossModule module,
         float speed, MovementIntent intent)
     {
         _lastOwnerUpdate = world.CurrentTime;
@@ -187,7 +283,8 @@ internal sealed class NativeMovementHost : IDisposable
             if (hints.AutomaticMovementPaused || player.IsDead || Assistance?.CompulsoryMovementProtected == true
                 || Assistance?.HasMovementAuthority(player, hints) == false)
                 return new() { LeewaySeconds = float.MaxValue };
-            var input = NavigationDecision.CaptureInput(world.CurrentTime, hints, player, speed, cushion, world.CurrentZone, world.CurrentCFCID);
+            var input = NativeMechanicTiming.Apply(
+                NavigationDecision.CaptureInput(world.CurrentTime, hints, player, speed, cushion, world.CurrentZone, world.CurrentCFCID), player.Class);
             var recovery = NavigationDecision.BuildCaptured(inspection, input);
             if (recovery.Publication is { } publication) recovery.Publication = publication.Publish();
             CurrentPlan = new(input.Identity, MovementSearchStatus.NativeRecovery, [],
@@ -230,7 +327,8 @@ internal sealed class NativeMovementHost : IDisposable
             _escape = null;
         }
         _episodeStarted ??= world.CurrentTime;
-        var input = NavigationDecision.CaptureInput(world.CurrentTime, hints, player, speed, cushion, world.CurrentZone, world.CurrentCFCID);
+        var input = NativeMechanicTiming.Apply(
+            NavigationDecision.CaptureInput(world.CurrentTime, hints, player, speed, cushion, world.CurrentZone, world.CurrentCFCID), player.Class);
         var explicitInstruction = intent.ExplicitDestination != null;
         if (intent.ExplicitDestination is { } required)
             input = input with { Goals = new([.. input.Goals.Native, AIHints.GoalProximity(required, 1000, 1000)]) };
@@ -277,7 +375,7 @@ internal sealed class NativeMovementHost : IDisposable
         var context = new MovementPlanningContext(input.Identity, map, 0, optimize ? unlock : 0,
             Enumerable.Repeat(true, cells).ToArray(), presentation, optimizeCombat ? combat!.Actions : [], [],
             committedDestination: continuity, native: native,
-            targetId: hints.ForcedTarget?.InstanceID ?? player.TargetID, optimize: optimize, range: intent.Range ?? (optimizeCombat ? combat?.RangeRecovery : null),
+            targetId: hints.ForcedTarget?.InstanceID ?? player.TargetID, optimize: optimize, range: ResolveRange(intent, combat, optimizeCombat),
             resources: optimizeCombat ? combat?.Mobility?.Resources ?? 0 : 0,
             mobilityMechanics: optimizeCombat ? combat?.Mobility?.Actions ?? [] : [],
             executionRules: PlanningExecutionRules.Capture(world, hints),
@@ -298,7 +396,11 @@ internal sealed class NativeMovementHost : IDisposable
             personalField: optimizeCombat ? combat?.Mobility?.PersonalField : null,
             fieldPlacement: optimizeCombat && combat?.StationaryOnly != true ? combat?.FieldPlacement : null,
             stationaryOnly: optimizeCombat && combat?.StationaryOnly == true,
-            knockbackCompletion: Assistance?.KnockbackCompletion, takeOwnership: true);
+            knockbackCompletion: Assistance?.KnockbackCompletion, takeOwnership: true,
+            movementValue: optimizeCombat ? combat?.MovementValue : null,
+            mechanicClearance: optimizeCombat ? Assistance?.CaptureMechanicClearance(map, hints, world, player, dodging) : null,
+            enemyFootprints: optimizeCombat ? Assistance?.CaptureEnemyFootprints(hints, player) : null,
+            arenaInterior: optimizeCombat ? Assistance?.CaptureArenaInterior(map, hints) : null);
         if (_owner != owner || _problem == null || !context.SameProblem(_problem, _committed != null, ignoreRejections: true))
             _rejectedMobility = [];
         context = context.Excluding(_rejectedMobility);
@@ -326,6 +428,23 @@ internal sealed class NativeMovementHost : IDisposable
         // Diagnostic/special-mode readers own a frame-local map; no worker writes this buffer.
         inspection.Map = native.CopyRecoveryMap(inspection.Map);
         Execution = null;
+        if (optimizeCombat && combat?.HealingDelivery is { } delivery && NativeHealingDelivery.CanHold(context, delivery))
+        {
+            // RSR owns submission. A predicted delivery in a search result does
+            // not release this pose; the native effect observer does that.
+            _committed = null;
+            _escape = null;
+            _lastCandidate = null;
+            _executor.Release();
+            CurrentPlan = new(context.Identity, MovementSearchStatus.Bounded,
+                [new(MovementStageKind.Wait, context.Origin, context.Origin, 0, delivery.CompletesIn)],
+                context.Origin, null, float.MaxValue, delivery.CompletesIn, context.Resources, 0, [],
+                context.NativePriority(context.Cell(context.Origin)), 0, 0, "healing delivery pending; safe current pose")
+            { TargetId = context.TargetId };
+            Execution = new(MovementExecutionKind.Wait, "hold healing position until native effect",
+                ActionId: delivery.Action.Id, TargetId: delivery.Action.TargetId, DepartureSeconds: float.MaxValue);
+            return new() { LeewaySeconds = float.MaxValue };
+        }
         if (optimize)
         {
             var escaping = explicitInstruction ? null : _escape?.Continue(context);
@@ -341,11 +460,27 @@ internal sealed class NativeMovementHost : IDisposable
                     : null;
                 CurrentPlan = candidate;
             }
+            if (escaping == null && !_executor.AwaitingActionEffect && context.Actions.IsEmpty && _committed != null
+                && !MovementPlanValidation.Validate(_committed, context, _executor.StageIndex, true,
+                    continuingCommittedRoute: true).Allowed
+                && ContinueWalkingWithoutAction(_committed, context, _executor.StageIndex) is { } continuation)
+                _committed = continuation;
+            if (escaping == null && !_executor.AwaitingActionEffect && _committed != null && !context.PreservesPresent(_committed.DeliveredActions))
+            {
+                // A walking-only gap continuation cannot stand in for a new
+                // current action. Require its action-aware replacement again.
+                _committed = null;
+                _executor.Release();
+            }
             if (escaping == null && !_executor.AwaitingActionEffect && !ReferenceEquals(candidate, _lastCandidate))
             {
                 _lastCandidate = candidate;
-                if (CommitCandidate(candidate, context) is { } verified
-                    && !(_committed != null && verified.Input == _committed.Input && verified.Stages == _committed.Stages))
+                // Retain soft walking continuity unless a complete mobility
+                // alternative proves an actual execution/arrival improvement.
+                var walking = _committed != null && _executor.CanContinueWalking(_committed, context);
+                if (candidate != null && !(_committed != null && candidate.Input == _committed.Input && candidate.Stages == _committed.Stages)
+                    && CommitCandidate(_executor.RebindInitialMobility(candidate, context), context) is { } verified
+                    && (!walking || MobilityImprovesWalking(_committed!, _executor.StageIndex, verified, context)))
                     _committed = verified;
             }
             if (_committed != null)
@@ -456,8 +591,7 @@ internal sealed class NativeMovementHost : IDisposable
         {
             Evidence = "fresh native recovery while optimization has no executable publication"
         };
-        if (context.Optimize && CurrentPlan.NativeRecovery is { LeewaySeconds: > 0 } pending
-            && !CanRecoverCombatRange(context, CurrentPlan))
+        if (CanDeferRecovery(context, CurrentPlan) && CurrentPlan.NativeRecovery is { } pending)
         {
             // A fresh native calculation proves how long optimization may still
             // continue. Recompute against every changed mechanic; never borrow
@@ -474,6 +608,27 @@ internal sealed class NativeMovementHost : IDisposable
         return decision;
     }
 
+    internal static bool CanDeferRecovery(MovementPlanningContext context, MovementPlan recovery)
+        => context.Optimize && recovery.NativeRecovery is { LeewaySeconds: > 0 }
+            // Positive native leeway can protect a current cast; it is not
+            // permission to suspend a required escape while optimization churns.
+            // The movement owner/controller still applies the fresh cast window.
+            && context.CanRemain(context.Origin)
+            // Recovery may start at a clamped raster cell. Verify the actual
+            // origin before treating native leeway as an elective waiting window.
+            && context.Traverse(context.Origin, context.Origin, 0, 0, out _)
+            && !CanRecoverCombatRange(context, recovery)
+            && !CanRecoverStackGathering(context, recovery);
+
+    internal static bool CanRecoverStackGathering(MovementPlanningContext context, MovementPlan recovery)
+        // Peers approaching the carrier can continually extend native leeway.
+        // Positive leeway must not starve an already verified gathering walk.
+        // Finish current locks and retain the native route, geometry and rules.
+        => context.UnlockSeconds == 0 && !context.StationaryOnly
+            && context.Native?.ImprovesStackGathering(context.Origin, recovery.UsefulDestination) == true
+            && recovery.NativeRecovery?.Publication is { } publication
+            && NativeMovementIncumbent.Capture(context, publication) is { HasVerifiedRoute: true };
+
     internal static bool CanRecoverCombatRange(MovementPlanningContext context, MovementPlan recovery)
         => context.Actions.IsEmpty && context.UnlockSeconds == 0 && context.Range is { } range && range.NeedsRecovery(context.Origin)
             && range.Loss(recovery.UsefulDestination) < range.Loss(context.Origin)
@@ -483,6 +638,7 @@ internal sealed class NativeMovementHost : IDisposable
             && context.Cell(recovery.UsefulDestination) is var destination && destination >= 0
             && context.Cell(context.Origin) is var origin && origin >= 0
             && context.Presentation(destination) >= context.Presentation(origin)
+            && context.PreferredArenaEndpoint(recovery.UsefulDestination)
             && recovery.NativeRecovery?.Publication is { } publication
             && NativeMovementIncumbent.Capture(context, publication) is { HasVerifiedRoute: true };
 
@@ -540,6 +696,8 @@ internal sealed class NativeMovementHost : IDisposable
             // probes and age the departure deadline rather than refreshing it.
             Execution = _executor.AdvanceRecovery(plan, identity, true, true);
         }
+        if (Execution.Kind == MovementExecutionKind.Invalidated)
+            LastFailure = Execution.Reason;
         decision.Destination = Execution.Kind == MovementExecutionKind.Walk ? Execution.Waypoint : null;
         decision.LeewaySeconds = Execution.DepartureSeconds;
         decision.Publication = decision.Publication?.Publish();

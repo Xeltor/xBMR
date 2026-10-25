@@ -8,6 +8,11 @@ internal sealed record PlanningTravel(float Baseline, float Boost = 0, float Unt
     internal bool Valid => float.IsFinite(Baseline) && Baseline >= 0 && float.IsFinite(Boost) && Boost >= 0
         && float.IsFinite(Until) && Until >= 0 && (Baseline > 0 || Boost > 0 && Until > 0);
     internal float At(float time) => time < Until ? Math.Max(Baseline, Boost) : Baseline;
+    internal float Distance(float seconds, float start)
+    {
+        var fast = Math.Min(seconds, Math.Max(0, Until - start));
+        return fast * At(start) + (seconds - fast) * Baseline;
+    }
     internal float Seconds(float distance, float start)
     {
         if (distance <= 0) return 0;
@@ -20,5 +25,12 @@ internal sealed record PlanningTravel(float Baseline, float Boost = 0, float Unt
     internal bool Same(PlanningTravel other, float age) => Baseline == other.Baseline && Boost == other.Boost
         && Math.Abs(Until - Math.Max(0, other.Until - age)) <= 0.01f;
     internal bool Dominates(PlanningTravel other, float from)
-        => new[] { from, Until, other.Until }.Where(t => t >= from).All(t => At(t) >= other.At(t));
+    {
+        // Speed changes only at these boundaries. Keep the exact comparison
+        // without allocating an array, iterator and captured predicate per pair.
+        ReadOnlySpan<float> boundaries = [from, Until, other.Until];
+        foreach (var time in boundaries)
+            if (time >= from && !(At(time) >= other.At(time))) return false;
+        return true;
+    }
 }

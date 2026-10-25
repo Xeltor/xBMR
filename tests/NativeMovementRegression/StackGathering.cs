@@ -74,5 +74,87 @@ public static partial class Checks
             if (map.PixelPriority[i] > 0) map.PixelMaxG[i] = -1;
         var outside = JointMovementSearch.Search(Context(map, origin, speed: 6), Exhaustive);
         Check(outside.HasVerifiedRoute && outside.NativePriority == 0, "unsafe gathering interior cannot outweigh physical or mechanic constraints");
+        StackGatheringRecovery();
+    }
+
+    private static void StackGatheringRecovery()
+    {
+        var (world, actor, module) = ProjectionFixture();
+        var actors = (Actor?[])typeof(PartyState).GetField("_actors", InternalInstance)!.GetValue(world.Party)!;
+        Actor Peer(int slot, WPos position)
+        {
+            var peer = (Actor)RuntimeHelpers.GetUninitializedObject(typeof(Actor));
+            peer.InstanceID = (ulong)(slot + 1); peer.PosRot = new(position.X, 0, position.Z, 0);
+            world.Party.Members[slot] = new((ulong)(slot + 1), peer.InstanceID, false); actors[slot] = peer;
+            return peer;
+        }
+        // Penetrator Missile, Clyteum recording 2026-10-25 17:47:20.5.
+        // Translate the recorded arena center to zero; the marked player stayed
+        // here throughout the cast while each fresh route was deferred.
+        actor.PosRot = new(8.6614f, 0, -6.21484f, 0);
+        Peer(1, new(-3.7055f, 6.17926f));
+        Peer(2, new(-.5947f, -6.52515f));
+        Peer(3, new(12.8027f, -12.8424f));
+        var stacks = new GatheringTestStacks(module);
+        var boss = (Actor)RuntimeHelpers.GetUninitializedObject(typeof(Actor));
+        boss.IsTargetable = true; boss.HitboxRadius = 4;
+        typeof(BossModule).GetField(nameof(BossModule.PrimaryActor))!.SetValue(module, boss);
+        stacks.Stacks.Add(new(actor, 6, 4, 4, world.FutureTime(4.7f)));
+        var hints = new AIHints(); stacks.AddAIHints(0, actor, default, hints);
+        var identity = new NavigationIdentity(1, world.CurrentTime, DateTimeOffset.UtcNow,
+            System.Diagnostics.Stopwatch.GetTimestamp(), actor.Position, false, 6, 0, null, actor.InstanceID, 1, 1);
+        var input = new NavigationDecision.CapturedInput(
+            new(new ArenaBoundsSquare(20, mapResolution: .5f), default, null, default), [], hints.ForbiddenZones.ToArray(),
+            NavigationDecision.CaptureGoals(hints), true, [], identity, true);
+        MovementPlanningContext Context(NativeNavigationSnapshot snapshot, float unlock = 0,
+            PlanningExecutionRules? rules = null, bool stationary = false)
+            => new(snapshot.Identity, snapshot.CopyStrictMap(), 0, unlock,
+                Enumerable.Repeat(true, snapshot.Cells).ToArray(), snapshot.CopyPresentation(), [], [],
+                native: snapshot, executionRules: rules, stationaryOnly: stationary);
+        var native = NativeNavigationSnapshot.Capture(input);
+        var context = Context(native);
+        var recovery = NativeMovementSearch.Recover(context, new());
+        Check((recovery.UsefulDestination - boss.Position).Length() < (actor.Position - boss.Position).Length(),
+            "Recorded carrier takes its stack toward boss contact instead of the isolated ranged peer.");
+        Check(recovery.NativeRecovery is { LeewaySeconds: > 0, Destination: not null }
+            && NativeMovementHost.CanRecoverStackGathering(context, recovery)
+            && !NativeMovementHost.CanDeferRecovery(context, recovery),
+            "Recorded stack carrier starts a verified native gathering route despite positive leeway and a pending optimizer.");
+        Check(!NativeMovementHost.CanRecoverStackGathering(Context(native, unlock: .5f), recovery),
+            "Elective gathering finishes current cast/action locks before moving.");
+        Check(!NativeMovementHost.CanRecoverStackGathering(Context(native, stationary: true), recovery),
+            "Stack gathering cannot activate movement for stationary target-only assistance.");
+        Check(!NativeMovementHost.CanRecoverStackGathering(Context(native, rules: new(0, 0, [])), recovery),
+            "Stack scores cannot override an authored movement prohibition.");
+
+        foreach (var peer in actors.OfType<Actor>().Where(a => a != actor)) peer.PosRot.X += 100;
+        Check(native.ImprovesStackGathering(actor.Position, recovery.UsefulDestination),
+            "Frozen gathering evidence never reads party actors after capture.");
+        var reset = NativeNavigationSnapshot.Capture(input with { Goals = new([]), Warnings = [] });
+        Check(!reset.ImprovesStackGathering(actor.Position, recovery.UsefulDestination),
+            "Resolved or cancelled stack clears the gathering fallback in the next capture.");
+        var disabled = NativeNavigationSnapshot.Capture(input with { GoalsEnabled = false });
+        Check(!disabled.ImprovesStackGathering(actor.Position, recovery.UsefulDestination),
+            "Disabled native goals do not retain stack attraction.");
+        var untyped = NativeNavigationSnapshot.Capture(input with { Goals = new([_ => 1000]) });
+        Check(!untyped.ImprovesStackGathering(actor.Position, recovery.UsefulDestination),
+            "An opaque high score cannot impersonate an authored gathering instruction.");
+
+        // A joiner uses the same native fallback, with no carrier-only shortcut.
+        actor.PosRot = new(8, 0, 0, 0);
+        var carrier = actors[1]!; carrier.PosRot = default;
+        stacks.Stacks.Clear(); stacks.Stacks.Add(new(carrier, 6, 2, 4, world.FutureTime(5)));
+        hints = new(); stacks.AddAIHints(0, actor, default, hints);
+        input = input with { Identity = identity with { Origin = actor.Position },
+            Warnings = hints.ForbiddenZones.ToArray(), Goals = NavigationDecision.CaptureGoals(hints) };
+        native = NativeNavigationSnapshot.Capture(input); context = Context(native);
+        recovery = NativeMovementSearch.Recover(context, new());
+        Check(NativeMovementHost.CanRecoverStackGathering(context, recovery)
+            && !NativeMovementHost.CanDeferRecovery(context, recovery),
+            "Eligible participants also join the stack without waiting for optimizer publication.");
+        var blocked = NativeNavigationSnapshot.Capture(input with { Obstacles = [new SDCircle(default, 7)] });
+        context = Context(blocked); recovery = NativeMovementSearch.Recover(context, new());
+        Check(!NativeMovementHost.CanRecoverStackGathering(context, recovery),
+            "An unreachable gathering interior cannot turn emergency recovery into a verified elective stack walk.");
     }
 }

@@ -62,6 +62,7 @@ public static partial class Checks
         Check(limited.UsefulDestination == point.Center && limited.Bound == MovementSearchBound.FriendlyEffectGeometry,
             "an observed exact point remains searchable without inventing the unverified full buff footprint");
         UtilityZoneObservations();
+        OwnEarthlyStarReturn();
     }
 
     private static void UtilityZoneObservations()
@@ -104,9 +105,66 @@ public static partial class Checks
         Check(zones.Capture(player, hints, settings, true, null).Any(z => z.ActionId == 7439), "observed Earthly Star supports an injured party recipient");
         Cast(8324);
         Check(!zones.Capture(player, hints, settings, true, null).Any(z => z.ActionId == 7439), "early detonation retires the star immediately");
+        player.Class = Class.AST;
+        player.HPMP = new(100, 100, 0, 10000, 10000);
+        Cast(7439, new(4, 0, 4));
+        var ownStar = zones.Capture(player, hints, settings, true, null).Single(z => z.ActionId == 7439);
+        Check(ownStar.OwnerId == player.InstanceID && ownStar.Radius == 20 && ownStar.EndsIn == 20,
+            "Our observed Earthly Star is a preparatory destination at full HP without a damage forecast.");
+        world.Frame.Timestamp = world.CurrentTime.AddSeconds(10);
+        Check(zones.Capture(player, hints, settings, true, null).Single(z => z.ActionId == 7439).EndsIn == 10,
+            "Earthly Star maturation retains the original placement and remaining lifetime.");
+        settings.ManageDefensiveGroundZonePositioning = false;
+        Check(!zones.Capture(player, hints, settings, true, null).Any(z => z.ActionId == 7439),
+            "The defensive-ground opt-out also suppresses preparatory movement into our own star.");
+        settings.ManageDefensiveGroundZonePositioning = true;
+        world.Frame.Timestamp = world.CurrentTime.AddSeconds(10);
+        Check(!zones.Capture(player, hints, settings, true, null).Any(z => z.ActionId == 7439),
+            "An expired star cannot remain a preparatory destination.");
         Cast(188, new(5, 0, 5));
         Check(zones.Capture(player, hints, settings, false, null).IsEmpty, "manual and activation gates hide every utility movement preference");
         world.CurrentZone = 2;
         Check(zones.Capture(player, hints, settings, true, null).IsEmpty, "zone changes discard previous ground effects");
+    }
+
+    private static void OwnEarthlyStarReturn()
+    {
+        var map = Grid(5, 1);
+        var baseline = Context(map, 0);
+        var star = new PlanningZone((uint)BossMod.AST.AID.EarthlyStar, baseline.Identity.ActorId, "Earthly Star",
+            baseline.Point(4), 0, .4f, 10, PlanningZoneBenefit.Healing);
+        var range = new PlanningRange(10, baseline.Origin, .1f, RecoverExecution: true);
+        MovementPlanningContext Input(PlanningZone[] zones, PlanningAction[]? actions = null, bool[]? allowed = null,
+            PlanningMobility[]? mobility = null, ulong resources = 0)
+            => new(baseline.Identity, map, 0, 0, allowed ?? [true, true, true, true, true], new float[5], actions ?? [],
+                mobility ?? [], resources, committedDestination: baseline.Origin, zones: zones, range: range, partyContact: range);
+        var context = Input([star]);
+        var plan = JointMovementSearch.Search(context, Exhaustive);
+        var reference = JointMovementSearch.Search(context, Exhaustive, pruneExecutionInferiorStates: false);
+        Check(plan.UsefulDestination == star.Center && plan.UsefulZones.Contains(star) && plan.UsefulDestination == reference.UsefulDestination,
+            "A safe walk into our own star outranks generic range/contact and continuity, including with execution pruning enabled.");
+        Check(MovementPlanValidation.Validate(plan, context, 0, true, context.Identity.CapturedTimestamp).Allowed
+            && !MovementPlanValidation.Validate(plan, Input([]), 0, true, context.Identity.CapturedTimestamp).Allowed,
+            "Star return is freshly validated and cannot retain its benefit after detonation.");
+        var action = Action(map, 1, 1, [1, 0, 0, 0, 0], [1, 0, 0, 0, 0], cast: 1);
+        var castFirst = JointMovementSearch.Search(Input([star], [action]), Exhaustive);
+        Check(castFirst.DeliveredActions == 1 && castFirst.DeliveryTimes[0] == 1 && castFirst.UsefulDestination == star.Center,
+            "Returning to our own star preserves the already selected action's delivery and recipients.");
+        Check(JointMovementSearch.Search(Input([star with { OwnerId = 99 }]), Exhaustive).UsefulDestination == baseline.Origin,
+            "Another healer's ground effect does not acquire the owner's preparatory return priority.");
+        Check(JointMovementSearch.Search(Input([star], allowed: [true, true, true, true, false]), Exhaustive).UsefulDestination != star.Center,
+            "Our star cannot override an independent destination assignment.");
+        map.PixelPriority[0] = 100;
+        Check(JointMovementSearch.Search(Input([star]), Exhaustive).UsefulDestination == baseline.Origin,
+            "Preparatory star return does not override a higher-ranked native goal.");
+        map.PixelPriority[0] = 0;
+        map.PixelMaxG[4] = 1;
+        Check(JointMovementSearch.Search(Input([star]), Exhaustive).UsefulDestination != star.Center,
+            "Our star cannot turn a hazardous destination into a safe position.");
+        map.PixelMaxG[4] = float.MaxValue;
+        var dash = new PlanningMobility(0, 4, MovementStageKind.TargetDash, 100, 9, null, 0, .1f, 0, 0);
+        var expiring = JointMovementSearch.Search(Input([star with { EndsIn = 2 }], mobility: [dash], resources: 1), Exhaustive);
+        Check(expiring.RemainingResources == 1 && expiring.UsefulDestination == baseline.Origin,
+            "A star that expires before walking arrival cannot purchase a mobility charge.");
     }
 }

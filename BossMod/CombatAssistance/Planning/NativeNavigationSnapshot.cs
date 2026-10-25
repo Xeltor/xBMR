@@ -14,6 +14,8 @@ internal sealed class NativeNavigationSnapshot
     private readonly bool _relaxed;
     private readonly long _rasterTicks;
     private readonly FrozenGoalField? _goals;
+    private readonly FrozenGoalField? _stackGathering;
+    private readonly NativeRecoveryHazards? _recoveryHazards;
     private readonly float[] _presentation;
     // Optional native physical-classification evidence for direct geometry queries.
     private readonly NavigationRaster? _physicalRaster;
@@ -21,6 +23,7 @@ internal sealed class NativeNavigationSnapshot
     internal NavigationIdentity Identity { get; }
     internal int Cells => checked(_map.Width * _map.Height);
     internal bool HasTeleporters => !_teleporters.IsEmpty;
+    internal bool HasStackGathering => _stackGathering != null;
     internal ImmutableArray<PlanningTeleport> Teleports { get; }
     internal bool SameTransitions(NativeNavigationSnapshot previous) => Teleports.Length == previous.Teleports.Length
         && Teleports.Select((t, i) => t.Same(previous.Teleports[i], (float)(Identity.WorldTime - previous.Identity.WorldTime).TotalSeconds)).All(same => same);
@@ -44,7 +47,12 @@ internal sealed class NativeNavigationSnapshot
         // The joint search must evaluate the useful endpoint before that first
         // recovery move, including when casting finishes later in the route.
         if (input.GoalsEnabled)
+        {
             _goals = FrozenGoalField.Capture(_map, input.Goals.Native, captureLeaves: false);
+            var gathering = input.Goals.Native.Where(goal => goal.Target is NativeStackGathering.Goal).ToArray();
+            if (gathering.Length != 0)
+                _stackGathering = FrozenGoalField.Capture(_map, gathering, captureLeaves: false);
+        }
         if (input.GoalsEnabled && !input.Identity.Casting)
         {
             var origin = _map.WorldToGrid(input.Identity.Origin);
@@ -68,6 +76,10 @@ internal sealed class NativeNavigationSnapshot
             _physicalRaster = new(_map, raster.Unrelaxed, raster.Blocks);
             _mapSource = input.MapSource;
         }
+        var recoveryOrigin = _map.WorldToGrid(input.Identity.Origin);
+        if (input.Warnings.Length >= 2 && _map.InBounds(recoveryOrigin.x, recoveryOrigin.y)
+            && _strictLimits[_map.GridToIndex(recoveryOrigin)] < float.MaxValue)
+            _recoveryHazards = NativeRecoveryHazards.Capture(_map, input);
         _rasterTicks = Stopwatch.GetTimestamp() - start;
     }
 
@@ -83,6 +95,15 @@ internal sealed class NativeNavigationSnapshot
     }
 
     internal float[] CopyPresentation() => _presentation.ToArray();
+
+    internal bool ImprovesStackGathering(WPos origin, WPos destination)
+    {
+        if (_stackGathering == null) return false;
+        var from = _map.WorldToGrid(origin);
+        var to = _map.WorldToGrid(destination);
+        return _map.InBounds(from.x, from.y) && _map.InBounds(to.x, to.y)
+            && _stackGathering.Aggregate(_map.GridToIndex(to)) > _stackGathering.Aggregate(_map.GridToIndex(from));
+    }
 
     // AvoidForbiddenZone cannot alter priorities when every cell is unrestricted.
     // This checks the freshly captured map, including physical blocked cells.
@@ -104,7 +125,8 @@ internal sealed class NativeNavigationSnapshot
         var age = (float)(Identity.WorldTime - other.Identity.WorldTime).TotalSeconds;
         if (age < 0 || _map.Width != other._map.Width || _map.Height != other._map.Height || _map.Center != other._map.Center
             || _map.Rotation != other._map.Rotation || _map.Resolution != other._map.Resolution
-            || !SameTransitions(other)) return false;
+            || !SameTransitions(other) || (_recoveryHazards == null) != (other._recoveryHazards == null)
+            || _recoveryHazards != null && !_recoveryHazards.Same(other._recoveryHazards!, age)) return false;
         for (var i = 0; i < Cells; ++i)
         {
             var now = _strictLimits[i]; var before = other._strictLimits[i];
@@ -160,28 +182,34 @@ internal sealed class NativeNavigationSnapshot
 
     internal NavigationDecision Recover(NavigationDecision.Context context, System.Threading.CancellationToken cancellation = default)
     {
-        cancellation.ThrowIfCancellationRequested();
-        context.Map.Init(_map, _map.Center);
-        if (!_teleporters.IsEmpty)
-            context.Map.BuildTeleporterEdges(_teleporters.ToArray());
-        var start = Stopwatch.GetTimestamp();
-        context.ThetaStar.Start(context.Map, Identity.Origin, 1f / Identity.Speed);
-        var index = context.ThetaStar.ExecuteCancellable(cancellation);
-        ref var node = ref context.ThetaStar.NodeByIndex(index);
-        var waypoints = NavigationDecision.GetFirstWaypoints(context.ThetaStar, context.Map, index, Identity.Origin);
-        var result = new NavigationDecision
+        var original = RecoverMap(_map);
+        return _recoveryHazards?.Improve(_map, Identity, original, RecoverMap, cancellation) ?? original;
+
+        NavigationDecision RecoverMap(Map source)
         {
-            Destination = waypoints.first,
-            NextWaypoint = waypoints.second,
-            LeewaySeconds = node.PathLeeway,
-            TimeToGoal = node.GScore,
-            RasterizeTime = _rasterTicks,
-            PathfindTime = Stopwatch.GetTimestamp() - start
-        };
-        var witness = NavigationDecision.CopyWitness(context.ThetaStar, index, Identity.Origin, out var complete);
-        // This publication carries native timing and a complete witness. IPC serialization and
-        // raster-window limits do not determine which map cells this native snapshot supports.
-        result.Publication = new(Identity, _physicalRaster, witness, complete, _relaxed, node.Score, result, HasTeleporters, _mapSource);
-        return result;
+            cancellation.ThrowIfCancellationRequested();
+            context.Map.Init(source, source.Center);
+            if (!_teleporters.IsEmpty)
+                context.Map.BuildTeleporterEdges(_teleporters.ToArray());
+            var start = Stopwatch.GetTimestamp();
+            context.ThetaStar.Start(context.Map, Identity.Origin, 1f / Identity.Speed);
+            var index = context.ThetaStar.ExecuteCancellable(cancellation);
+            ref var node = ref context.ThetaStar.NodeByIndex(index);
+            var waypoints = NavigationDecision.GetFirstWaypoints(context.ThetaStar, context.Map, index, Identity.Origin);
+            var result = new NavigationDecision
+            {
+                Destination = waypoints.first,
+                NextWaypoint = waypoints.second,
+                LeewaySeconds = node.PathLeeway,
+                TimeToGoal = node.GScore,
+                RasterizeTime = _rasterTicks,
+                PathfindTime = Stopwatch.GetTimestamp() - start
+            };
+            var witness = NavigationDecision.CopyWitness(context.ThetaStar, index, Identity.Origin, out var complete);
+            // This publication carries native timing and a complete witness. IPC serialization and
+            // raster-window limits do not determine which map cells this native snapshot supports.
+            result.Publication = new(Identity, _physicalRaster, witness, complete, _relaxed, node.Score, result, HasTeleporters, _mapSource);
+            return result;
+        }
     }
 }

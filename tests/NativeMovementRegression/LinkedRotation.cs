@@ -12,6 +12,47 @@ public static partial class Checks
 
     private static void LinkedRotation()
     {
+        var player = (BossMod.Actor)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(BossMod.Actor));
+        var mayActivate = CombatAssistanceAuthority.CanAct(player, true, false, false, false, false);
+        Check(mayActivate && !CombatAssistanceAuthority.CanAct(null, true, false, false, false, false)
+            && !CombatAssistanceAuthority.CanAct(player, false, false, false, false, false)
+            && !CombatAssistanceAuthority.CanAct(player, true, true, false, false, false)
+            && !CombatAssistanceAuthority.CanAct(player, true, false, true, false, false)
+            && !CombatAssistanceAuthority.CanAct(player, true, false, false, true, false)
+            && !CombatAssistanceAuthority.CanAct(player, true, false, false, false, true),
+            "Linked rotation has independent player, mount/flight, cutscene, PvP and loading eligibility rather than movement ownership.");
+        player.IsDead = true;
+        Check(!CombatAssistanceAuthority.CanAct(player, true, false, false, false, false), "A dead player cannot start linked rotation.");
+        player.IsDead = false;
+        player.IsDestroyed = true;
+        Check(!CombatAssistanceAuthority.CanAct(player, true, false, false, false, false), "A stale player cannot start linked rotation.");
+        player.IsDestroyed = false;
+        player.MountId = 1;
+        Check(!CombatAssistanceAuthority.CanAct(player, true, false, false, false, false), "A mounted player cannot start linked rotation.");
+        player.MountId = 0;
+        RsrMode? steeringMode = RsrMode.Off;
+        var steeringOwner = new LinkedRotationOwner(() => steeringMode, next => { steeringMode = next; return true; });
+        steeringOwner.Update(true, true, true, !CombatAssistanceAuthority.CanAct(player, true, false, false, false, false));
+        Check(steeringMode == RsrMode.Henched && steeringOwner.Owned,
+            "Explicitly active native AI can start linked RSR without acquiring movement or camera control.");
+        steeringOwner.Release();
+        Check(steeringMode == RsrMode.Off, "Stopping native AI still releases its linked rotation mode.");
+        steeringMode = RsrMode.Off;
+        steeringOwner.Update(true, true, true, !CombatAssistanceAuthority.CanAct(player, true, false, false, false, true));
+        Check(steeringMode == RsrMode.Off, "Zoning defers linked activation.");
+        steeringOwner.Update(true, true, true, !CombatAssistanceAuthority.CanAct(player, true, false, false, false, false));
+        Check(steeringMode == RsrMode.Henched, "Linked activation retries once the player becomes available after zoning.");
+        foreach (var input in new (bool Forbidden, bool Paused, bool Requested, bool Forced, bool Facing)[]
+        {
+            (Forbidden: true, Paused: false, Requested: false, Forced: false, Facing: false),
+            (false, true, false, false, false), (false, false, true, false, false),
+            (false, false, false, true, false), (false, false, false, false, true)
+        })
+            Check(!CombatAssistanceAuthority.CanSteer(input.Forbidden, input.Paused, input.Requested, input.Forced, input.Facing)
+                && CombatAssistanceAuthority.CanAct(player, true, false, false, false, false),
+                "Movement opt-outs, movement-only pauses, manual keys and manual facing revoke steering without revoking combat or target authority.");
+        Check(CombatAssistanceAuthority.CanSteer(false, false, false, false, false),
+            "Automatic steering remains available after manual input ends.");
         var configured = new OverrideFixture(2, true, false, true);
         ModeDataFixture.IpcOverrides = configured;
         ModeDataFixture.TargetingTypeOverride = 7;

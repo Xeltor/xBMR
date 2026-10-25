@@ -75,7 +75,10 @@ internal sealed class MobilityMechanics
         => ActionId == other.ActionId && Mechanic == other.Mechanic && Range == other.Range
             && Displacement == other.Displacement && PlayerRadius == other.PlayerRadius && SetupSeconds == other.SetupSeconds
             && (forRevalidation || TravelSeconds == other.TravelSeconds) && Resource == other.Resource && Charges == other.Charges
-            && Math.Abs(ReadyIn - Math.Max(0, other.ReadyIn - age)) <= 0.01f && MinimumTravel == other.MinimumTravel
+            // Effective animation lock can change with every selected action.
+            // Let useful work finish across this estimate, just like utility
+            // readiness; any used mobility must pass exact current validation.
+            && (forRevalidation || Math.Abs(ReadyIn - Math.Max(0, other.ReadyIn - age)) <= 0.01f) && MinimumTravel == other.MinimumTravel
             && AdditionalResourceCost == other.AdditionalResourceCost
             && AllowStationary == other.AllowStationary && ReturnPosition == other.ReturnPosition && Anchors.Length == other.Anchors.Length
             && IsGCD == other.IsGCD && RecastSeconds == other.RecastSeconds && RequiredEarlierActions == other.RequiredEarlierActions
@@ -122,9 +125,9 @@ internal sealed class MobilityMechanics
                 yield return edge;
             yield break;
         }
-        if (context.Range is { RecoverExecution: true } recovery
-            && Toward(context, origin, recovery.Center) is { } aimed)
-            yield return aimed;
+        foreach (var target in context.MobilityApproachTargets().Distinct())
+            if (Toward(context, origin, target) is { } aimed)
+                yield return aimed;
         // Every native map cell is a supported ground choice or a direction to aim
         // at. No cluster around the old endpoint and no fixed 16/24-direction ring.
         for (var cell = 0; cell < context.Cells; ++cell)

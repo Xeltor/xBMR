@@ -31,11 +31,14 @@ internal static class NativeDeparturePreference
             previous = stage.Kind;
         }
         if (phases > MovementPlanningContext.MaximumPhases) return plan;
+        var movementLoss = context.MovementValue.Accumulate(context, stages.ToImmutable(), 0, 0, 0).Loss;
+        if (PlanningMovementValue.Compare(movementLoss, plan.MovementLossSeconds) > 0) return plan;
         var delayed = plan with
         {
             Stages = stages.ToImmutable(),
             DurationSeconds = plan.DurationSeconds + extra,
             PlanSlackSeconds = plan.PlanSlackSeconds - extra,
+            MovementLossSeconds = movementLoss,
             Evidence = plan.Evidence + "; departure wait included without delaying evidenced actions"
         };
         return MovementPlanValidation.Validate(delayed, context, 0, true, context.Identity.CapturedTimestamp).Allowed ? delayed : plan;

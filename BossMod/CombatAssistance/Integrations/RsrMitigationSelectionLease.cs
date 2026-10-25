@@ -1,7 +1,6 @@
 // Adapted from XCAI 4a0f7968; external RSR selection remains scoped to its original update.
 using System;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 
 namespace BossMod.CombatAssistance.Integrations;
@@ -51,8 +50,7 @@ internal sealed class RsrMitigationSelectionLease : IDisposable
             throw new InvalidOperationException("Mitigation CanUse contract changed");
         var proxy = (RsrMitigationSelectionProxy)DispatchProxy.Create(property.PropertyType, typeof(RsrMitigationSelectionProxy));
         proxy.Original = action;
-        var factory = Expression.Lambda(typeof(Func<>).MakeGenericType(property.PropertyType),
-            Expression.Convert(Expression.Constant(proxy), property.PropertyType)).Compile();
+        var factory = RsrActionFactory.Create(property.PropertyType, proxy);
         var ownedLazy = Activator.CreateInstance(field.FieldType, factory) ?? throw new InvalidOperationException("Missing mitigation factory");
         var lease = new RsrMitigationSelectionLease(rotation, field, originalLazy, ownedLazy, proxy, action, preview, forced, defer, failure);
         proxy.Intercept = lease.Invoke;
