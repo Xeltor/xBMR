@@ -8,9 +8,10 @@ working behavior; fix concrete problems instead of expanding the migration.
 
 - [ ] **Combat efficiency.** Idle overhead is repaired and planning allocations
   are substantially reduced. Combat frame-rate loss is still measurable with
-  automatic camera enabled. The latest exact-ray reuse and resource arithmetic
-  build passes offline checks; finish its live comparison before claiming the
-  camera cost or overall FPS problem is solved. Keep automatic camera enabled.
+  automatic camera enabled. The committed build passes offline checks and was
+  measured live at 54.58 updates/second. Its settled camera evaluation is cheap,
+  but the view changed between comparisons; the earlier expensive view and the
+  remaining overall frame-rate loss still need investigation. Keep camera enabled.
 - [ ] **Melee uptime and useful mobility.** Native planning now delivers actual
   Winged Glides, aimed Elusive Jumps and damaging dives through Griffin mechanics.
   The completed Support test confirms their effects and melee landings. Sprint's
@@ -83,10 +84,11 @@ maintainer has explicitly authorized development reloads inside the NPC dungeon.
 
 ## Evidence, if needed
 
-The latest offline-validated efficiency/arrival DLL is MVID
+The latest validated and loaded efficiency/arrival DLL is MVID
 `5bf068de-fc50-4ce2-9602-946dabf47703`. It builds and passes 54,506 native assertions,
-installed RSR contract checks and nine repository tests. The live client at this
-checkpoint still uses the preceding `c1079557-4f86-46a6-bc45-9d50c3dcaa1c` build.
+installed RSR contract checks and nine repository tests. The latest dummy
+measurement is recorded in the efficiency note; it does not establish a complete
+FPS fix. AI and RSR were restored to their off state after the comparison.
 The earlier gameplay
 repair run used MVID `33a2f701-ded3-42f0-9c58-67d872fd1889`. Those checks support
 the repairs; gameplay decides whether combat behavior is good enough.

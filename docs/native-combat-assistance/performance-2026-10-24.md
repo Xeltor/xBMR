@@ -208,3 +208,22 @@ verified enabled with no assistance failure. Final camera-reuse live validation
 and broader pathfinding-algorithm evaluation remain unfinished.
 
 Stable 7.5.6.35.20's immutable source tag and public assets are unchanged.
+
+### Post-checkpoint live verification
+
+Commit `bc579702e` was created before further algorithm changes. Its validated
+DLL (`5bf068de-fc50-4ce2-9602-946dabf47703`) subsequently auto-reloaded, and the
+maintainer-authorized dummy test ran with AI, RSR Henched and automatic camera on.
+Forty-eight warmed diagnostic observations recorded median camera evaluation
+0.361 ms, median input-hook work 0.0037 ms, and median full xBMR update 1.327 ms
+(95th percentile 3.576 ms). The settled view pruned all 17 alternatives; the last
+evaluation made 29 native rays and reused none. This sample therefore exercises
+pruning, not a demonstrated live ray-cache saving. The camera yaw differed from
+the earlier expensive view, so these are not controlled equivalent-view timings.
+
+A separate 34.979-second sample recorded 1,909 framework ticks: 54.58 updates per
+second, median sampled delta 18 ms and maximum 44 ms. The overall combat frame-rate
+drop remains unresolved; neither this measurement nor the arithmetic benchmark
+establishes a full FPS fix. Afterward, AI and RSR were restored to their observed
+off state and the test target was cleared. Automatic camera's saved preference
+remains enabled. No assistance failure was observed. Public assets are unchanged.
