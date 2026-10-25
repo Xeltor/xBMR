@@ -197,6 +197,14 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
         var rotation = _rotation;
         if (!Fresh(rotation)) { Status = "Native actor/rotation snapshot stale before selection"; return null; }
         if (CaptureFrame() is not { } frame) { Status = "Native target frame unavailable"; return null; }
+        if (!frame.NeedsActionConstraints)
+        {
+            _selectionObserved = 0;
+            _currentActions.Clear();
+            Decision = null;
+            Status = "No target or engaged enemy; original RSR idle selection retained";
+            return null;
+        }
         if (Get(rotation, "AllBaseActions") is not IEnumerable actions) { Status = "Original RSR action catalogue unavailable"; return null; }
         var scopes = new List<IDisposable>();
         var unsupported = 0;

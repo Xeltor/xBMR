@@ -13,6 +13,127 @@ public static partial class Checks
         CombatCameraWidensForLargeFights();
         CombatCameraRejectsObstructedTransitions();
         CombatCameraZoomRespectsLimits();
+        CombatCameraPruningPreservesSelection();
+        CombatCameraProjectionReusePreservesFraming();
+        CombatCameraCollisionObservationIsLocal();
+    }
+
+    private static void CombatCameraCollisionObservationIsLocal()
+    {
+        var calls = 0;
+        var hit = new CameraRayHit(true, new(1, 2, 3));
+        var rays = new CameraRaycast(_ => { calls++; return hit; });
+        var ray = new CameraRay(Vector3.Zero, Vector3.UnitZ, 10);
+        using (rays.Begin())
+        {
+            Check(rays.Read(ray) == hit && rays.Read(ray) == hit && calls == 1,
+                "exact camera rays share both collision and hit-point evidence within one evaluation");
+            rays.Read(ray with { Origin = Vector3.UnitX });
+            rays.Read(ray with { Direction = Vector3.UnitX });
+            rays.Read(ray with { Distance = 11 });
+            Check(calls == 4, "different camera ray origin, direction or length requires fresh collision evidence");
+        }
+        hit = new(false, default);
+        Check(rays.Read(ray) == hit && calls == 5 && rays.Read(ray) == hit && calls == 6,
+            "camera execution always revalidates collision outside planning observation");
+        try
+        {
+            using var scope = rays.Begin();
+            Check(rays.Read(ray) == hit && calls == 7, "the next view evaluation cannot reuse old collision evidence");
+            throw new InvalidOperationException("simulate aborted view evaluation");
+        }
+        catch (InvalidOperationException) { }
+        hit = new(true, Vector3.One);
+        Check(rays.Read(ray) == hit && calls == 8, "an aborted evaluation releases its camera collision samples");
+    }
+
+    private static void CombatCameraPruningPreservesSelection()
+    {
+        var baseline = new CameraViewScore(10f, -2f, -3f);
+        var partyWinner = baseline with { Party = 0f };
+        var looseBound = partyWinner with { Fight = 10.01f };
+        Check(partyWinner.Improves(baseline) && !looseBound.Improves(baseline) && looseBound.CouldImprove(baseline),
+            "camera upper bounds must retain equal-fight party improvements hidden by hysteresis");
+        Check(!baseline.CouldImprove(baseline), "a fully clear optimal view can prune equivalent candidates");
+        Check(new CameraViewScore(-100f, -100f, -100f).CouldImprove(baseline with { FightVisibility = 0.5f }),
+            "camera bounds cannot prune occlusion recovery because of worse framing");
+
+        // Compare admission and final view with an unpruned reference, including
+        // ties, sub-threshold changes, blocked views and independent recipients.
+        var random = new Random(4831);
+        for (var scene = 0; scene < 256; scene++)
+        {
+            var reference = RandomScore();
+            var selected = reference;
+            var referenceIndex = -1;
+            var selectedIndex = -1;
+            for (var view = 0; view < 42; view++)
+            {
+                var actual = view % 3 == 0 ? reference with { Party = reference.Party + 0.2f } : RandomScore();
+                var ceiling = actual with
+                {
+                    GroundClearance = 1f, CharacterVisibility = 1f, FightVisibility = 1f,
+                    Fight = actual.Fight + (view % 4) * 0.01f,
+                    Party = actual.Party + (view % 5) * 0.1f,
+                    Raid = actual.Raid + 0.5f,
+                };
+                Check(!actual.Improves(reference) || ceiling.CouldImprove(reference),
+                    "camera pruning must retain every possible improvement");
+                if (actual.Improves(reference)) { reference = actual; referenceIndex = view; }
+                if (ceiling.CouldImprove(selected) && actual.Improves(selected)) { selected = actual; selectedIndex = view; }
+            }
+            Check(selected == reference && selectedIndex == referenceIndex,
+                "camera bounded selection equals the complete reference including stable ties");
+        }
+        CameraViewScore RandomScore() => new(random.Next(-10, 11), random.Next(-4, 1), random.Next(-4, 1))
+        {
+            GroundClearance = random.Next(3) * 0.5f,
+            CharacterVisibility = random.Next(3) * 0.5f,
+            FightVisibility = random.Next(3) * 0.5f,
+        };
+    }
+
+    private static void CombatCameraProjectionReusePreservesFraming()
+    {
+        CameraSubject[] subjects = [new(Vector3.Zero, 0.5f, 2f, 1f),
+            new(new(-5f, 0f, -18f), 5f, 7f, 2f), new(new(8f, 1f, 4f), 0.5f, 2f, 1f)];
+        var pivot = new Vector3(0f, 1.5f, 0f);
+        var lens = new Vector2(1.36f, 2.42f);
+        for (var view = 0; view < 128; view++)
+        {
+            var yaw = (view % 16) * MathF.PI / 8f;
+            var pitch = -0.18f - (view / 16) * 0.1f;
+            var distance = 2f + view % 49;
+            var total = 0f;
+            var weight = 0f;
+            var worst = 0f;
+            var right = CombatCameraPolicy.CameraRight(yaw);
+            foreach (var subject in subjects)
+            {
+                var center = CombatCameraPolicy.Project(subject.Position + Vector3.UnitY * subject.Height * 0.5f,
+                    pivot, yaw, pitch, distance, lens);
+                var penalty = 2f * MathF.Max(0f, MathF.Abs(center.X) - 0.25f);
+                for (var sample = 0; sample < 4; sample++)
+                {
+                    var point = subject.Position + (sample switch
+                    {
+                        0 => Vector3.Zero,
+                        1 => Vector3.UnitY * subject.Height,
+                        2 => Vector3.UnitY * subject.Height * 0.5f - right * subject.Radius,
+                        _ => Vector3.UnitY * subject.Height * 0.5f + right * subject.Radius,
+                    });
+                    var screen = CombatCameraPolicy.Project(point, pivot, yaw, pitch, distance, lens);
+                    var edge = MathF.Max(MathF.Abs(screen.X), MathF.Abs(screen.Y));
+                    penalty += 3f * MathF.Max(0f, edge - 0.65f) + 12f * MathF.Max(0f, edge - 0.85f);
+                }
+                total += penalty * subject.Weight;
+                weight += subject.Weight;
+                worst = MathF.Max(worst, penalty);
+            }
+            Check(total / MathF.Max(weight, 1f) + 0.5f * worst ==
+                CombatCameraPolicy.FramingPenalty(subjects, pivot, yaw, pitch, distance, lens),
+                "reusing projection geometry must preserve every framing score exactly");
+        }
     }
     private static void AssertTrue(bool value, string message) => Check(value, message);
     private static void AssertEqual<T>(T expected, T actual, string message) => Check(EqualityComparer<T>.Default.Equals(expected, actual), message);

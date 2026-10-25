@@ -29,6 +29,11 @@ internal sealed class NativeMovementHost : IDisposable
     internal int StageIndex => _executor.StageIndex;
     internal long InputRevision => _revision;
     internal ImmutableArray<RejectedMobility> RejectedMobility => _rejectedMobility;
+    internal MovementPlanningCost LastCost { get; private set; }
+    internal MovementSearchCost? LastWorkerCost => _service.LastWorkerCost;
+    private long _inputCost, _combatCost, _contextCost, _serviceCost;
+    private int _costCells;
+    private bool _idleSkipped;
 
     internal NativeMovementHost(MovementPlanningService? service = null) => _service = service ?? new();
 
@@ -58,6 +63,11 @@ internal sealed class NativeMovementHost : IDisposable
     internal NavigationDecision Update(string owner, WorldState world, AIHints hints, Actor player, float speed,
         float cushion, NavigationDecision.Context inspection, MovementIntent? intent = null)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        _inputCost = _combatCost = _contextCost = _serviceCost = 0;
+        _costCells = 0;
+        _idleSkipped = false;
         try
         {
             LastFailure = null;
@@ -76,7 +86,27 @@ internal sealed class NativeMovementHost : IDisposable
             LastFailure = reason;
             return NativeRecoveryAfterCaptureFailure(world, hints, player, speed, cushion, inspection, reason);
         }
+        finally
+        {
+            var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - started;
+            var milliseconds = 1000d / System.Diagnostics.Stopwatch.Frequency;
+            LastCost = new(elapsed * milliseconds, _inputCost * milliseconds, _combatCost * milliseconds,
+                _contextCost * milliseconds, _serviceCost * milliseconds,
+                Math.Max(0, elapsed - _inputCost - _combatCost - _contextCost - _serviceCost) * milliseconds,
+                GC.GetAllocatedBytesForCurrentThread() - allocated, _costCells, _idleSkipped);
+        }
     }
+
+    internal static bool CanSkipIdleNavigation(AIHints hints, Actor player, bool encounter, bool engaged, MovementIntent intent)
+        => !encounter && !engaged && !player.InCombat && player.TargetID == 0
+            && intent.ExplicitDestination == null && intent.Range == null
+            && ReferenceEquals(hints.PathfindMapBounds, AIHints.DefaultBounds)
+            && hints.PathfindMapArenaProjectionLayer == null
+            && hints.PathfindMapBounds.Contains(player.Position - hints.PathfindMapCenter)
+            && hints.GoalZones.Count == 0 && hints.ForbiddenZones.Count == 0 && hints.TemporaryObstacles.Count == 0
+            && hints.Teleporters.Count == 0 && hints.ForbiddenDirections.Count == 0
+            && hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Normal && hints.ForcedMovement == null
+            && hints.InteractWithTarget == null && hints.PredictedDamage.Count == 0;
 
     // A preset need not contain NormalMovement to authorize stationary target
     // assistance. Reuse this host only when neither native movement owner ran.
@@ -182,6 +212,16 @@ internal sealed class NativeMovementHost : IDisposable
             Release(owner);
             return new() { LeewaySeconds = float.MaxValue };
         }
+        if (Assistance != null && CanSkipIdleNavigation(hints, player, Assistance.HasEncounterModule,
+            Runtime.NativeCombatEngagement.Active(world, hints, player), intent))
+        {
+            Release(_owner ?? owner);
+            _idleSkipped = true;
+            LastInputChange = "idle; no navigation or combat intent";
+            Execution = new(MovementExecutionKind.Arrived, "idle; no navigation or combat intent");
+            return new() { LeewaySeconds = float.MaxValue };
+        }
+        var phase = System.Diagnostics.Stopwatch.GetTimestamp();
         if (_owner != owner)
         {
             _episodeStarted = null;
@@ -198,7 +238,11 @@ internal sealed class NativeMovementHost : IDisposable
         var displacement = intent.ExplicitDestination == null
             ? Assistance?.ResolveKnockbackPlanning(owner, world, hints, player, input, native, _physical.BlockedPoints) : null;
         native = displacement?.Navigation ?? native;
+        _inputCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
+        phase = System.Diagnostics.Stopwatch.GetTimestamp();
         var combat = Assistance?.Capture(world, hints, player, displacement);
+        _combatCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
+        phase = System.Diagnostics.Stopwatch.GetTimestamp();
         var optimizeCombat = RequestsCombatOptimization(combat, intent);
         var optimize = optimizeCombat || explicitInstruction;
         var map = native.CopyStrictMap();
@@ -217,6 +261,7 @@ internal sealed class NativeMovementHost : IDisposable
             _executor.Release();
         }
         var cells = checked(map.Width * map.Height);
+        _costCells = cells;
         var presentation = native.CopyPresentation();
         if (optimizeCombat)
             presentation = Assistance!.CapturePresentation(map, hints, world, player, presentation);
@@ -251,7 +296,7 @@ internal sealed class NativeMovementHost : IDisposable
             personalField: optimizeCombat ? combat?.Mobility?.PersonalField : null,
             fieldPlacement: optimizeCombat && combat?.StationaryOnly != true ? combat?.FieldPlacement : null,
             stationaryOnly: optimizeCombat && combat?.StationaryOnly == true,
-            knockbackCompletion: Assistance?.KnockbackCompletion);
+            knockbackCompletion: Assistance?.KnockbackCompletion, takeOwnership: true);
         if (_owner != owner || _problem == null || !context.SameProblem(_problem, _committed != null, ignoreRejections: true))
             _rejectedMobility = [];
         context = context.Excluding(_rejectedMobility);
@@ -270,11 +315,14 @@ internal sealed class NativeMovementHost : IDisposable
             // route. Advance below checks the entire remainder against this NEW
             // snapshot before any directive is applied, retaining the 250ms ceiling.
         }
+        _contextCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
+        phase = System.Diagnostics.Stopwatch.GetTimestamp();
         _service.Submit(owner, _revision, context);
         CurrentPlan = _service.Poll(owner, _revision, world.CurrentTime);
+        _serviceCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
         Assistance?.ConsiderPlacement(CurrentPlan, context);
         // Diagnostic/special-mode readers own a frame-local map; no worker writes this buffer.
-        inspection.Map = native.CopyRecoveryMap();
+        inspection.Map = native.CopyRecoveryMap(inspection.Map);
         Execution = null;
         if (optimize)
         {
@@ -427,6 +475,12 @@ internal sealed class NativeMovementHost : IDisposable
     internal static bool CanRecoverCombatRange(MovementPlanningContext context, MovementPlan recovery)
         => context.Actions.IsEmpty && context.UnlockSeconds == 0 && context.Range is { } range && range.NeedsRecovery(context.Origin)
             && range.Loss(recovery.UsefulDestination) < range.Loss(context.Origin)
+            // Elective fallback must not start a center/crowd-directed route
+            // while the worker is still choosing its useful arrival. Urgent
+            // native departure bypasses this optional-wait check above.
+            && context.Cell(recovery.UsefulDestination) is var destination && destination >= 0
+            && context.Cell(context.Origin) is var origin && origin >= 0
+            && context.Presentation(destination) >= context.Presentation(origin)
             && recovery.NativeRecovery?.Publication is { } publication
             && NativeMovementIncumbent.Capture(context, publication) is { HasVerifiedRoute: true };
 

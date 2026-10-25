@@ -12,7 +12,7 @@ internal sealed class DevBridgeSnapshotProvider : IDisposable
     private readonly ICallGateProvider<string, string> _provider;
     private bool _disposed;
 
-    internal DevBridgeSnapshotProvider(IDalamudPluginInterface plugin, AIManager ai, AssistanceSettingsSession settings)
+    internal DevBridgeSnapshotProvider(IDalamudPluginInterface plugin, AIManager ai, AssistanceSettingsSession settings, Func<double>? updateMilliseconds = null)
     {
         _provider = plugin.GetIpcProvider<string, string>(ChannelName);
         _provider.RegisterFunc(request => _snapshot.Read(request, ai.Autorot.MovementPlanning.CurrentPlan, settings.MayAssist,
@@ -29,7 +29,8 @@ internal sealed class DevBridgeSnapshotProvider : IDisposable
             ai.Autorot.MovementPlanning.Assistance?.KnockbackObservationStatus,
             Service.Framework.IsInFrameworkUpdateThread ? ai.Autorot.MovementPlanning.Assistance?.DisplacementStatus : null,
             ai.Autorot.MovementPlanning.Assistance?.KnockbackSelectionStatus,
-            ai.Autorot.MovementPlanning.Assistance?.HealingStatus));
+            ai.Autorot.MovementPlanning.Assistance?.HealingStatus, ai.Autorot.MovementPlanning.LastCost, updateMilliseconds?.Invoke(),
+            ai.Autorot.MovementPlanning.LastWorkerCost));
     }
 
     internal void Observe(WorldState world)

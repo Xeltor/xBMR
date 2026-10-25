@@ -18,12 +18,40 @@ internal static class JointMovementSearch
         bool FieldEntryByAbility = false, PlanningPersonalField? RelocatedField = null, ImmutableArray<float> RecoveryTimes = default, bool FieldBenefitAllowed = true,
         ulong FocusTarget = 0, byte TargetChoices = 0, WPos? FieldPlacementAt = null, float FieldPlacementGain = 0, int Knockbacks = -1, float? FirstDeparture = null,
         float ActionReadyAt = 0, float GcdReadyAt = 0, float ImmunityAppliedBy = float.MaxValue, float ImmunityUntil = 0, uint ImmunityActionId = 0,
-        float ImmunityPossibleFrom = float.MaxValue, float ImmunityPossibleUntil = 0, PlanningRangeAccess? RangeAccess = null);
+        float ImmunityPossibleFrom = float.MaxValue, float ImmunityPossibleUntil = 0, PlanningRangeAccess? RangeAccess = null)
+    {
+        // Normalize each new candidate in place BEFORE admission. Admitted labels
+        // and their parent chains are never mutated; route publications remain frozen.
+        public PlanningResourceState Inventory { get; set; } = Inventory;
+        public int Phases { get; set; } = Phases;
+        public float PositionalBypassUntil { get; set; } = PositionalBypassUntil;
+        public PlanningTravel? Travel { get; set; } = Travel;
+        public bool SpentResources { get; set; } = SpentResources;
+        public float ComboReadyAt { get; set; } = ComboReadyAt;
+        public bool FieldEntryByAbility { get; set; } = FieldEntryByAbility;
+        public PlanningPersonalField? RelocatedField { get; set; } = RelocatedField;
+        public ImmutableArray<float> RecoveryTimes { get; set; } = RecoveryTimes;
+        public bool FieldBenefitAllowed { get; set; } = FieldBenefitAllowed;
+        public ulong FocusTarget { get; set; } = FocusTarget;
+        public byte TargetChoices { get; set; } = TargetChoices;
+        public WPos? FieldPlacementAt { get; set; } = FieldPlacementAt;
+        public float FieldPlacementGain { get; set; } = FieldPlacementGain;
+        public int Knockbacks { get; set; } = Knockbacks;
+        public float? FirstDeparture { get; set; } = FirstDeparture;
+        public float ActionReadyAt { get; set; } = ActionReadyAt;
+        public float GcdReadyAt { get; set; } = GcdReadyAt;
+        public float ImmunityAppliedBy { get; set; } = ImmunityAppliedBy;
+        public float ImmunityUntil { get; set; } = ImmunityUntil;
+        public uint ImmunityActionId { get; set; } = ImmunityActionId;
+        public float ImmunityPossibleFrom { get; set; } = ImmunityPossibleFrom;
+        public float ImmunityPossibleUntil { get; set; } = ImmunityPossibleUntil;
+        public PlanningRangeAccess? RangeAccess { get; set; } = RangeAccess;
+    }
 
     internal static MovementPlan Search(MovementPlanningContext context, Limits? limits = null, CancellationToken cancellation = default,
         MovementPlan? nativeIncumbent = null, Action<MovementPlan>? publishBest = null,
         bool includeMobilityActions = true, bool stopAtCurrentOpportunity = false, bool pruneResourceInferiorMobility = true,
-        bool pruneExecutionInferiorStates = true, bool includeSpatialMobilityActions = true)
+        bool pruneExecutionInferiorStates = true, bool includeSpatialMobilityActions = true, bool proveCompleteOptimum = true)
     {
         limits ??= new();
         var clock = Stopwatch.StartNew();
@@ -37,6 +65,7 @@ internal static class JointMovementSearch
         var maximumNativePriority = Enumerable.Range(0, context.Cells)
             .Where(cell => context.DestinationAllowed(cell) && frames[^1].HasPermanentCell(cell))
             .Select(frames[^1].NativePriority).DefaultIfEmpty(float.MinValue).Max();
+        var maximumPresentation = Enumerable.Range(0, context.Cells).Select(context.Presentation).Max();
         var maximumComboValue = context.ComboRecovery?.MaximumValue ?? 0;
         var canImprovePlacement = context.FieldPlacement?.MayImprove(context) == true;
         var restrictFieldEntry = context.Actions.Any(a => a.Timing?.FieldEntryByAbility == true);
@@ -116,6 +145,7 @@ internal static class JointMovementSearch
         {
             if (cancellation.IsCancellationRequested)
                 return Empty(MovementSearchStatus.Invalidated, "superseded input");
+            if (proveCompleteOptimum && ReachedBound() == MovementSearchBound.None && AtAbsoluteOptimum()) break;
             // Finish alternatives that can start the same current opportunity
             // on time before publishing the walking pass. First arrival alone
             // must not commit an inside-hitbox point when an equally timely,
@@ -130,15 +160,18 @@ internal static class JointMovementSearch
                     covered.Benefit == zone.Benefit && covered.Contains(best.Position, best.Time, best.RelocatedField)))
                 && (context.Range?.RecoverExecution != true || RangeOutcome(best) is { Loss: 0 })
                 && queue.Peek().Time > (context.Range?.RecoverExecution == true
-                    || context.HealingCoverage?.Satisfied(context.Origin) == false ? best.Time : best.DeliveryTimes.Max()))
+                    || context.HealingCoverage?.Satisfied(context.Origin) == false
+                        ? Math.Max(best.Time, best.RangeAccess?.ReadyAt ?? 0) : best.DeliveryTimes.Max()))
                 return BuildPlan(best, MovementSearchStatus.Bounded, MovementSearchBound.SearchInProgress);
             // A complete no-spend native witness already realizes the absolute
-            // current instant opportunity and its next readiness contact. Publish
-            // this bounded incumbent now; the full search still owns optimization.
+            // current instant opportunity and its next readiness contact. Only
+            // skip the remaining arrival comparison if its presentation also
+            // reaches the ceiling: a center-directed seed is not a final arrival.
             if (stopAtCurrentOpportunity && best != null && knockbacks.IsEmpty && context.PreparationMask == 0
                 && context.PreservesPresent(best.Actions) && !best.SpentResources
                 && context.HealingCoverage == null && context.ComboRecovery == null && context.Zones.IsEmpty && !canImprovePlacement
                 && frames[best.Knockbacks].NativePriority(best.Cell) == maximumNativePriority
+                && context.Presentation(best.Cell) == maximumPresentation
                 && best.RangeAccess is { } contact && RangeOutcome(best) is { Loss: 0 } reached && reached.At == contact.ReadyAt
                 && context.Actions.Length <= 1 && (context.Actions.IsEmpty || context.Actions[0] is { CastSeconds: 0, ResourceCost: 0, GrantedResources: 0 } currentAction
                     && currentAction.Timing is not { WithoutProc: > 0 } && currentAction.Timing is not { UnbuffedUpperBound: > 0 }
@@ -152,7 +185,12 @@ internal static class JointMovementSearch
                 break;
             }
             var current = queue.Dequeue();
-            if (!labels[current.Cell].Contains(current) || CannotImproveExecution(current))
+            // Queue entries refer to admitted labels by identity. Record equality
+            // can recursively compare whole parent routes when checking retirement.
+            var active = false;
+            foreach (var admitted in labels[current.Cell])
+                if (ReferenceEquals(admitted, current)) { active = true; break; }
+            if (!active || CannotImproveExecution(current))
                 continue;
             ++expansions;
             var frame = frames[current.Knockbacks];
@@ -663,6 +701,36 @@ internal static class JointMovementSearch
             return false;
         }
 
+        bool AtAbsoluteOptimum()
+        {
+            // A complete stationary witness can meet every objective ceiling.
+            // No walking or spending alternative can improve zero distance,
+            // earliest instant delivery/recovery, maximal native/presentation
+            // values and an unspent inventory without resource generation.
+            if (best == null || best.Distance != 0 || best.Position != context.Origin || best.SpentResources
+                || best.FocusTarget != context.TargetId || !knockbacks.IsEmpty || context.ForcedMovement != null
+                || context.HealingCoverage != null || context.ComboRecovery != null || !context.Zones.IsEmpty
+                || context.FieldPlacement != null || context.PersonalField != null || context.RequiredDestination != null
+                || context.PreparationMask != 0 || context.Actions.Length > 1
+                || !context.PreservesPresent(best.Actions)
+                || frames[best.Knockbacks].NativePriority(best.Cell) != maximumNativePriority
+                || context.Presentation(best.Cell) != maximumPresentation
+                || context.PartyContact?.Loss(best.Position) > 0
+                || context.CommittedDestination is { } committed && !best.Position.AlmostEqual(committed, 0.1f)
+                || context.Range is { } range && range.Loss(best.Position) != 0
+                || context.Range?.RecoverExecution == true && RangeOutcome(best) is not { Loss: 0 }) return false;
+            if (context.Range?.RecoverExecution == true && RangeOutcome(best) is { } access && access.At != access.ReadyAt) return false;
+            if (context.Actions.IsEmpty) return best.Time == context.UnlockSeconds;
+            var action = context.Actions[0];
+            if (action.Preparation != PlanningPreparationMode.None || action.CastSeconds != 0 || action.ResourceCost != 0
+                || action.GrantedResources != 0 || action.Timing is { WithoutProc: > 0 } or { UnbuffedUpperBound: > 0 } or { HasteCenter: not null }
+                || best.Values[0] != maximumActionValues[0]) return false;
+            var earliest = Math.Max(context.UnlockSeconds, action.Earliest);
+            var recast = action.Timing?.NativeRecast ?? 0;
+            return best.DeliveryTimes[0] == earliest && best.Time == earliest
+                && best.RecoveryTimes[0] == earliest + Math.Max(action.LockSeconds, recast);
+        }
+
         MovementSearchBound ReachedBound()
         {
             if (memoryExhausted)
@@ -686,17 +754,16 @@ internal static class JointMovementSearch
 
         void Add(Label label)
         {
-            if (label.Knockbacks < 0) label = label with { Knockbacks = label.Parent?.Knockbacks ?? 0 };
+            var ownImmunity = label.ImmunityActionId != 0;
+            var ownPlacement = label.FieldPlacementAt != null;
+            if (label.Knockbacks < 0) label.Knockbacks = label.Parent?.Knockbacks ?? 0;
             if (label.Knockbacks < knockbacks.Length && label.Time >
                 (knockbacks[label.Knockbacks].Timing!.EarliestUtc - context.Identity.WorldTime).TotalSeconds) return;
             if (label.RecoveryTimes.IsDefault)
-                label = label with
-                {
-                    RecoveryTimes = label.Parent?.RecoveryTimes
-                    ?? ImmutableArray.CreateRange(Enumerable.Repeat(float.PositiveInfinity, context.Actions.Length))
-                };
+                label.RecoveryTimes = label.Parent?.RecoveryTimes
+                    ?? ImmutableArray.CreateRange(Enumerable.Repeat(float.PositiveInfinity, context.Actions.Length));
             if (CannotImproveExecution(label)) return;
-            label = label with { Inventory = label.Inventory.At(label.Time, context.Recharges) };
+            label.Inventory = label.Inventory.At(label.Time, context.Recharges);
             if (context.Range is { RecoverExecution: true } range)
             {
                 var access = label.Parent?.RangeAccess ?? new PlanningRangeAccess(range.RecoveryReadyIn);
@@ -710,7 +777,7 @@ internal static class JointMovementSearch
                         ready = Math.Max(ready, Math.Max(stage.StartSeconds + (float.IsFinite(stage.PlannedRecastSeconds) ? stage.PlannedRecastSeconds : 0),
                             float.IsFinite(stage.ActionLockUntil) ? stage.ActionLockUntil : stage.EndSeconds));
                 }
-                label = label with { RangeAccess = access.Advance(range, ready, label.Stages, label.Position, label.Time) };
+                label.RangeAccess = access.Advance(range, ready, label.Stages, label.Position, label.Time);
             }
             var comboReady = Math.Max(label.ComboReadyAt, label.Parent?.ComboReadyAt ?? 0);
             var fieldEntry = label.Parent?.FieldEntryByAbility ?? false;
@@ -730,26 +797,23 @@ internal static class JointMovementSearch
                             float.IsFinite(stage.ActionLockUntil) ? stage.ActionLockUntil : stage.EndSeconds));
             // Effects are absolute times in this capture. Preserve them across
             // walking, waiting and other actions; do not restart their duration.
-            label = label with
-            {
-                FirstDeparture = label.FirstDeparture ?? label.Parent?.FirstDeparture,
-                ActionReadyAt = Math.Max(label.ActionReadyAt, label.Parent?.ActionReadyAt ?? 0),
-                GcdReadyAt = Math.Max(label.GcdReadyAt, label.Parent?.GcdReadyAt ?? 0),
-                ImmunityAppliedBy = label.ImmunityActionId != 0 ? label.ImmunityAppliedBy : label.Parent?.ImmunityAppliedBy ?? float.MaxValue,
-                ImmunityUntil = label.ImmunityActionId != 0 ? label.ImmunityUntil : label.Parent?.ImmunityUntil ?? 0,
-                ImmunityActionId = label.ImmunityActionId != 0 ? label.ImmunityActionId : label.Parent?.ImmunityActionId ?? 0,
-                ImmunityPossibleFrom = label.ImmunityActionId != 0 ? label.ImmunityPossibleFrom : label.Parent?.ImmunityPossibleFrom ?? float.MaxValue,
-                ImmunityPossibleUntil = label.ImmunityActionId != 0 ? label.ImmunityPossibleUntil : label.Parent?.ImmunityPossibleUntil ?? 0,
-                PositionalBypassUntil = Math.Max(label.PositionalBypassUntil, label.Parent?.PositionalBypassUntil ?? 0),
-                Travel = label.Travel ?? label.Parent?.Travel ?? context.Travel,
-                FieldPlacementAt = label.FieldPlacementAt ?? label.Parent?.FieldPlacementAt,
-                FieldPlacementGain = label.FieldPlacementAt != null ? label.FieldPlacementGain : label.Parent?.FieldPlacementGain ?? 0,
-                FocusTarget = label.FocusTarget != 0 ? label.FocusTarget : label.Parent?.FocusTarget ?? context.TargetId,
-                TargetChoices = (byte)(label.TargetChoices | (label.Parent?.TargetChoices ?? 0)),
-                SpentResources = label.SpentResources || label.Parent?.SpentResources == true || label.Stages.Any(s =>
+            label.FirstDeparture = label.FirstDeparture ?? label.Parent?.FirstDeparture;
+            label.ActionReadyAt = Math.Max(label.ActionReadyAt, label.Parent?.ActionReadyAt ?? 0);
+            label.GcdReadyAt = Math.Max(label.GcdReadyAt, label.Parent?.GcdReadyAt ?? 0);
+            label.ImmunityAppliedBy = ownImmunity ? label.ImmunityAppliedBy : label.Parent?.ImmunityAppliedBy ?? float.MaxValue;
+            label.ImmunityUntil = ownImmunity ? label.ImmunityUntil : label.Parent?.ImmunityUntil ?? 0;
+            label.ImmunityActionId = label.ImmunityActionId != 0 ? label.ImmunityActionId : label.Parent?.ImmunityActionId ?? 0;
+            label.ImmunityPossibleFrom = ownImmunity ? label.ImmunityPossibleFrom : label.Parent?.ImmunityPossibleFrom ?? float.MaxValue;
+            label.ImmunityPossibleUntil = ownImmunity ? label.ImmunityPossibleUntil : label.Parent?.ImmunityPossibleUntil ?? 0;
+            label.PositionalBypassUntil = Math.Max(label.PositionalBypassUntil, label.Parent?.PositionalBypassUntil ?? 0);
+            label.Travel = label.Travel ?? label.Parent?.Travel ?? context.Travel;
+            label.FieldPlacementAt = label.FieldPlacementAt ?? label.Parent?.FieldPlacementAt;
+            label.FieldPlacementGain = ownPlacement ? label.FieldPlacementGain : label.Parent?.FieldPlacementGain ?? 0;
+            label.FocusTarget = label.FocusTarget != 0 ? label.FocusTarget : label.Parent?.FocusTarget ?? context.TargetId;
+            label.TargetChoices = (byte)(label.TargetChoices | (label.Parent?.TargetChoices ?? 0));
+            label.SpentResources = label.SpentResources || label.Parent?.SpentResources == true || label.Stages.Any(s =>
                     s.Kind is MovementStageKind.TargetDash or MovementStageKind.GroundMovement or MovementStageKind.DirectionalMovement
-                        or MovementStageKind.Return or MovementStageKind.UtilityAction)
-            };
+                        or MovementStageKind.Return or MovementStageKind.UtilityAction);
             var phases = label.Parent?.Phases ?? 0;
             var lastKind = label.Parent?.Stages.LastOrDefault()?.Kind;
             foreach (var stage in label.Stages)
@@ -758,7 +822,11 @@ internal static class JointMovementSearch
                     ++phases;
                 lastKind = stage.Kind;
             }
-            label = label with { Phases = phases, ComboReadyAt = comboReady, FieldEntryByAbility = fieldEntry, RelocatedField = relocatedField, FieldBenefitAllowed = fieldBenefitAllowed };
+            label.Phases = phases;
+            label.ComboReadyAt = comboReady;
+            label.FieldEntryByAbility = fieldEntry;
+            label.RelocatedField = relocatedField;
+            label.FieldBenefitAllowed = fieldBenefitAllowed;
             if (!labels.TryGetValue(label.Cell, out var existing))
                 labels[label.Cell] = existing = [];
             foreach (var other in existing)
@@ -778,7 +846,8 @@ internal static class JointMovementSearch
                 memoryExhausted = true;
                 return;
             }
-            existing.RemoveAll(other => Dominates(label, other));
+            for (var i = existing.Count - 1; i >= 0; --i)
+                if (Dominates(label, existing[i])) existing.RemoveAt(i);
             existing.Add(label);
             ++createdStates;
             queue.Enqueue(label, (label.Time, serial++));
@@ -808,12 +877,20 @@ internal static class JointMovementSearch
             }
         }
 
+        static bool NoLater(ImmutableArray<float> a, ImmutableArray<float> b)
+        {
+            if (a.Length != b.Length) return false;
+            for (var i = 0; i < a.Length; ++i)
+                if (!(a[i] <= b[i])) return false;
+            return true;
+        }
+
         bool Dominates(Label a, Label b)
-            => a.Knockbacks == b.Knockbacks && a.Position == b.Position && a.Actions == b.Actions && a.Values.SequenceEqual(b.Values)
+            => a.Knockbacks == b.Knockbacks && a.Position == b.Position && a.Actions == b.Actions && a.Values.AsSpan().SequenceEqual(b.Values.AsSpan())
                 && a.FieldPlacementAt == b.FieldPlacementAt && a.FieldPlacementGain >= b.FieldPlacementGain
                 && a.FocusTarget == b.FocusTarget && a.TargetChoices == b.TargetChoices
-                && a.DeliveryTimes.Zip(b.DeliveryTimes).All(times => times.First <= times.Second)
-                && a.RecoveryTimes.Zip(b.RecoveryTimes).All(times => times.First <= times.Second)
+                && NoLater(a.DeliveryTimes, b.DeliveryTimes)
+                && NoLater(a.RecoveryTimes, b.RecoveryTimes)
                 && a.PositionalBypassUntil >= b.PositionalBypassUntil && a.Phases <= b.Phases && a.Stages.LastOrDefault()?.Kind == b.Stages.LastOrDefault()?.Kind
                 && a.ComboReadyAt <= b.ComboReadyAt
                 && a.ActionReadyAt <= b.ActionReadyAt
@@ -949,8 +1026,8 @@ internal static class JointMovementSearch
                 return aResources;
             if (aInventory.Charges == bInventory.Charges)
             {
-                var aEarlier = aInventory.Next.Zip(bInventory.Next).All(t => t.First <= t.Second);
-                var bEarlier = bInventory.Next.Zip(aInventory.Next).All(t => t.First <= t.Second);
+                var aEarlier = NoLater(aInventory.Next, bInventory.Next);
+                var bEarlier = NoLater(bInventory.Next, aInventory.Next);
                 if (aEarlier != bEarlier) return aEarlier;
             }
             // Still prefer useful progress when neither route restores attack

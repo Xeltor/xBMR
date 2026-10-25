@@ -251,7 +251,8 @@ internal sealed class MovementPlanningContext
         IEnumerable<PlanningZone>? zones = null, IEnumerable<PlanningRecharge>? recharges = null, bool cooldownEvidenceLimited = false,
         IEnumerable<PlanningTeleport>? teleports = null, ForcedMovementChoices? forcedMovement = null, PlanningRange? partyContact = null,
         PlanningComboRecovery? comboRecovery = null, PlanningPersonalField? personalField = null, PlanningFieldPlacement? fieldPlacement = null, NativeKnockbackPhases? knockbackPhases = null, bool stationaryOnly = false,
-        Knockback.KnockbackCompletionEvidence? knockbackCompletion = null, PlanningHealingCoverage? healingCoverage = null)
+        Knockback.KnockbackCompletionEvidence? knockbackCompletion = null, PlanningHealingCoverage? healingCoverage = null,
+        bool takeOwnership = false)
     {
         StationaryOnly = stationaryOnly;
         ForcedMovement = forcedMovement;
@@ -264,7 +265,11 @@ internal sealed class MovementPlanningContext
             || !float.IsFinite(identity.Speed) || identity.Speed <= 0 || !float.IsFinite(radius) || radius < 0
             || !float.IsFinite(unlockSeconds) || unlockSeconds < 0 || unlockSeconds > MaximumHorizonSeconds)
             throw new ArgumentException("Unsupported planning geometry or timing.");
-        _map.Init(unrelaxedMap, unrelaxedMap.Center);
+        // The native host supplies fresh, unshared capture buffers and transfers
+        // them here. Other callers retain the defensive copy boundary. Neither
+        // path permits subsequent mutation of a worker's map or score arrays.
+        if (takeOwnership) _map = unrelaxedMap;
+        else _map.Init(unrelaxedMap, unrelaxedMap.Center);
         Identity = identity;
         if (native != null && native.Identity != identity)
             throw new ArgumentException("Native recovery and planning must belong to the same capture.");
@@ -311,8 +316,8 @@ internal sealed class MovementPlanningContext
         UnlockSeconds = unlockSeconds;
         Resources = resources;
         CommittedDestination = committedDestination;
-        _allowedDestinations = (bool[])allowedDestinations.Clone();
-        _presentation = (float[])presentation.Clone();
+        _allowedDestinations = takeOwnership ? allowedDestinations : (bool[])allowedDestinations.Clone();
+        _presentation = takeOwnership ? presentation : (float[])presentation.Clone();
         _actions = actions.Select(a => new FrozenPlanningAction(a.Id, a.TargetId, a.Earliest, a.Latest, a.CastSeconds, a.LockSeconds,
             a.RequiredRecipients, a.RecipientsByCell.ToImmutableArray(), a.ValueByCell.ToImmutableArray(), a.RequiredEarlierActions,
             a.RecipientIds.IsDefault ? [] : a.RecipientIds, a.Opportunity, a.HorizonLimited, a.Timing,
@@ -571,10 +576,14 @@ internal sealed class MovementPlanningContext
     internal static int ChargeCount(ulong resources, int resource) => (int)((resources >> (4 * resource)) & 15);
     internal static bool NoFewerResources(ulong a, ulong b)
     {
-        for (var i = 0; i < 16; ++i)
-            if (ChargeCount(a, i) < ChargeCount(b, i))
-                return false;
-        return true;
+        if (a == b || b == 0) return true;
+        // Compare all sixteen four-bit counts independently. Guard bits prevent
+        // subtraction borrowing across slots; equal high bits use the low-bit
+        // comparison, and unequal high bits are decided by a's high bit alone.
+        const ulong high = 0x8888888888888888ul;
+        var lowAtLeast = (((a & ~high) | high) - (b & ~high)) & high;
+        var equalHigh = ~(a ^ b) & high;
+        return ((a & ~b & high) | (equalHigh & lowAtLeast)) == high;
     }
 }
 

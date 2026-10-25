@@ -7,21 +7,22 @@ namespace BossMod.CombatAssistance.Planning;
 // conservative sampling as NavigationDecision. No live callback survives this boundary.
 internal sealed class FrozenGoalField
 {
-    private readonly ImmutableArray<float> _aggregate;
-    private readonly ImmutableArray<ImmutableArray<float>> _leaves;
+    private readonly float[] _aggregate;
+    private readonly ImmutableArray<float[]> _leaves;
     private readonly (int Width, int Height, float Resolution, WPos Center, Angle Rotation) _geometry;
     internal int Cells => _aggregate.Length;
     internal int Goals => _leaves.Length;
-    private FrozenGoalField(Map map, float[] aggregate, ImmutableArray<ImmutableArray<float>> leaves)
+    private FrozenGoalField(Map map, float[] aggregate, ImmutableArray<float[]> leaves)
     {
         _geometry = (map.Width, map.Height, map.Resolution, map.Center, map.Rotation);
-        _aggregate = aggregate.ToImmutableArray();
+        // Capture creates these private buffers; no mutable reference escapes.
+        _aggregate = aggregate;
         _leaves = leaves;
     }
     internal float Aggregate(int cell) => _aggregate[cell];
     internal float Leaf(int goal, int cell) => _leaves[goal][cell];
 
-    internal static FrozenGoalField Capture(Map map, IReadOnlyList<Func<WPos, float>> goals)
+    internal static FrozenGoalField Capture(Map map, IReadOnlyList<Func<WPos, float>> goals, bool captureLeaves = true)
     {
         var cells = checked(map.Width * map.Height);
         if (cells <= 0)
@@ -29,21 +30,30 @@ internal sealed class FrozenGoalField
         var cornerWidth = map.Width + 1;
         var cornerCount = checked(cornerWidth * (map.Height + 1));
         var sums = new float[cornerCount];
-        var values = new float[cornerCount];
-        var leaves = ImmutableArray.CreateBuilder<ImmutableArray<float>>(goals.Count);
+        var values = captureLeaves ? new float[cornerCount] : null;
+        var leaves = ImmutableArray.CreateBuilder<float[]>(captureLeaves ? goals.Count : 0);
+        // Match native rasterization's incremental corner coordinates, including
+        // rotated maps, so the same frozen values also serve native recovery.
+        var dy = map.LocalZDivRes * (map.Resolution * map.Resolution);
+        var dx = dy.OrthoL();
+        var topLeft = map.Center - (map.Width >> 1) * dx - (map.Height >> 1) * dy;
         foreach (var goal in goals)
         {
             for (var y = 0; y <= map.Height; ++y)
+            {
+                var point = topLeft + y * dy;
                 for (var x = 0; x <= map.Width; ++x)
                 {
                     var index = y * cornerWidth + x;
-                    var value = goal(map.GridToWorld(x, y, 0, 0));
+                    var value = goal(point);
                     if (!float.IsFinite(value) || !float.IsFinite(sums[index] + value))
                         throw new ArgumentException("Native goal returned an invalid value.");
                     sums[index] += value;
-                    values[index] = value;
+                    if (values != null) values[index] = value;
+                    point += dx;
                 }
-            leaves.Add(CellMinima(values).ToImmutableArray());
+            }
+            if (values != null) leaves.Add(CellMinima(values));
         }
         return new(map, CellMinima(sums), leaves.ToImmutable());
 
@@ -70,7 +80,7 @@ internal sealed class FrozenGoalField
         return true;
     }
 
-    internal void ApplyNativePriorities(Map map)
+    internal void ApplyNativePriorities(Map map, bool preserveUnscored = false)
     {
         if (_geometry != (map.Width, map.Height, map.Resolution, map.Center, map.Rotation))
             throw new ArgumentException("Native goal field belongs to a different map.");
@@ -79,7 +89,8 @@ internal sealed class FrozenGoalField
         {
             if (map.PixelMaxG[cell] != float.MaxValue)
                 continue;
-            map.PixelPriority[cell] = _aggregate[cell];
+            if (!preserveUnscored || _aggregate[cell] != float.MinValue)
+                map.PixelPriority[cell] = _aggregate[cell];
             map.MaxPriority = Math.Max(map.MaxPriority, _aggregate[cell]);
         }
     }

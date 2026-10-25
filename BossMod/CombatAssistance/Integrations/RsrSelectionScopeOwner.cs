@@ -74,8 +74,22 @@ internal sealed class RsrSelectionScopeOwner(RsrRuntimeAccess runtime, Func<bool
         }
     }
 
-    private IDisposable? Enter() => !_disposed && enabled()
-        ? EnterAll(_registrations.Where(r => !r.Disposed).Select(r => (r.Enter, r.Failure)).ToArray()) : null;
+    private IDisposable? Enter()
+    {
+        if (_disposed || !enabled()) return null;
+        var observation = runtime.BeginObservation();
+        try { return new ObservedScopes(observation, EnterAll(_registrations.Where(r => !r.Disposed).Select(r => (r.Enter, r.Failure)))); }
+        catch { observation.Dispose(); throw; }
+    }
+
+    private sealed class ObservedScopes(ScopedObservation<Dalamud.Plugin.IExposedPlugin[]>.Scope observation, IDisposable? scopes) : IDisposable
+    {
+        public void Dispose()
+        {
+            try { scopes?.Dispose(); }
+            finally { observation.Dispose(); }
+        }
+    }
 
     internal static IDisposable? EnterAll(IEnumerable<(Func<IDisposable?> Enter, Action<Exception> Failure)> registrations)
     {

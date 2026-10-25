@@ -165,6 +165,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             && _rotation.WorldState.Party.Player() is { IsDead: false, MountId: 0 } player
             && NativeForcedMovementCapture.NeedsExclusivePlanning(_rotation.WorldState, _rotation.Bossmods.ActiveModule, player);
     internal bool IngressCastLocked => _actions.MoveMightInterruptCast;
+    internal bool HasEncounterModule => _rotation.Bossmods.ActiveModule != null;
 
     internal bool HasMovementAuthority(Actor player, AIHints hints)
         => Service.ClientState.IsLoggedIn && Service.ObjectTable.LocalPlayer is { } local && local.IsValid()

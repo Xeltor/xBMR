@@ -143,7 +143,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         CombatAssistance.UI.MaterialTheme.Initialize(_dalamud);
         _xcaiMigrationWindow = new(_xcaiNotice);
         _ai = new(_rotation, _amex, _movementOverride, _assistance);
-        _assistanceDiagnostics = new(_dalamud, _ai, _assistance);
+        _assistanceDiagnostics = new(_dalamud, _ai, _assistance, () => _prevUpdateTime.TotalMilliseconds);
         _fightSharing = new(_dalamud.ConfigDirectory.FullName, CombatAssistance.Sharing.RecordingModuleCatalog.Capture());
         _ai.ConfigureAssistanceStatus(() => _fightSharing.Status, () => _rotation.MovementPlanning.Assistance?.SupportAvailability);
         UpdateAssistanceSettings();
@@ -367,6 +367,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
 
     private void DrawUI()
     {
+        using var observations = CombatAssistance.Integrations.ReflectionObjectSearch.BeginObservation(_dalamud);
         UpdateAssistanceSettings();
         RebornMaterial.M3.BeginFrame();
         var tsStart = DateTime.Now;

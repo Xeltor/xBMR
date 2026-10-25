@@ -21,11 +21,17 @@ internal static class NativeMovementSearch
     }
 
     internal static MovementPlan Run(MovementPlanningContext context, CancellationToken cancel, Action<MovementPlan> publish)
+        => Run(context, cancel, publish, new());
+
+    // One service runs one worker at a time. Its recovery scratch stays worker
+    // owned; publications contain copied route witnesses, never these buffers.
+    internal static MovementPlan Run(MovementPlanningContext context, CancellationToken cancel, Action<MovementPlan> publish,
+        NavigationDecision.Context recoveryContext)
     {
         if (context.ForcedMovement != null || context.Native is not { } native)
             return JointMovementSearch.Search(context, cancellation: cancel, publishBest: publish);
         cancel.ThrowIfCancellationRequested();
-        var recoveryPlan = Recover(context, new(), cancel);
+        var recoveryPlan = Recover(context, recoveryContext, cancel);
         var recovery = recoveryPlan.NativeRecovery!.Value;
         cancel.ThrowIfCancellationRequested();
         if (!context.Optimize || context.StationaryOnly && recovery.Destination is { } required

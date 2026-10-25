@@ -15,6 +15,8 @@ internal sealed record OffensiveTargetFrame(ExecutionActor Player, ulong Current
     ImmutableArray<OffensiveTargetActor> Actors, uint CurrentAction = 0,
     ImmutableArray<ulong> RequiredRecipients = default, ulong SelectedTarget = 0)
 {
+    internal bool NeedsActionConstraints => Current != 0 || Forced != 0 || RecoveryTarget != 0
+        || Actors.Any(a => a.Engaged && a.Priority >= 0 && !a.Actor.Dead);
     internal bool Eligible(ulong id) => id != 0 && Actors.Any(a => a.Actor.Id == id && Valid(a.Actor)
         && !a.Actor.Dead && a.Engaged && a.Priority >= 0);
     private static bool Valid(ExecutionActor actor) => actor.Id != 0 && float.IsFinite(actor.Position.X)

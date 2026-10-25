@@ -40,7 +40,8 @@ internal sealed class NativeDiagnosticSnapshot
         Func<NativeActionTimingObservation?>? readTiming = null,
         Targeting.OffensiveTargetDecision? targeting = null, string? targetingStatus = null,
         Knockback.NativeKnockbackObservationStatus? knockbackObservation = null, NativeDisplacementStatus? displacement = null, string? knockbackSelection = null,
-        string? healingStatus = null)
+        string? healingStatus = null, MovementPlanningCost? planningPerformance = null, double? pluginUpdateMilliseconds = null,
+        MovementSearchCost? searchPerformance = null)
     {
         if (!frameworkThread)
             return Failure("framework_thread_required");
@@ -102,6 +103,9 @@ internal sealed class NativeDiagnosticSnapshot
                     playerId = _player
                 },
                 movement = Project(plan, execution, displayedStages, displayedRecipients),
+                planningPerformance,
+                pluginUpdateMilliseconds,
+                searchPerformance,
                 camera,
                 nativeTiming,
                 knockbackObservation,

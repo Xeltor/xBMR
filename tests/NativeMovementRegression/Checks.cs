@@ -16,6 +16,7 @@ public static partial class Checks
         IndependentRecipients();
         ResourceLabels();
         ResourceRecharge();
+        ResourceArithmetic();
         TeleportPlanning();
         CastAndLocks();
         StabilityAndBudget();
@@ -24,6 +25,7 @@ public static partial class Checks
         FreshExecution();
         WorkerOwnership();
         WorkerInputChurn();
+        DeliberateArrival();
         FrozenNativeGoals();
         ExhaustiveResourceRoutes();
         BenchmarkBudget();
@@ -34,6 +36,10 @@ public static partial class Checks
         NativeOwnership();
         NativeProblemChanges();
         NativeHostLifecycle();
+        IdleNavigation();
+        PlanningBuffers();
+        CompleteOptimum();
+        ScopedPluginObservation();
         CaptureThreadAndCost();
         ActionOpportunities();
         SettingsSession();

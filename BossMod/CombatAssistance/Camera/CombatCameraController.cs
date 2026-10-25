@@ -35,6 +35,12 @@ internal sealed record CombatCameraStatus(string State, long Updates, float? Yaw
     public float? RenderYaw { get; init; }
     public Vector3? ScenePosition { get; init; }
     public float? AdjustedInput { get; init; }
+    public double EvaluationMilliseconds { get; init; }
+    public int EvaluatedViews { get; init; }
+    public int PrunedViews { get; init; }
+    public double InputMilliseconds { get; init; }
+    public int CollisionQueries { get; init; }
+    public int ReusedCollisionQueries { get; init; }
 }
 
 internal sealed unsafe class CombatCameraController : IDisposable
@@ -79,6 +85,11 @@ internal sealed unsafe class CombatCameraController : IDisposable
     private float groundClearance;
     private float characterVisibility;
     private DateTime nextViewEvaluation;
+    private readonly CameraRaycast raycasts = new(ReadNativeRay);
+    private double evaluationMilliseconds;
+    private double inputMilliseconds;
+    private int evaluatedViews;
+    private int prunedViews;
 
     internal bool ManualPause => DateTime.UtcNow < this.manualUntil;
 
@@ -146,11 +157,24 @@ internal sealed unsafe class CombatCameraController : IDisposable
 
             if (DateTime.UtcNow >= this.nextViewEvaluation)
             {
+                var started = Stopwatch.GetTimestamp();
                 this.ChooseView(camera, scene.PlayerPosition, fightCenter);
+                this.evaluationMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                 this.nextViewEvaluation = DateTime.UtcNow.AddMilliseconds(250);
             }
             this.eligible = true;
-            this.Status = new("ready", this.updates, this.yaw, this.targetYaw);
+            this.Status = new("ready", this.updates, this.yaw, this.targetYaw)
+            {
+                EvaluationMilliseconds = this.evaluationMilliseconds,
+                EvaluatedViews = this.evaluatedViews,
+                PrunedViews = this.prunedViews,
+                InputMilliseconds = this.inputMilliseconds,
+                CollisionQueries = this.raycasts.Queries,
+                ReusedCollisionQueries = this.raycasts.Reused,
+                GroundClearance = this.groundClearance,
+                CharacterVisibility = this.characterVisibility,
+                FightVisibility = this.fightVisibility,
+            };
         }
         catch (Exception ex)
         {
@@ -166,6 +190,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
         this.inputHook!.Original(camera, inputMode, speedH, speedV);
         if (Environment.CurrentManagedThreadId != this.frameworkThread || !this.eligible || !this.automationAllowed())
             return;
+        var started = Stopwatch.GetTimestamp();
         try
         {
             var manager = CameraManager.Instance();
@@ -238,6 +263,12 @@ internal sealed unsafe class CombatCameraController : IDisposable
                 ArenaRadius = this.FreshArena()?.BoundingRadius,
                 FramingPenalty = this.framingPenalty,
                 Subjects = this.subjects.Count,
+                EvaluationMilliseconds = this.evaluationMilliseconds,
+                EvaluatedViews = this.evaluatedViews,
+                PrunedViews = this.prunedViews,
+                InputMilliseconds = this.inputMilliseconds,
+                CollisionQueries = this.raycasts.Queries,
+                ReusedCollisionQueries = this.raycasts.Reused,
             };
         }
         catch (Exception ex)
@@ -246,6 +277,10 @@ internal sealed unsafe class CombatCameraController : IDisposable
             this.faulted = true;
             this.Hold("camera error; released");
             this.log.Verbose(ex, "Combat camera input released after failure.");
+        }
+        finally
+        {
+            this.inputMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         }
     }
 
@@ -270,6 +305,9 @@ internal sealed unsafe class CombatCameraController : IDisposable
 
     private void ChooseView(NativeCamera* camera, Vector3 player, Vector3 fight)
     {
+        using var collisionObservation = this.raycasts.Begin();
+        this.evaluatedViews = 0;
+        this.prunedViews = 0;
         var nativeFramework = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
         if (nativeFramework == null || nativeFramework->BGCollisionModule == null ||
             !float.IsFinite(camera->Distance) || !float.IsFinite(camera->DirV))
@@ -315,12 +353,9 @@ internal sealed unsafe class CombatCameraController : IDisposable
         this.groundClearance = GroundClearance((Vector3)camera->SceneCamera.Position, current);
         this.characterVisibility = CharacterVisibility((Vector3)camera->SceneCamera.Position, player, current);
         this.fightVisibility = FightVisibility((Vector3)camera->SceneCamera.Position, fight, current);
-        var bestScore = Score(current, currentPitch, currentClearance, distance) with
-        {
-            GroundClearance = this.groundClearance,
-            CharacterVisibility = this.characterVisibility,
-            FightVisibility = this.fightVisibility,
-        };
+        var currentVisibility = new CameraViewClearance(currentClearance,
+            this.groundClearance, this.characterVisibility, this.fightVisibility);
+        var bestScore = Score(current, currentPitch, currentClearance, distance, physical: currentVisibility)!.Value;
         // Rank inexpensive screen-framing candidates first, then limit collision
         // work to twelve promising views per 250 ms evaluation.
         var candidates = new List<(float Yaw, float Pitch, CameraViewScore Score)>();
@@ -356,8 +391,29 @@ internal sealed unsafe class CombatCameraController : IDisposable
         for (var candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
         {
             var candidate = candidates[candidateIndex];
+            // Framing and collision only subtract from this bound. Do not use
+            // nominal-distance framing as a bound: a shortened boom can improve it.
+            var ceiling = new CameraViewScore(CombatCameraPolicy.ViewScore(1f, true, candidate.Yaw, current, fightYaw)
+                - 0.5f * MathF.Abs(candidate.Pitch - currentPitch)
+                - 1.2f * MathF.Abs(candidate.Pitch + 0.33f), 0f, 0f);
+            if (!ceiling.CouldImprove(bestScore))
+            {
+                this.prunedViews++;
+                continue;
+            }
             var room = ViewClearance(pivot, candidate.Yaw, candidate.Pitch, distance);
-            var score = Score(candidate.Yaw, candidate.Pitch, room, distance);
+            var framing = FramingScore(candidate.Yaw, candidate.Pitch, distance * room);
+            if (!(framing with { Fight = framing.Fight - 8f * (1f - room) }).CouldImprove(bestScore))
+            {
+                this.prunedViews++;
+                continue;
+            }
+            if (Score(candidate.Yaw, candidate.Pitch, room, distance, framing, bestScore) is not { } score)
+            {
+                this.prunedViews++;
+                continue;
+            }
+            this.evaluatedViews++;
             if (!score.Improves(bestScore))
                 continue;
             if (!this.TransitionClear(current, currentPitch, distance, candidate.Yaw, candidate.Pitch, distance,
@@ -386,7 +442,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
                     !CombatCameraPolicy.ZoomImproves(baseline, penalty, candidateDistance - distance))
                     continue;
                 var room = ViewClearance(pivot, best, bestPitch, candidateDistance);
-                var score = Score(best, bestPitch, room, candidateDistance);
+                var score = Score(best, bestPitch, room, candidateDistance)!.Value;
                 if (CombatCameraPolicy.FramingPenalty(this.subjects, pivot, best, bestPitch, candidateDistance, projectionScale) >
                         this.framingPenalty + 0.01f ||
                     room < 0.99f || score.GroundClearance < 1f || score.CharacterVisibility < 1f ||
@@ -420,18 +476,38 @@ internal sealed unsafe class CombatCameraController : IDisposable
                 -CombatCameraPolicy.FramingPenalty(this.partySubjects, pivot, angle, viewPitch, viewDistance, projectionScale),
                 -CombatCameraPolicy.FramingPenalty(this.raidSubjects, pivot, angle, viewPitch, viewDistance, projectionScale));
 
-        CameraViewScore Score(float angle, float viewPitch, float room, float viewDistance)
+        CameraViewScore? Score(float angle, float viewPitch, float room, float viewDistance,
+            CameraViewScore? capturedFraming = null, CameraViewScore? incumbent = null, CameraViewClearance? physical = null)
         {
             var position = pivot + CombatCameraPolicy.CameraOffset(angle, viewPitch, viewDistance * room);
+            var framing = capturedFraming ?? FramingScore(angle, viewPitch, viewDistance * room);
+            var bound = framing with
+            {
+                GroundClearance = physical?.Ground ?? GroundClearance(position, angle),
+                Fight = framing.Fight - 8f * (1f - room),
+            };
+            // Resolve priorities in order. Unknown visibility is optimistically 1;
+            // reject only when even that bound cannot improve the incumbent.
+            if (incumbent is { } bestGround && !bound.CouldImprove(bestGround))
+                return null;
+            bound = bound with { CharacterVisibility = physical?.Character ?? CharacterVisibility(position, player, angle) };
+            if (incumbent is { } bestCharacter && !bound.CouldImprove(bestCharacter))
+                return null;
             var towardFight = fight + new Vector3(0f, 1f, 0f) - position;
             var length = towardFight.Length();
-            var visible = length < 0.1f || !BGCollisionModule.RaycastMaterialFilter(
+            var visible = length < 0.1f || !this.Raycast(
                 position, towardFight / length, out _, length);
+            var fightVisibility = physical?.Fight ?? (visible ? FightVisibility(position, fight, angle) : 0f);
+            var fightScore = bound.Fight - (visible ? 0f : 2f);
+            bound = bound with { FightVisibility = fightVisibility, Fight = fightScore };
+            if (incumbent is { } bestFight && !bound.CouldImprove(bestFight))
+                return null;
             // Keep useful space around both the player and fight visible, rather
             // than accepting a corner that leaves only the subjects unobstructed.
             var side = CombatCameraPolicy.CameraRight(angle);
             var halfWidth = Math.Clamp(viewDistance * 0.2f, 1.5f, 5f);
             var clearSamples = 0;
+            var testedSamples = 0;
             const int sampleCount = 10;
             for (var row = 0; row < 2; row++)
             {
@@ -441,22 +517,21 @@ internal sealed unsafe class CombatCameraController : IDisposable
                     var subject = center + side * (sample * halfWidth / 2f);
                     var towardSubject = subject - position;
                     var subjectDistance = towardSubject.Length();
-                    if (subjectDistance < 0.1f || !BGCollisionModule.RaycastMaterialFilter(
+                    if (subjectDistance < 0.1f || !this.Raycast(
                             position, towardSubject / subjectDistance, out _, subjectDistance))
                         clearSamples++;
+                    testedSamples++;
+                    var upperVisibility = (float)(clearSamples + sampleCount - testedSamples) / sampleCount;
+                    bound = bound with
+                    {
+                        FightVisibility = physical?.Fight ?? MathF.Min(upperVisibility, fightVisibility),
+                        Fight = fightScore - 8f * (1f - upperVisibility),
+                    };
+                    if (incumbent is { } bestForeground && !bound.CouldImprove(bestForeground))
+                        return null;
                 }
             }
-            var foregroundVisibility = (float)clearSamples / sampleCount;
-            var characterVisibility = CharacterVisibility(position, player, angle);
-            var framing = FramingScore(angle, viewPitch, viewDistance * room);
-            return framing with
-            {
-                GroundClearance = GroundClearance(position, angle),
-                CharacterVisibility = characterVisibility,
-                FightVisibility = visible ? MathF.Min(foregroundVisibility, FightVisibility(position, fight, angle)) : 0f,
-                Fight = framing.Fight - 8f * (1f - room) - (visible ? 0f : 2f)
-                    - 8f * (1f - foregroundVisibility),
-            };
+            return bound;
         }
     }
 
@@ -489,7 +564,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
                 return false;
             var travel = position - origin;
             var travelDistance = travel.Length();
-            if (travelDistance > 0.1f && BGCollisionModule.RaycastMaterialFilter(origin,
+            if (travelDistance > 0.1f && this.Raycast(origin,
                     travel / travelDistance, out _, travelDistance))
                 return false;
             origin = position;
@@ -497,7 +572,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
         return true;
     }
 
-    private static float FightVisibility(Vector3 camera, Vector3 fight, float yaw)
+    private float FightVisibility(Vector3 camera, Vector3 fight, float yaw)
     {
         var side = CombatCameraPolicy.CameraRight(yaw) * 2f;
         var clear = 0;
@@ -507,13 +582,13 @@ internal sealed unsafe class CombatCameraController : IDisposable
         {
             var delta = fight + Vector3.UnitY * 1.5f + side * sample - camera;
             var distance = delta.Length();
-            if (distance < 0.1f || !BGCollisionModule.RaycastMaterialFilter(camera, delta / distance, out _, distance))
+            if (distance < 0.1f || !this.Raycast(camera, delta / distance, out _, distance))
                 clear++;
         }
         return clear / 3f;
     }
 
-    private static float CharacterVisibility(Vector3 camera, Vector3 player, float yaw)
+    private float CharacterVisibility(Vector3 camera, Vector3 player, float yaw)
     {
         if (!float.IsFinite(camera.X) || !float.IsFinite(camera.Y) || !float.IsFinite(camera.Z))
             return 0f;
@@ -536,13 +611,13 @@ internal sealed unsafe class CombatCameraController : IDisposable
             // endpoint does not count as a foreground obstruction.
             var probeDistance = distance - 0.35f;
             if (distance < 0.1f || probeDistance <= 0f ||
-                !BGCollisionModule.RaycastMaterialFilter(camera, direction / distance, out _, probeDistance))
+                !this.Raycast(camera, direction / distance, out _, probeDistance))
                 clear++;
         }
         return (float)clear / samples;
     }
 
-    private static float GroundClearance(Vector3 position, float yaw)
+    private float GroundClearance(Vector3 position, float yaw)
     {
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y) || !float.IsFinite(position.Z))
             return 0f;
@@ -562,13 +637,13 @@ internal sealed unsafe class CombatCameraController : IDisposable
                 _ => Vector3.Zero,
             };
             var origin = position + offset + Vector3.UnitY * 3f;
-            if (BGCollisionModule.RaycastMaterialFilter(origin, -Vector3.UnitY, out var hit, 3.6f))
-                clearance = MathF.Min(clearance, CombatCameraPolicy.GroundClearance(position.Y, hit.Point.Y));
+            if (this.Raycast(origin, -Vector3.UnitY, out var hit, 3.6f))
+                clearance = MathF.Min(clearance, CombatCameraPolicy.GroundClearance(position.Y, hit.Y));
         }
         return clearance;
     }
 
-    private static float ViewClearance(Vector3 pivot, float yaw, float pitch, float distance)
+    private float ViewClearance(Vector3 pivot, float yaw, float pitch, float distance)
     {
         var offset = CombatCameraPolicy.CameraOffset(yaw, pitch, distance);
         var side = CombatCameraPolicy.CameraRight(yaw) * 0.35f;
@@ -576,10 +651,23 @@ internal sealed unsafe class CombatCameraController : IDisposable
         for (var i = -1; i <= 3; i++)
         {
             var origin = pivot + (i <= 1 ? side * i : Vector3.UnitY * (i == 2 ? -0.4f : 0.4f));
-            if (BGCollisionModule.RaycastMaterialFilter(origin, offset / distance, out var hit, distance))
-                room = MathF.Min(room, Math.Clamp((Vector3.Distance(origin, hit.Point) - 0.4f) / distance, 0f, 1f));
+            if (this.Raycast(origin, offset / distance, out var hit, distance))
+                room = MathF.Min(room, Math.Clamp((Vector3.Distance(origin, hit) - 0.4f) / distance, 0f, 1f));
         }
         return room;
+    }
+
+    private bool Raycast(Vector3 origin, Vector3 direction, out Vector3 point, float distance)
+    {
+        var sample = this.raycasts.Read(new(origin, direction, distance));
+        point = sample.Point;
+        return sample.Hit;
+    }
+
+    private static CameraRayHit ReadNativeRay(CameraRay ray)
+    {
+        var hit = BGCollisionModule.RaycastMaterialFilter(ray.Origin, ray.Direction, out var result, ray.Distance);
+        return new(hit, hit ? (Vector3)result.Point : default);
     }
 
     private static bool HasManualInput(NativeCamera* camera)

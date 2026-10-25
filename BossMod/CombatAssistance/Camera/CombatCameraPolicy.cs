@@ -29,6 +29,21 @@ internal readonly record struct CameraViewScore(float Fight, float Party, float 
             (this.Fight == other.Fight && (this.Party > other.Party + 0.15f ||
                 (this.Party == other.Party && this.Raid > other.Raid + 0.15f)));
 
+    // Each component is an upper bound, not necessarily one attainable view.
+    // Improves itself is unsuitable here: a slightly higher fight bound can hide
+    // an actual equal-fight candidate whose party framing wins the tie.
+    internal bool CouldImprove(CameraViewScore other)
+        => this.GroundClearance > other.GroundClearance ||
+            (this.GroundClearance >= other.GroundClearance &&
+                (this.CharacterVisibility > other.CharacterVisibility ||
+                    (this.CharacterVisibility >= other.CharacterVisibility &&
+                        (this.FightVisibility > other.FightVisibility ||
+                            (this.FightVisibility >= other.FightVisibility &&
+                                (this.Fight > other.Fight + 0.15f ||
+                                    (this.Fight >= other.Fight &&
+                                        (this.Party > other.Party + 0.15f ||
+                                            (this.Party >= other.Party && this.Raid > other.Raid + 0.15f)))))))));
+
     public int CompareTo(CameraViewScore other)
     {
         var ground = this.GroundClearance.CompareTo(other.GroundClearance);
@@ -79,7 +94,13 @@ internal static class CombatCameraPolicy
         var back = CameraOffset(yaw, pitch, 1f);
         var right = CameraRight(yaw);
         var up = Vector3.Cross(back, right);
-        var relative = subject - (pivot + back * distance);
+        return Project(subject, pivot + back * distance, back, right, up, projectionScale);
+    }
+
+    private static Vector2 Project(Vector3 subject, Vector3 position, Vector3 back,
+        Vector3 right, Vector3 up, Vector2 projectionScale)
+    {
+        var relative = subject - position;
         var depth = -Vector3.Dot(relative, back);
         if (depth <= 0.1f)
             return new Vector2(10f);
@@ -90,14 +111,20 @@ internal static class CombatCameraPolicy
     internal static float FramingPenalty(IReadOnlyList<CameraSubject> subjects, Vector3 pivot,
         float yaw, float pitch, float distance, Vector2 projectionScale)
     {
+        if (subjects.Count == 0)
+            return 0f;
         var total = 0f;
         var weight = 0f;
         var worst = 0f;
+        // The lens basis is identical for every sample of this candidate view.
+        var back = CameraOffset(yaw, pitch, 1f);
         var right = CameraRight(yaw);
+        var up = Vector3.Cross(back, right);
+        var position = pivot + back * distance;
         foreach (var subject in subjects)
         {
             var center = Project(subject.Position + Vector3.UnitY * subject.Height * 0.5f,
-                pivot, yaw, pitch, distance, projectionScale);
+                position, back, right, up, projectionScale);
             var penalty = 2f * MathF.Max(0f, MathF.Abs(center.X) - 0.25f);
             // Include feet, upper body and lateral extent: a visible center alone
             // can still mean a boss or party member is clipped by a screen edge.
@@ -110,7 +137,7 @@ internal static class CombatCameraPolicy
                     2 => Vector3.UnitY * subject.Height * 0.5f - right * subject.Radius,
                     _ => Vector3.UnitY * subject.Height * 0.5f + right * subject.Radius,
                 });
-                var screen = Project(point, pivot, yaw, pitch, distance, projectionScale);
+                var screen = Project(point, position, back, right, up, projectionScale);
                 var edge = MathF.Max(MathF.Abs(screen.X), MathF.Abs(screen.Y));
                 penalty += 3f * MathF.Max(0f, edge - 0.65f) + 12f * MathF.Max(0f, edge - 0.85f);
             }

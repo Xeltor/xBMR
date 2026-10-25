@@ -14,7 +14,7 @@ internal sealed class NativeNavigationSnapshot
     private readonly bool _relaxed;
     private readonly long _rasterTicks;
     private readonly FrozenGoalField? _goals;
-    private readonly ImmutableArray<float> _presentation;
+    private readonly float[] _presentation;
     // Optional native physical-classification evidence for direct geometry queries.
     private readonly NavigationRaster? _physicalRaster;
     private readonly NavigationMapSource? _mapSource;
@@ -31,7 +31,9 @@ internal sealed class NativeNavigationSnapshot
             throw new ArgumentException("Navigation speed must be positive and finite.", nameof(input));
         var start = Stopwatch.GetTimestamp();
         Identity = input.Identity;
-        var raster = NavigationDecision.RasterizeInput(_map, input, true, freezeCallbacks: true);
+        // Freeze goals once below; recovery applies that same field through its
+        // original cast/urgent-warning gate instead of invoking live goals twice.
+        var raster = NavigationDecision.RasterizeInput(_map, input with { GoalsEnabled = false }, true, freezeCallbacks: true);
         foreach (var point in observedBlocks ?? [])
         {
             var cell = _map.WorldToGrid(point);
@@ -42,7 +44,7 @@ internal sealed class NativeNavigationSnapshot
             if (raster.Unrelaxed != null) raster.Unrelaxed[index] = -1000;
             if (raster.Blocks != null) raster.Blocks[index] = 2;
         }
-        _strictLimits = (raster.Unrelaxed ?? _map.PixelMaxG).AsSpan(0, Cells).ToArray().ToImmutableArray();
+        _strictLimits = ImmutableArray.Create<float>((raster.Unrelaxed ?? _map.PixelMaxG).AsSpan(0, Cells));
         _teleporters = input.Teleporters.ToImmutableArray();
         Teleports = PlanningTeleport.Capture(_teleporters).ToImmutableArray();
         _relaxed = raster.Relaxed;
@@ -50,12 +52,25 @@ internal sealed class NativeNavigationSnapshot
         // The joint search must evaluate the useful endpoint before that first
         // recovery move, including when casting finishes later in the route.
         if (input.GoalsEnabled)
-            _goals = FrozenGoalField.Capture(_map, input.Goals.Native);
-        var strict = CopyStrictMap();
-        var nativePriorities = strict.PixelPriority.AsSpan(0, Cells).ToArray();
-        if (input.GoalsEnabled && input.Identity.AvoidanceBuffer > 0)
+            _goals = FrozenGoalField.Capture(_map, input.Goals.Native, captureLeaves: false);
+        if (input.GoalsEnabled && !input.Identity.Casting)
+        {
+            var origin = _map.WorldToGrid(input.Identity.Origin);
+            if (!_map.InBounds(origin.x, origin.y) || _map.PixelMaxG[_map.GridToIndex(origin)] >= 1f)
+            {
+                if (input.Goals.Native.Length != 0) _goals!.ApplyNativePriorities(_map, preserveUnscored: true);
+                if (input.Identity.AvoidanceBuffer > 0) NavigationDecision.AvoidForbiddenZone(_map, input.Identity.AvoidanceBuffer);
+            }
+        }
+        _presentation = new float[Cells];
+        if (input.GoalsEnabled && input.Identity.AvoidanceBuffer > 0 && HasForbiddenCells(_map))
+        {
+            var strict = CopyStrictMap();
+            var nativePriorities = strict.PixelPriority.AsSpan(0, Cells).ToArray();
             NavigationDecision.AvoidForbiddenZone(strict, input.Identity.AvoidanceBuffer);
-        _presentation = Enumerable.Range(0, Cells).Select(i => strict.PixelPriority[i] - nativePriorities[i]).ToImmutableArray();
+            for (var i = 0; i < Cells; ++i)
+                _presentation[i] = strict.PixelPriority[i] - nativePriorities[i];
+        }
         if (input.PublishRaster && raster.Blocks != null)
         {
             _physicalRaster = new(_map, raster.Unrelaxed, raster.Blocks);
@@ -76,6 +91,16 @@ internal sealed class NativeNavigationSnapshot
     }
 
     internal float[] CopyPresentation() => _presentation.ToArray();
+
+    // AvoidForbiddenZone cannot alter priorities when every cell is unrestricted.
+    // This checks the freshly captured map, including physical blocked cells.
+    internal static bool HasForbiddenCells(Map map)
+    {
+        var cells = checked(map.Width * map.Height);
+        for (var i = 0; i < cells; ++i)
+            if (map.PixelMaxG[i] != float.MaxValue) return true;
+        return false;
+    }
 
     internal bool SameFrozenMap(NativeNavigationSnapshot other)
         => SameSafetyMap(other) && _map.PixelPriority.AsSpan(0, Cells).SequenceEqual(other._map.PixelPriority.AsSpan(0, Cells));
@@ -115,9 +140,9 @@ internal sealed class NativeNavigationSnapshot
         return TimedTraversal.Check(_map, current, destination, 0, duration, 0, out _, physicalOnly: !strict);
     }
 
-    internal Map CopyRecoveryMap()
+    internal Map CopyRecoveryMap(Map? reuse = null)
     {
-        var map = new Map();
+        var map = reuse ?? new Map();
         map.Init(_map, _map.Center);
         return map;
     }

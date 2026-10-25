@@ -1,11 +1,16 @@
 # xBMR combat assistance — remaining work
 
-Updated 24 October 2026. XCAI is merged and retired. The current development build
+Updated 25 October 2026. XCAI is merged and retired. The current development build
 is loaded and the maintainer reports that it feels much more like XCAI. Keep that
 working behavior; fix concrete problems instead of expanding the migration.
 
 ## Fix and check next
 
+- [ ] **Combat efficiency.** Idle overhead is repaired and planning allocations
+  are substantially reduced. Combat frame-rate loss is still measurable with
+  automatic camera enabled. The latest exact-ray reuse and resource arithmetic
+  build passes offline checks; finish its live comparison before claiming the
+  camera cost or overall FPS problem is solved. Keep automatic camera enabled.
 - [ ] **Melee uptime and useful mobility.** Native planning now delivers actual
   Winged Glides, aimed Elusive Jumps and damaging dives through Griffin mechanics.
   The completed Support test confirms their effects and melee landings. Sprint's
@@ -36,6 +41,11 @@ working behavior; fix concrete problems instead of expanding the migration.
 
 ## Already repaired or implemented
 
+- [x] AI-enabled idle efficiency. Remove empty navigation capture and idle action
+  wrapping, and share plugin discovery only within synchronous observations.
+  The measured idle development build holds 59.99–60.00 framework updates/second
+  enabled in the scene that previously ran at 52–54. Combat measurements and the
+  remaining work are recorded in the efficiency note.
 - [x] Automatic target bootstrap, fresh native safety recovery and party-combat
   continuity; the NPC run now progresses through packs. Reopen for a concrete stall.
 - [x] Machinist's unnecessary melee following. The recorded comparison shows
@@ -73,15 +83,20 @@ maintainer has explicitly authorized development reloads inside the NPC dungeon.
 
 ## Evidence, if needed
 
-The loaded repair DLL is MVID `33a2f701-ded3-42f0-9c58-67d872fd1889`.
-It builds and passes 43,081 native assertions, installed RSR contract checks and
-nine repository tests. Those checks support the repairs; gameplay decides whether
-combat behavior is good enough.
+The latest offline-validated efficiency/arrival DLL is MVID
+`5bf068de-fc50-4ce2-9602-946dabf47703`. It builds and passes 54,506 native assertions,
+installed RSR contract checks and nine repository tests. The live client at this
+checkpoint still uses the preceding `c1079557-4f86-46a6-bc45-9d50c3dcaa1c` build.
+The earlier gameplay
+repair run used MVID `33a2f701-ded3-42f0-9c58-67d872fd1889`. Those checks support
+the repairs; gameplay decides whether combat behavior is good enough.
 Loaded provenance, AI following and RSR Henched were verified after reload.
 Dash/backstep/Sprint effects are live-verified. Griffin's repaired run completed;
 the first-boss hide report occurred before this reload and needs its own recheck.
 
 - [Run findings and build details](docs/native-combat-assistance/regressions-2026-10-24.md)
+- [AI efficiency pass and measured limits](docs/native-combat-assistance/performance-2026-10-24.md)
+- [Direct arrival and large-boss positioning](docs/native-combat-assistance/deliberate-arrival-2026-10-25.md)
 - [Machinist spacing comparison](docs/native-combat-assistance/machinist-range-2026-10-24.json)
 - [Earlier migration history](docs/native-combat-assistance/migration-history.md)
 

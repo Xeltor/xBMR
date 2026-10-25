@@ -17,6 +17,9 @@ internal sealed class MovementPlanningService : IDisposable
     }
     private readonly Func<MovementPlanningContext, CancellationToken, Action<MovementPlan>, MovementPlan> _search;
     private readonly Func<long> _clock;
+    private readonly Pathfinding.NavigationDecision.Context _recoveryContext = new();
+    private MovementSearchCost? _lastWorkerCost;
+    internal MovementSearchCost? LastWorkerCost => Volatile.Read(ref _lastWorkerCost);
     private Request? _pending;
     private Request? _running;
     private Request? _published;
@@ -31,7 +34,7 @@ internal sealed class MovementPlanningService : IDisposable
 
     internal MovementPlanningService(Func<MovementPlanningContext, CancellationToken, MovementPlan>? search = null, Func<long>? clock = null)
     {
-        _search = search == null ? NativeMovementSearch.Run
+        _search = search == null ? ((context, cancel, publish) => NativeMovementSearch.Run(context, cancel, publish, _recoveryContext))
             : ((context, cancel, _) => search(context, cancel));
         _clock = clock ?? Stopwatch.GetTimestamp;
     }
@@ -181,7 +184,19 @@ internal sealed class MovementPlanningService : IDisposable
         _cancellation = new();
         var cancel = _cancellation.Token;
         var mailbox = _mailbox = new Mailbox();
-        _worker = Task.Run(() => _search(context, cancel, mailbox.Publish));
+        _worker = Task.Run(() =>
+        {
+            var started = Stopwatch.GetTimestamp();
+            var allocated = GC.GetAllocatedBytesForCurrentThread();
+            var cancelled = false;
+            try { return _search(context, cancel, mailbox.Publish); }
+            catch (OperationCanceledException) { cancelled = true; throw; }
+            finally
+            {
+                Volatile.Write(ref _lastWorkerCost, new(Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                    GC.GetAllocatedBytesForCurrentThread() - allocated, cancelled));
+            }
+        });
         // Observe failures even if the plugin unloads and Pump is never called again.
         _ = _worker.ContinueWith(static task => { _ = task.Exception; }, CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
