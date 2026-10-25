@@ -31,9 +31,26 @@ The final implementation snapshot `f8997079ef43c814f0eec739fb0f317f09f1c173`
 merged newer upstream `ae64e3309905dafad0952dbe72680add167591f9` in isolated merge
 `5dfa5ddd72704b8ec3463b33782a5a375269787c`, with zero conflicts. Its managed
 build, 42,863 native assertions and all 19 broader suites passed against the
-exact trial DLL. Main ancestry/version were left unchanged. The adjacent
+exact trial DLL. Main ancestry/version were left unchanged at that checkpoint. The adjacent
 `validation-current.json` records both artifact identities; `handoff.md` lists
 remaining actual gameplay/lifecycle acceptance.
+
+On 2026-10-25, upstream release `7.5.7.2` at
+`ae64e3309905dafad0952dbe72680add167591f9` was adopted on
+`codex/merge-upstream-7.5.7.2`, starting from fork commit
+`63c1bc59416dae97b7128958e391ff1024341586`. The merge had no conflicts:
+upstream changed 20 paths, with no overlap against the fork's 716 changed paths.
+All fork-modified paths were preserved; only the version metadata was then
+updated to `7.5.7.2.0` (assembly `7.5.7.200`, fork revision zero).
+The exact Release DLL passed 143,427 native movement assertions and all 19
+broader regression suites; all nine Python tests and release metadata validation
+also passed. Compilation had six existing obsolete-API warnings and zero errors.
+DLL SHA-256: `44f72574658b4e529f18c6abbde84c3c8130fe7029fcc3f7b25f31028da7dfbd`;
+MVID: `b060294a-122f-410c-a175-5076cf399c48`.
+These checks establish build and existing-regression compatibility. They do not
+provide new replay or live acceptance for the imported DMU, Shinryu Unreal or
+Shadowcaster changes. The client was off, so loaded provenance and gameplay
+acceptance remain unverified.
 
 Automatic tank following between pulls was retired by user request on 2026-10-23.
 The assistance-owned interaction guard and travel observation/waiting hooks were
