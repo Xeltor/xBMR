@@ -446,6 +446,7 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
                 isStackTarget = true;
 
                 var stacksIFzTarget = new List<ShapeDistance>(lenPWOS - 1);
+                var gatheringPeers = new List<WPos>(lenPWOS - 1);
                 var radius = s.Radius;
 
                 for (var j = 0; j < lenPWOS; ++j) // if player got stackmarker we should try finding a good candidate to stack with
@@ -476,12 +477,15 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
                         }
                         // buddy is not target of stacks or spreads, so a good candidate
                         stacksIFzTarget.Add(new SDInvertedCircle(a.Position, radius * 0.5f));
+                        gatheringPeers.Add(a.Position);
                     skip:
                         ;
                     }
                 }
                 if (stacksIFzTarget.Count > 0)
                 {
+                    if (!isSpreadTarget)
+                        Pathfinding.NativeStackGathering.AddGoal(hints, gatheringPeers, Pathfinding.NativeStackGathering.InteriorRadius(radius));
                     hints.AddForbiddenZone(new SDIntersection([.. stacksIFzTarget]), s.Activation,
                         arenaProjectionLayer: ArenaProjectionLayerForAI(s.ResolveArenaProjectionLayer(Module), s.RestrictToArenaProjectionLayer));
                 }
@@ -514,6 +518,7 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
                 if (!isSpreadTarget && (!isInside && numInside < max || isInside && numInside <= max))  // don't try to stack if spread target
                 {
                     stacksIFz.Add(new SDInvertedCircle(targetPos, radius));
+                    Pathfinding.NativeStackGathering.AddGoal(hints, [targetPos], Pathfinding.NativeStackGathering.InteriorRadius(radius));
                     var layer = ArenaProjectionLayerForAI(s.ResolveArenaProjectionLayer(Module), s.RestrictToArenaProjectionLayer) ?? -1;
                     stacksIFzLayer = stacksIFzLayer == -2 || stacksIFzLayer == layer ? layer : -1;
                     stacksIFzActivation = stacksIFzActivation < act ? stacksIFzActivation : act;
@@ -1062,6 +1067,13 @@ public abstract class GenericBaitStack(BossModule module, uint aid = default, bo
                 if (!b.Forbidden[slot])
                 {
                     forbiddenInverted.Add(b.Shape.InvertedDistance(origin, angle));
+                    var gatheringPeers = new List<WPos>();
+                    foreach (var (partySlot, peer) in Raid.WithSlot(includeDead: AllowDeadTargets))
+                        if (peer != actor && !b.Forbidden[partySlot]
+                            && Module.ActorMatchesArenaProjectionLayer(peer, b.ResolveArenaProjectionLayer(Module), b.RestrictToArenaProjectionLayer)
+                            && b.Shape.Check(peer.Position, origin, angle))
+                            gatheringPeers.Add(peer.Position);
+                    Pathfinding.NativeStackGathering.AddGoal(hints, gatheringPeers, 2f);
                     var layer = ArenaProjectionLayerForAI(b.ResolveArenaProjectionLayer(Module), b.RestrictToArenaProjectionLayer) ?? -1;
                     forbiddenInvertedLayer = forbiddenInvertedLayer == -2 || forbiddenInvertedLayer == layer ? layer : -1;
                 }
@@ -1094,6 +1106,7 @@ public abstract class GenericBaitStack(BossModule module, uint aid = default, bo
                 var stacks = CollectionsMarshal.AsSpan(CurrentBaits);
                 var lenStacks = stacks.Length;
                 var forbiddenB = new List<ShapeDistance>();
+                var gatheringPeers = new List<WPos>();
                 var partyWOS = Raid.WithSlot();
                 var lenPWOS = partyWOS.Length;
                 for (var k = 0; k < lenPWOS; ++k) // if player got stackmarker we should try finding a good candidate to stack with
@@ -1117,12 +1130,14 @@ public abstract class GenericBaitStack(BossModule module, uint aid = default, bo
                         }
                         // buddy is not target of stacks or spreads, so a good candidate
                         forbiddenB.Add(new SDInvertedCircle(a.Position, 2f));
+                        gatheringPeers.Add(a.Position);
                     }
                 skip:
                     ;
                 }
                 if (forbiddenB.Count != 0)
                 {
+                    Pathfinding.NativeStackGathering.AddGoal(hints, gatheringPeers, 1f);
                     hints.AddForbiddenZone(new SDIntersection([.. forbiddenB]), b.Activation, arenaProjectionLayer: ArenaProjectionLayerForAI(b.ResolveArenaProjectionLayer(Module), b.RestrictToArenaProjectionLayer));
                 }
             }

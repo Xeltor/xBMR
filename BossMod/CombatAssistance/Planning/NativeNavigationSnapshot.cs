@@ -25,7 +25,7 @@ internal sealed class NativeNavigationSnapshot
     internal bool SameTransitions(NativeNavigationSnapshot previous) => Teleports.Length == previous.Teleports.Length
         && Teleports.Select((t, i) => t.Same(previous.Teleports[i], (float)(Identity.WorldTime - previous.Identity.WorldTime).TotalSeconds)).All(same => same);
 
-    private NativeNavigationSnapshot(NavigationDecision.CapturedInput input, IEnumerable<WPos>? observedBlocks)
+    private NativeNavigationSnapshot(NavigationDecision.CapturedInput input, IEnumerable<BossMod.Pathfinding.NativePhysicalObstacle>? observedBlocks)
     {
         if (!float.IsFinite(input.Identity.Speed) || input.Identity.Speed <= 0)
             throw new ArgumentException("Navigation speed must be positive and finite.", nameof(input));
@@ -34,16 +34,8 @@ internal sealed class NativeNavigationSnapshot
         // Freeze goals once below; recovery applies that same field through its
         // original cast/urgent-warning gate instead of invoking live goals twice.
         var raster = NavigationDecision.RasterizeInput(_map, input with { GoalsEnabled = false }, true, freezeCallbacks: true);
-        foreach (var point in observedBlocks ?? [])
-        {
-            var cell = _map.WorldToGrid(point);
-            if (!_map.InBounds(cell.x, cell.y)) continue;
-            var index = _map.GridToIndex(cell);
-            _map.PixelMaxG[index] = -1000;
-            _map.PixelPriority[index] = float.MinValue;
-            if (raster.Unrelaxed != null) raster.Unrelaxed[index] = -1000;
-            if (raster.Blocks != null) raster.Blocks[index] = 2;
-        }
+        foreach (var obstacle in observedBlocks ?? [])
+            obstacle.Apply(_map, raster.Unrelaxed, raster.Blocks, input.Identity.Origin);
         _strictLimits = ImmutableArray.Create<float>((raster.Unrelaxed ?? _map.PixelMaxG).AsSpan(0, Cells));
         _teleporters = input.Teleporters.ToImmutableArray();
         Teleports = PlanningTeleport.Capture(_teleporters).ToImmutableArray();
@@ -79,7 +71,7 @@ internal sealed class NativeNavigationSnapshot
         _rasterTicks = Stopwatch.GetTimestamp() - start;
     }
 
-    internal static NativeNavigationSnapshot Capture(NavigationDecision.CapturedInput input, IEnumerable<WPos>? observedBlocks = null) => new(input, observedBlocks);
+    internal static NativeNavigationSnapshot Capture(NavigationDecision.CapturedInput input, IEnumerable<BossMod.Pathfinding.NativePhysicalObstacle>? observedBlocks = null) => new(input, observedBlocks);
 
     internal Map CopyStrictMap()
     {

@@ -16,7 +16,7 @@ cutover acceptance; the adjacent status file lists remaining work.
 | `BossModule/AIHints` | Freeze actor-dependent target goal values; retain separate native constraints and temporary obstacles. Distinguish native automatic target intents from authored assignments while preserving the public `ForcedTarget` field. Local correction requests do not replace authored hints. |
 | `BossModule/AIHints.CastSources` | Preserve exact cast producer identity without the former transport source-count limit. Native cast control never removes a hazard after merely submitting an interrupt or stun. |
 | `Pathfinding/NavigationDecision`, `NavigationPublication` | Coherent capture and native recovery; complete witnesses, original deadline aging and cancellation. |
-| `Pathfinding/TimedTraversal` | Shared swept-cell traversal and exit-deadline checks for native recovery and joint planning. |
+| `Pathfinding/TimedTraversal` | Shared swept-cell traversal and exit-deadline checks for native recovery and joint planning. Exact separable interval clipping accelerates long diagonal routes while retaining the native footprint and deadline arithmetic. |
 | `Framework/MovementOverride` | Current native manual-input observation, without consumer leases or callback transport. |
 | `Framework/ActionManagerEx` | Exact planned-action submission and synchronous, conditional restoration of the auto-face option. Manual input and native availability remain binding. |
 | `Components/Knockback` | Share native scalar direction/pull arithmetic and participant/immunity applicability with typed capture. Public class/source identities, shape, wall, safe-wall and destination semantics remain unchanged; native reference/wall fixtures validate the factor. |
@@ -59,3 +59,17 @@ rasterizer; exact pure envelope recognition/landing checks are factored from
 NativeLandingConstraints. Unknown/mixed rules remain binding. Planning contexts
 include that immutable input for the pending joint-transition search; this does
 not add an encounter-module dependency or another movement executor.
+
+Physical observation uses the native walking material filter and swept body, with
+frozen surface segments fed into both strict and recovery maps. See
+[collision evidence](collision-2026-10-25.md); vnavmesh does not execute combat routes.
+
+Generic circle and bait-stack hints add a native gathering goal for eligible
+participants and carriers. Prefer the group interior (up to 2y for circle stacks),
+with a flat interior to avoid exact-centre chasing. Existing stack radius,
+exclusions, capacity, projection layers and hazard deadlines remain authoritative.
+Line-stack participants prefer eligible people already inside the authored shape.
+Frozen positions are captured when hints are built; workers never read party actors.
+Validation: Release build and 142,241 native assertions pass, including interior
+selection, safe fallback, capacity/exclusion and line-stack grouping checks.
+Actual live stack positioning still needs a matching mechanic observation.

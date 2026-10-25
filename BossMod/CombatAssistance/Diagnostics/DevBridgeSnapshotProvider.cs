@@ -30,7 +30,7 @@ internal sealed class DevBridgeSnapshotProvider : IDisposable
             Service.Framework.IsInFrameworkUpdateThread ? ai.Autorot.MovementPlanning.Assistance?.DisplacementStatus : null,
             ai.Autorot.MovementPlanning.Assistance?.KnockbackSelectionStatus,
             ai.Autorot.MovementPlanning.Assistance?.HealingStatus, ai.Autorot.MovementPlanning.LastCost, updateMilliseconds?.Invoke(),
-            ai.Autorot.MovementPlanning.LastWorkerCost));
+            ai.Autorot.MovementPlanning.LastWorkerCost, ai.Autorot.MovementPlanning.PhysicalObservation));
     }
 
     internal void Observe(WorldState world)

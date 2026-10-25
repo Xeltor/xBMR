@@ -526,7 +526,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         return _knockbackAuthority;
     }
     internal NativeKnockbackPhases? CaptureKnockbackPhases(WorldState world, AIHints hints, Actor player,
-        Pathfinding.NavigationDecision.CapturedInput input, IEnumerable<WPos>? observedBlocks)
+        Pathfinding.NavigationDecision.CapturedInput input, IEnumerable<BossMod.Pathfinding.NativePhysicalObstacle>? observedBlocks)
     {
         _ = CaptureKnockbackAuthority(world, player);
         if (!_settings.MayAssist || !_settings.Preferences.ManageMovement || !hints.ProjectionSourcesRequested

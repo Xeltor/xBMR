@@ -186,7 +186,7 @@ internal static class NativeKnockbackPhaseCapture
     // Capture on the framework owner, then discard all native producer/shape
     // references. Workers receive the same native raster/evaluators as recovery.
     internal static NativeKnockbackPhases Freeze(NativeDisplacementCapture capture, AIHints hints,
-        BossModule? module, Actor actor, NavigationDecision.CapturedInput input, IEnumerable<WPos>? observedBlocks = null, AuthoredKnockbackSource? active = null)
+        BossModule? module, Actor actor, NavigationDecision.CapturedInput input, IEnumerable<BossMod.Pathfinding.NativePhysicalObstacle>? observedBlocks = null, AuthoredKnockbackSource? active = null)
     {
         var inventory = capture.Snapshot;
         NativeKnockbackPhases Unavailable(string reason) => new(inventory, [], reason);

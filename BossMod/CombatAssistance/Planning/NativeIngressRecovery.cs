@@ -1,6 +1,5 @@
 using BossMod.Pathfinding;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
-using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 
 namespace BossMod.CombatAssistance.Planning;
 
@@ -10,7 +9,8 @@ namespace BossMod.CombatAssistance.Planning;
 internal static class NativeIngressRecovery
 {
     internal static bool Validate(Vector3 origin, WPos destination, float radius, float speed, AIHints hints, DateTime now,
-        Func<Vector3, Vector3, float, Vector3?> raycast, Func<Vector3, bool> loaded, out string reason)
+        Func<Vector3, Vector3, float, Vector3?> raycast, Func<Vector3, bool> loaded, out string reason,
+        Func<Vector3, Vector3, float, float, Vector3?>? sweep = null)
     {
         reason = "entry geometry or movement timing unavailable";
         var from = new WPos(origin);
@@ -43,14 +43,18 @@ internal static class NativeIngressRecovery
         // Check all of the corridor, including floor between its endpoints. A
         // ray with no wall hit does not prove there is ground beneath that ray.
         var steps = Math.Max(1, (int)MathF.Ceiling(distance));
-        var destination3 = destination.ToVec3(origin.Y);
+        var a = origin;
+        var supportKnown = false;
         for (var i = 0; i < steps; ++i)
         {
-            var a = Vector3.Lerp(origin, destination3, i / (float)steps);
-            var b = Vector3.Lerp(origin, destination3, (i + 1) / (float)steps);
+            var b = (from + (destination - from) * ((i + 1) / (float)steps)).ToVec3(a.Y);
             if (!loaded(a) || !loaded(b)) { reason = "entry corridor is outside loaded collision"; return false; }
-            var physical = NativePhysicalProbe.Evaluate(a, b - a, radius, raycast);
+            var physical = NativePhysicalProbe.Evaluate(a, b - a, radius, raycast, sweep, supportKnown);
             if (physical.Status != "clear") { reason = physical.Reason; return false; }
+            if (physical.GroundHeight is { } ground && Math.Abs(ground - a.Y) <= 2) b.Y = ground;
+            if (!loaded(b)) { reason = "entry floor is outside loaded collision"; return false; }
+            a = b;
+            supportKnown = physical.NextSupportVerified;
         }
         reason = "native entry corridor revalidated; joint search resumes inside its arena";
         return true;
@@ -72,7 +76,8 @@ internal static class NativeIngressRecovery
         var arena = NativeArenaGeometry.Query(module.Arena.Bounds, module.Arena.Center, hints.PathfindMapArenaProjectionLayer, point, 0);
         if (!arena.Available || arena.SignedClearance is not { } margin || margin <= player.HitboxRadius) return null;
         return Validate(player.PosRot.XYZ(), point, player.HitboxRadius, speed, hints, world.CurrentTime,
-            static (from, direction, length) => BGCollisionModule.RaycastMaterialFilter(from, direction, out var hit, length) ? hit.Point : null,
-            p => Vector3.Distance(p, new(sphere.X, sphere.Y, sphere.Z)) + player.HitboxRadius < sphere.W, out reason) ? point : null;
+            NativeMovementCollision.FloorRay,
+            p => Vector3.Distance(p, new(sphere.X, sphere.Y, sphere.Z)) + player.HitboxRadius < sphere.W, out reason,
+            static (p, d, length, radius) => NativeMovementCollision.Query(p, d, length, radius)?.Point) ? point : null;
     }
 }

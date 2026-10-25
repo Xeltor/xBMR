@@ -7,6 +7,9 @@ namespace BossMod.CombatAssistance.Planning;
 // An earlier arrival dominates only when it can safely wait to reproduce the later arrival.
 internal static class JointMovementSearch
 {
+    // Dominance requires equality in each of these discrete state dimensions.
+    // Partition the Pareto frontier before comparing its continuous quantities.
+    private readonly record struct FrontierKey(int Cell, byte Actions, int Knockbacks, MovementStageKind? LastKind, ulong Target, byte TargetChoices);
     // Production work ends at the real input/departure deadline, not an arbitrary per-query
     // time or expansion quota. The explicit quotas are useful for deterministic bounded tests.
     // Bound allocations as well: more labels can be meaningful but are not free memory.
@@ -46,16 +49,19 @@ internal static class JointMovementSearch
         public float ImmunityPossibleFrom { get; set; } = ImmunityPossibleFrom;
         public float ImmunityPossibleUntil { get; set; } = ImmunityPossibleUntil;
         public PlanningRangeAccess? RangeAccess { get; set; } = RangeAccess;
+        // Queue membership only; never used as movement or safety evidence.
+        public bool Retired { get; set; }
     }
 
     internal static MovementPlan Search(MovementPlanningContext context, Limits? limits = null, CancellationToken cancellation = default,
         MovementPlan? nativeIncumbent = null, Action<MovementPlan>? publishBest = null,
         bool includeMobilityActions = true, bool stopAtCurrentOpportunity = false, bool pruneResourceInferiorMobility = true,
-        bool pruneExecutionInferiorStates = true, bool includeSpatialMobilityActions = true, bool proveCompleteOptimum = true)
+        bool pruneExecutionInferiorStates = true, bool includeSpatialMobilityActions = true, bool proveCompleteOptimum = true,
+        bool partitionFrontier = true)
     {
         limits ??= new();
         var clock = Stopwatch.StartNew();
-        var labels = new Dictionary<int, List<Label>>();
+        var labels = new Dictionary<FrontierKey, List<Label>>();
         var queue = new PriorityQueue<Label, (float Time, long Order)>();
         long serial = 0;
         var expansions = 0;
@@ -172,6 +178,11 @@ internal static class JointMovementSearch
                 && context.HealingCoverage == null && context.ComboRecovery == null && context.Zones.IsEmpty && !canImprovePlacement
                 && frames[best.Knockbacks].NativePriority(best.Cell) == maximumNativePriority
                 && context.Presentation(best.Cell) == maximumPresentation
+                // Being in attack range does not settle continuity. An ongoing
+                // walk can reach its committed destination during the same GCD
+                // window with identical delivery, coverage and resources. Let
+                // those labels compete before publishing a stationary replacement.
+                && (context.CommittedDestination is not { } continuing || best.Position.AlmostEqual(continuing, MovementPlanValidation.ArrivalTolerance))
                 && best.RangeAccess is { } contact && RangeOutcome(best) is { Loss: 0 } reached && reached.At == contact.ReadyAt
                 && context.Actions.Length <= 1 && (context.Actions.IsEmpty || context.Actions[0] is { CastSeconds: 0, ResourceCost: 0, GrantedResources: 0 } currentAction
                     && currentAction.Timing is not { WithoutProc: > 0 } && currentAction.Timing is not { UnbuffedUpperBound: > 0 }
@@ -185,12 +196,7 @@ internal static class JointMovementSearch
                 break;
             }
             var current = queue.Dequeue();
-            // Queue entries refer to admitted labels by identity. Record equality
-            // can recursively compare whole parent routes when checking retirement.
-            var active = false;
-            foreach (var admitted in labels[current.Cell])
-                if (ReferenceEquals(admitted, current)) { active = true; break; }
-            if (!active || CannotImproveExecution(current))
+            if (current.Retired || CannotImproveExecution(current))
                 continue;
             ++expansions;
             var frame = frames[current.Knockbacks];
@@ -827,8 +833,11 @@ internal static class JointMovementSearch
             label.FieldEntryByAbility = fieldEntry;
             label.RelocatedField = relocatedField;
             label.FieldBenefitAllowed = fieldBenefitAllowed;
-            if (!labels.TryGetValue(label.Cell, out var existing))
-                labels[label.Cell] = existing = [];
+            var key = partitionFrontier
+                ? new FrontierKey(label.Cell, label.Actions, label.Knockbacks, label.Stages.LastOrDefault()?.Kind, label.FocusTarget, label.TargetChoices)
+                : new FrontierKey(label.Cell, 0, 0, null, 0, 0);
+            if (!labels.TryGetValue(key, out var existing))
+                labels[key] = existing = [];
             foreach (var other in existing)
                 if (Dominates(other, label))
                     return;
@@ -847,7 +856,11 @@ internal static class JointMovementSearch
                 return;
             }
             for (var i = existing.Count - 1; i >= 0; --i)
-                if (Dominates(label, existing[i])) existing.RemoveAt(i);
+                if (Dominates(label, existing[i]))
+                {
+                    existing[i].Retired = true;
+                    existing.RemoveAt(i);
+                }
             existing.Add(label);
             ++createdStates;
             queue.Enqueue(label, (label.Time, serial++));

@@ -17,6 +17,8 @@ public static partial class Checks
         ResourceLabels();
         ResourceRecharge();
         ResourceArithmetic();
+        TraversalMath();
+        FrontierMath();
         TeleportPlanning();
         CastAndLocks();
         StabilityAndBudget();
@@ -87,8 +89,11 @@ public static partial class Checks
         NativeCorrections();
         IngressRecovery();
         NativePhysicalProbes();
+        NativeCollisionGeometry();
         CurrentWalkRoutes();
+        WalkingContinuity();
         CounterfactualProjections();
+        StackGathering();
         KnockbackAuthority();
         DisplacementInventoryAndPhases();
         JointKnockbackPlanning();

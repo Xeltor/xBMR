@@ -29,6 +29,8 @@ internal sealed class NativeMovementHost : IDisposable
     internal int StageIndex => _executor.StageIndex;
     internal long InputRevision => _revision;
     internal ImmutableArray<RejectedMobility> RejectedMobility => _rejectedMobility;
+    internal object PhysicalObservation => new { _physical.QueryAvailable, _physical.LastReason,
+        LastRouteQueries = _physical.LastQueries, _physical.RefreshQueries, _physical.KnownSurfaces };
     internal MovementPlanningCost LastCost { get; private set; }
     internal MovementSearchCost? LastWorkerCost => _service.LastWorkerCost;
     private long _inputCost, _combatCost, _contextCost, _serviceCost;
@@ -232,11 +234,11 @@ internal sealed class NativeMovementHost : IDisposable
         var explicitInstruction = intent.ExplicitDestination != null;
         if (intent.ExplicitDestination is { } required)
             input = input with { Goals = new([.. input.Goals.Native, AIHints.GoalProximity(required, 1000, 1000)]) };
-        if (Assistance != null) _physical.Refresh(player, world.CurrentZone, input.Identity.ProjectionLayer);
-        var native = NativeNavigationSnapshot.Capture(input, Assistance == null ? null : _physical.BlockedPoints);
+        if (Assistance != null) _physical.Refresh(player, world.CurrentZone, input.Identity.ProjectionLayer, input.MapSource);
+        var native = NativeNavigationSnapshot.Capture(input, Assistance == null ? null : _physical.BlockedObstacles);
         if (intent.ExplicitDestination != null) Assistance?.ReleaseKnockbackTransaction();
         var displacement = intent.ExplicitDestination == null
-            ? Assistance?.ResolveKnockbackPlanning(owner, world, hints, player, input, native, _physical.BlockedPoints) : null;
+            ? Assistance?.ResolveKnockbackPlanning(owner, world, hints, player, input, native, _physical.BlockedObstacles) : null;
         native = displacement?.Navigation ?? native;
         _inputCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
         phase = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -289,7 +291,7 @@ internal sealed class NativeMovementHost : IDisposable
             recharges: optimizeCombat ? combat?.Mobility?.Recharges ?? [] : [],
             cooldownEvidenceLimited: optimizeCombat && combat?.Mobility?.CooldownEvidenceLimited == true,
             forcedMovement: combat?.ForcedMovement,
-            knockbackPhases: displacement?.Phases ?? Assistance?.CaptureKnockbackPhases(world, hints, player, input, _physical.BlockedPoints),
+            knockbackPhases: displacement?.Phases ?? Assistance?.CaptureKnockbackPhases(world, hints, player, input, _physical.BlockedObstacles),
             teleports: _teleportProgress.Observe(input.Identity, native.Teleports),
             comboRecovery: optimizeCombat ? Assistance?.CaptureComboRecovery(world, hints, player) : null,
             partyContact: contact, healingCoverage: optimizeCombat ? combat?.HealingCoverage : null,
@@ -496,13 +498,6 @@ internal sealed class NativeMovementHost : IDisposable
             Execution = new(MovementExecutionKind.Wait, "Target-only assistance yields to required native movement");
             return new() { LeewaySeconds = float.MaxValue };
         }
-        if (Assistance != null && decision.Destination is { } destination
-            && !_physical.Check(player, [new(MovementStageKind.Walk, player.Position, destination, 0, decision.TimeToGoal)]))
-        {
-            LastFailure = _physical.LastReason;
-            Execution = new(MovementExecutionKind.Invalidated, LastFailure ?? "observed physical obstruction");
-            return new() { LeewaySeconds = float.MaxValue };
-        }
         _committed = null;
         Execution = _executor.AdvanceRecovery(plan, identity, Assistance?.HasMovementAuthority(player, hints) != false,
             native?.CanExecuteRecovery(publication, player.Position) != false);
@@ -527,6 +522,23 @@ internal sealed class NativeMovementHost : IDisposable
             CurrentPlan = plan;
             Execution = _executor.AdvanceRecovery(plan, identity, true,
                 decision.Publication is { } refreshed && native.CanExecuteRecovery(refreshed, player.Position));
+        }
+        // Check the actual executable waypoint after any fresh native recovery.
+        // Checking the original decision before revalidation lets its replacement
+        // walk through geometry that was never inspected. Waiting needs no scan.
+        if (Assistance != null && Execution is { Kind: MovementExecutionKind.Walk, Waypoint: { } waypoint })
+        {
+            if (!_physical.Check(player, [new(MovementStageKind.Walk, player.Position, waypoint, 0, decision.TimeToGoal)]))
+            {
+                LastFailure = _physical.LastReason;
+                Execution = new(MovementExecutionKind.Invalidated, LastFailure ?? "observed physical obstruction");
+                _executor.Release();
+                return new() { LeewaySeconds = float.MaxValue };
+            }
+            // Authority and the frozen map were checked above on this same
+            // framework frame. Recheck real elapsed freshness after the native
+            // probes and age the departure deadline rather than refreshing it.
+            Execution = _executor.AdvanceRecovery(plan, identity, true, true);
         }
         decision.Destination = Execution.Kind == MovementExecutionKind.Walk ? Execution.Waypoint : null;
         decision.LeewaySeconds = Execution.DepartureSeconds;

@@ -6,12 +6,19 @@ working behavior; fix concrete problems instead of expanding the migration.
 
 ## Fix and check next
 
+- [ ] **Physical obstacles: broader live validation.** The general collision path
+  now uses the game's walking filter and swept body, feeds observed surfaces into
+  native search, and checks the final recovery waypoint. Synthetic detours and
+  pass-through material checks pass; live probes detect the FC structure that the
+  former filter missed. Confirm actual trash-area wall avoidance and repeated
+  movement around scenery. See [collision evidence](docs/native-combat-assistance/collision-2026-10-25.md).
 - [ ] **Combat efficiency.** Idle overhead is repaired and planning allocations
   are substantially reduced. Combat frame-rate loss is still measurable with
-  automatic camera enabled. The committed build passes offline checks and was
-  measured live at 54.58 updates/second. Its settled camera evaluation is cheap,
-  but the view changed between comparisons; the earlier expensive view and the
-  remaining overall frame-rate loss still need investigation. Keep camera enabled.
+  automatic camera enabled. Exact interval traversal and partitioned search
+  frontiers now reduce broad-route and multi-state search cost. The new math build
+  passes 129,688 checks; its short dummy comparison measured 55.96 before versus
+  56.77 updates/second afterward, with slightly different positions and mixed
+  tail timings. This does not close the overall frame-rate issue. Keep camera enabled.
 - [ ] **Melee uptime and useful mobility.** Native planning now delivers actual
   Winged Glides, aimed Elusive Jumps and damaging dives through Griffin mechanics.
   The completed Support test confirms their effects and melee landings. Sprint's
@@ -27,6 +34,16 @@ working behavior; fix concrete problems instead of expanding the migration.
   allow safe uptime; active danger still needs an immediate escape. No requirement
   to certify every encounter or hypothetical hazard combination. Recheck the
   first boss's hide on the new escape-commitment build; its report predates reload.
+- [ ] **Readable spread/stack movement.** A carried spread should take a clear
+  route away from other players, avoiding new overlaps even while its timer would
+  permit crossing them. Bring a carried stack to eligible party members promptly,
+  favoring a safe gathering point near the boss for melee uptime. Preserve authored
+  assignments and emergency escape; do not make every warning an immediate hazard
+  or force needlessly early retreat. Current generic hints encode resolution-time
+  constraints. Stack interior/group gathering now participates in native goals,
+  with a flat interior and safety fallback; offline coverage includes circle and
+  line stacks. Live stack acceptance and explicit marker-aware spread routing /
+  prompt departure behavior remain to verify or implement.
 - [ ] **Healer positioning.** When RSR's saved thresholds indicate healing is
   needed, get the relevant party members in range. The Sage run already shows
   heals reaching all four party members. Still check a real out-of-range recovery
@@ -35,10 +52,13 @@ working behavior; fix concrete problems instead of expanding the migration.
   BLM recording. Check whether movement required cancellation or whether a cast
   was started despite a known imminent departure. Fix the latter if confirmed.
   Check useful Ley Lines placement/return during ordinary play.
-- [ ] **Micro-stepping.** Find the cause, then fix it. This remains an open defect,
-  not accepted behavior. Initial samples show short walks around native goal-field
-  changes; that is a lead, not a diagnosis. Preserve small moves that mechanics
-  actually require.
+- [ ] **Micro-stepping: validate the first reproduced repair.** Mistwake trash
+  samples showed walking repeatedly replaced by stationary GCD-wait plans with
+  clear collision checks. The fast opportunity shortcut skipped committed-route
+  comparison. Its regression failed on the old DLL and passes after the fix,
+  preserving attack timing, recipients and safety. Check mob-to-mob motion live;
+  this does not establish that every source of short stepping is fixed. Preserve
+  small moves that mechanics actually require.
 
 ## Already repaired or implemented
 
@@ -84,8 +104,8 @@ maintainer has explicitly authorized development reloads inside the NPC dungeon.
 
 ## Evidence, if needed
 
-The latest validated and loaded efficiency/arrival DLL is MVID
-`5bf068de-fc50-4ce2-9602-946dabf47703`. It builds and passes 54,506 native assertions,
+The latest validated and loaded efficiency/arrival/math DLL is MVID
+`5ef2015c-af46-4f61-a5de-f28dcee251d3`. It builds and passes 129,688 native assertions,
 installed RSR contract checks and nine repository tests. The latest dummy
 measurement is recorded in the efficiency note; it does not establish a complete
 FPS fix. AI and RSR were restored to their off state after the comparison.
@@ -98,6 +118,7 @@ the first-boss hide report occurred before this reload and needs its own recheck
 
 - [Run findings and build details](docs/native-combat-assistance/regressions-2026-10-24.md)
 - [AI efficiency pass and measured limits](docs/native-combat-assistance/performance-2026-10-24.md)
+- [Exact pathing math, research and measurements](docs/native-combat-assistance/pathing-math-2026-10-25.md)
 - [Direct arrival and large-boss positioning](docs/native-combat-assistance/deliberate-arrival-2026-10-25.md)
 - [Machinist spacing comparison](docs/native-combat-assistance/machinist-range-2026-10-24.json)
 - [Earlier migration history](docs/native-combat-assistance/migration-history.md)

@@ -65,7 +65,7 @@ internal sealed partial class CombatAssistanceRuntime
     internal void ObserveKnockbackPlan(MovementPlan plan) => _knockbackTransaction.ObservePlan(plan);
 
     internal NativeKnockbackPlanning? ResolveKnockbackPlanning(string owner, WorldState world, AIHints hints,
-        Actor player, NavigationDecision.CapturedInput input, NativeNavigationSnapshot native, IEnumerable<WPos>? blocks)
+        Actor player, NavigationDecision.CapturedInput input, NativeNavigationSnapshot native, IEnumerable<NativePhysicalObstacle>? blocks)
     {
         _ = CaptureKnockbackAuthority(world, player);
         var allowed = _settings.MayAssist && _settings.Preferences.ManageMovement
