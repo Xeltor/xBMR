@@ -35,7 +35,7 @@ public static partial class Checks
             var messages = new List<string>();
             var commands = new LegacyAssistanceCommands(settings, () => ++configOpened,
                 () => { ++nativeReads; return "native current state"; },
-                () => { ++recordingReads; return "recording current state"; }, messages.Add);
+                () => { ++recordingReads; return "recording current state"; }, messages.Add, enabled => { settings.Preferences.Enabled = enabled; settings.Active = enabled; }, () => settings.Active);
             try
             {
                 commands.Execute("knockback off");
@@ -45,6 +45,7 @@ public static partial class Checks
                 Check(SpinWait.SpinUntil(() => { settings.Poll(); return settings.MayEdit; }, 5000),
                     "Compatibility commands use the normal asynchronously loaded native settings.");
                 var preferences = settings.Preferences;
+                Check(!settings.Active && !settings.MayAssist, "Loading enabled preferences never starts AI.");
                 preferences.CombatCamera = true;
                 commands.Execute("OFF");
                 Check(!preferences.Enabled && settings.MayEdit && !settings.MayAssist,

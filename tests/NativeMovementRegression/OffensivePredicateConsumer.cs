@@ -121,11 +121,13 @@ public static partial class Checks
         public ulong Id;
         public bool Valid;
         public nint Address;
+        public IGameObject? Target;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
         {
             "get_GameObjectId" => Id,
             "get_Address" => Address,
             "IsValid" => Valid,
+            "get_TargetObject" => Target,
             _ => throw new NotSupportedException(method?.Name)
         };
     }

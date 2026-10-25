@@ -144,20 +144,29 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
         var stops = _stops().Where(id => id != 0).ToHashSet();
         var party = world.Party.WithoutSlot(includeDead: true, excludeAlliance: true).Select(a => a.InstanceID).ToHashSet();
         var forced = _manager.Hints.AuthoritativeTarget?.InstanceID ?? 0;
+        var syncedToFate = Utils.IsPlayerSyncedToFate(world);
         var actors = ImmutableArray.CreateBuilder<OffensiveTargetActor>();
         foreach (var enemy in _manager.Hints.PotentialTargets)
         {
             var actor = enemy.Actor;
             if (actor.IsDestroyed || !float.IsFinite(actor.PosRot.X) || !float.IsFinite(actor.PosRot.Y) || !float.IsFinite(actor.PosRot.Z)) continue;
-            var engaged = actor.AggroPlayer || actor.InCombat && (party.Contains(actor.TargetID)
+            var engaged = actor.AggroPlayer || enemy.Priority >= 0
+                && (enemy.RsrTargetDecision?.MayAcquire == true || enemy.RsrFallbackTarget
+                    || FateTargetPolicy.Matches(actor.FateID, world.Client.ActiveFate.ID,
+                        syncedToFate, world.Client.ActiveFate.Progress))
+                || actor.InCombat && (party.Contains(actor.TargetID)
                 || actor.FateID != 0 && actor.FateID == world.Client.ActiveFate.ID)
                 || enemy.ExplicitTargetRequirement == true || actor.InstanceID == forced && enemy.Priority >= 0
                 || enemy.Priority > 0 && _manager.Bossmods.ActiveModule?.StateMachine.ActiveState != null;
+            var wrapper = Service.ObjectTable.SearchById(actor.InstanceID) as IBattleChara;
             var permitted = actor.IsTargetable && !actor.IsDead
-                && Service.ObjectTable.SearchById(actor.InstanceID) is IBattleChara wrapper && wrapper.IsValid()
+                && wrapper != null && wrapper.IsValid()
                 && wrapper.Address != 0 && _attackable(wrapper) && _validity(wrapper, blacklist, stops);
+            // Reuse RSR's specific priority rules, including its user options,
+            // even while Henched. Preference is not permission to pull idle mobs.
+            var preferred = permitted && engaged && enemy.Priority >= 0 && enemy.RsrTargetPreference;
             actors.Add(new(Value(actor), permitted ? enemy.Priority : AIHints.Enemy.PriorityForbidden,
-                engaged, enemy.ForbidDOTs, enemy.Priority <= AIHints.Enemy.PriorityUndesirable || !engaged));
+                engaged, enemy.ForbidDOTs, enemy.Priority <= AIHints.Enemy.PriorityUndesirable || !engaged, preferred));
         }
         var settings = _preferences();
         var selected = SelectionFresh() ? ReadSelection() : default;
@@ -350,7 +359,15 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
             if (!Prepare() || _rotation == null || !Fresh(_rotation) || Manual()
                 || !SelectionMode() || CaptureFrame() is not { } frame) return false;
             var current = _manager.WorldState.Actors.Find(frame.Current);
-            var acquisition = frame.MissingTargetAcquisition(current is { IsTargetable: true, IsDead: false, IsDestroyed: false });
+            var preferred = frame.Acquisition;
+            // Henched RSR cannot select an action on a preferred enemy until we
+            // establish its hard target. Respect native/manual acquisition gates.
+            if (frame.Actors.Any(a => a.Actor.Id == preferred && a.RsrPreferred)
+                && frame.PriorityAcquisition(preferred) != 0 && _manager.Hints.ForcedTarget == null)
+                return PublishTarget(frame, preferred, 0, "Honor RSR's specific target preference within native permissions; awaiting original RSR action selection");
+            var currentExcluded = frame.Actors.Any(a => a.Actor.Id == frame.Current && a.Priority == AIHints.Enemy.PriorityForbidden);
+            var acquisition = frame.MissingTargetAcquisition(!currentExcluded
+                && current is { IsTargetable: true, IsDead: false, IsDestroyed: false });
             if (acquisition != 0 && _manager.Hints.ForcedTarget == null)
                 return PublishTarget(frame, acquisition, 0, "Reacquire a permitted native combat target; awaiting original RSR action selection");
             if (!SelectionFresh()) return false;

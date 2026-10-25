@@ -18,7 +18,8 @@ internal sealed class AssistanceSettingsSession : IAsyncDisposable
     private bool _disposed;
     internal AssistanceSettingsLoad Current { get; private set; } = new(AssistanceSettingsState.Unavailable, null, "Loading combat assistance settings.");
     internal AssistancePreferences Preferences => Current.Document?.Preferences ?? _unavailable;
-    internal bool MayAssist => !_disposed && _standalone == false && Current.MayAssist;
+    internal bool Active { get; set; }
+    internal bool MayAssist => Active && !_disposed && _standalone == false && Current.MayAssist;
     internal bool MayEdit => !_disposed && _standalone == false && Current.State == AssistanceSettingsState.Ready;
 
     internal AssistanceSettingsSession(AssistanceSettingsStore store) => _store = store;

@@ -5,6 +5,8 @@ namespace BossMod;
 public sealed class RotationSolverRebornModule : IDisposable
 {
     private readonly IDalamudPluginInterface _pluginInterface;
+    private readonly CombatAssistance.Integrations.RsrRuntimeAccess _runtime;
+    internal CombatAssistance.Integrations.RsrTargetRules? TargetRules => _runtime.TargetRules(IsAutorotationActive);
     private readonly ICallGateSubscriber<SpecialCommandType, object> _changeOperationMode;
     private readonly ICallGateSubscriber<SpecialCommandType, float, object> _triggerSpecialStateWithDuration;
     private readonly ICallGateSubscriber<byte> _getDesiredPositional;
@@ -20,6 +22,7 @@ public sealed class RotationSolverRebornModule : IDisposable
     public RotationSolverRebornModule(IDalamudPluginInterface pluginInterface)
     {
         _pluginInterface = pluginInterface;
+        _runtime = new(pluginInterface);
         _changeOperationMode = pluginInterface.GetIpcSubscriber<SpecialCommandType, object>("RotationSolverReborn.TriggerSpecialState");
         _triggerSpecialStateWithDuration = pluginInterface.GetIpcSubscriber<SpecialCommandType, float, object>("RotationSolverReborn.TriggerSpecialStateWithDuration");
         _getDesiredPositional = pluginInterface.GetIpcSubscriber<byte>("RotationSolverReborn.GetDesiredPositional");

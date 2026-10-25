@@ -12,6 +12,7 @@ sealed class AIManager : IDisposable
     public readonly AIController Controller;
     private static readonly AIConfig _config = Service.Config.Get<AIConfig>();
     private readonly AIManagementWindow _wndAI;
+    private readonly CombatAssistance.Config.AssistanceSettingsSession _settings;
     private readonly CombatAssistance.UI.MigrationCommandAlias _migrationAlias;
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
     public AIBehaviour? Beh;
@@ -23,12 +24,13 @@ sealed class AIManager : IDisposable
 
     public AIManager(RotationModuleManager autorot, ActionManagerEx amex, MovementOverride movement, CombatAssistance.Config.AssistanceSettingsSession settings)
     {
+        _settings = settings;
         Instance = this;
         Autorot = autorot;
         _wndAI = new AIManagementWindow(this, settings);
         var legacyCommands = new CombatAssistance.Runtime.LegacyAssistanceCommands(settings, () => _wndAI.SetVisible(true),
             () => $"Native movement planning: {Autorot.MovementPlanning.LastFailure ?? "available"}; {Autorot.MovementPlanning.Assistance?.ActionStatus ?? "native rotation goals"}",
-            () => _wndAI.FightSharingStatus?.Invoke() ?? "Recording status is not available yet.", message => Service.ChatGui.Print($"[xBMR] {message}"));
+            () => _wndAI.FightSharingStatus?.Invoke() ?? "Recording status is not available yet.", message => Service.ChatGui.Print($"[xBMR] {message}"), EnableConfig, () => Beh != null);
         _migrationAlias = new(legacyCommands.Execute);
         Controller = new(autorot.WorldState, amex, movement);
         Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Open combat assistance settings; on/off/toggle/follow control AI" });
@@ -40,11 +42,10 @@ sealed class AIManager : IDisposable
         _wndAI.FightSharingStatus = sharing;
         _wndAI.SupportRecipientStatus = support;
         _wndAI.RotationSolverAvailability = () => Autorot.MovementPlanning.Assistance?.RsrAvailable == true
-            ? null : "RotationSolver Reborn is unavailable. Native BMR rotation goals remain available.";
+            ? null : "RotationSolver Reborn is unavailable. Check that it is enabled and has a rotation loaded.";
         _wndAI.ActionPredictionAvailability = _wndAI.RotationSolverAvailability;
         _wndAI.PluginConnections = () =>
         [
-            new("Movement planning", "Native xBMR service"),
             new("RotationSolver Reborn", Autorot.MovementPlanning.Assistance?.RsrAvailable == true ? "Loaded" : "Unavailable",
                 Autorot.MovementPlanning.Assistance?.RsrAvailable != true)
         ];
@@ -64,7 +65,7 @@ sealed class AIManager : IDisposable
 
     public void Dispose()
     {
-        SwitchToIdle();
+        StopFollowing();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
         Service.CommandManager.RemoveHandler("/vbmai");
@@ -74,6 +75,8 @@ sealed class AIManager : IDisposable
 
     public void Update()
     {
+        if (Beh != null && !_settings.MayAssist)
+            SwitchToIdle();
         if (!WorldState.Party.Members[MasterSlot].IsValid())
         {
             SwitchToIdle();
@@ -96,6 +99,17 @@ sealed class AIManager : IDisposable
 
     public void SwitchToIdle()
     {
+        StopFollowing();
+        if (_settings.MayEdit && _settings.Preferences.Enabled)
+        {
+            _settings.Preferences.Enabled = false;
+            _settings.Save();
+        }
+    }
+
+    private void StopFollowing()
+    {
+        _settings.Active = false;
         Beh?.Dispose();
         Beh = null;
         MasterSlot = PartyState.PlayerSlot;
@@ -106,7 +120,15 @@ sealed class AIManager : IDisposable
 
     public void SwitchToFollow(int masterSlot)
     {
-        SwitchToIdle();
+        if (!_settings.MayEdit)
+            return;
+        StopFollowing();
+        if (AIActivationSettings.Normalize(_config))
+            _config.Modified.Fire();
+        _settings.Preferences.Enabled = true;
+        _settings.Preferences.ManageMovement = true;
+        _settings.Active = true;
+        _settings.Save();
         MasterSlot = WorldState.Party[masterSlot]?.Name == null ? 0 : masterSlot;
         var allpresets = Autorot.Database.Presets.AllPresets;
         var count = allpresets.Count;
@@ -122,6 +144,12 @@ sealed class AIManager : IDisposable
         }
         Beh = new AIBehaviour(Controller, Autorot, preset);
         _wndAI.UpdateTitle();
+    }
+
+    internal void OpenSettings()
+    {
+        _wndAI.SetVisible(true);
+        _wndAI.BringToFront();
     }
 
     private unsafe int FindPartyMemberSlotFromSender(SeString sender)
@@ -284,7 +312,7 @@ sealed class AIManager : IDisposable
         }
     }
 
-    private void EnableConfig(bool enable)
+    internal void EnableConfig(bool enable)
     {
         if (enable)
         {

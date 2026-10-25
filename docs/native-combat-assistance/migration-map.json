@@ -67,8 +67,8 @@
       "BossMod/AI/AIManager.cs"
     ],
     "commands": {
-      "/xcai": "Toggle AssistancePreferences.Enabled; no native AI activation",
-      "on/off/toggle": "Shared combat-assistance master switch",
+      "/xcai": "Toggle the shared Enable AI switch through AIManager",
+      "on/off/toggle": "Shared AI activation switch: movement and assistance together",
       "knockback on/off": "Shared ManageKnockback preference; policy parity remains separately tracked",
       "party on/off": "Explain user-authorized retirement; no saved field or follow activation",
       "check-ipc": "Current native planner/action status; retired transport probe is not restored",

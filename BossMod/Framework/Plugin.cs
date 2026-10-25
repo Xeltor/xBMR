@@ -352,10 +352,13 @@ public sealed class Plugin : IAsyncDalamudPlugin
             || _dalamud.InstalledPlugins.Any(plugin => plugin.IsLoaded && plugin.InternalName == "XelsCombatAI");
         _assistance.ObserveStandalone(standalone);
         _assistance.Poll();
-        _fightSharing.Observe(_assistance.MayAssist && _assistance.Preferences.ShareFightRecordings,
+        var replayConfig = Service.Config.Get<ReplayManagementConfig>();
+        if (_assistance.MayEdit && replayConfig.ImportFightSharingPreference(_assistance.Preferences.ShareFightRecordings))
+            replayConfig.Modified.Fire();
+        _fightSharing.Observe(replayConfig.ShareFightRecordings,
             !Service.ClientState.IsLoggedIn || Service.Condition.Any(ConditionFlag.InCombat, ConditionFlag.BetweenAreas,
                 ConditionFlag.BetweenAreas51, ConditionFlag.WatchingCutscene, ConditionFlag.WatchingCutscene78),
-            CombatAssistance.Sharing.RecordingSharingSettings.Capture(Service.Config.Get<ReplayManagementConfig>()));
+            CombatAssistance.Sharing.RecordingSharingSettings.Capture(replayConfig));
         _ai.UpdateMigrationAlias(standalone);
         if (_assistance.Current.State == CombatAssistance.Config.AssistanceSettingsState.RecoveryPending)
         {

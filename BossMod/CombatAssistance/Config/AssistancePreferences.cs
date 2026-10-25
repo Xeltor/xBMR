@@ -44,6 +44,7 @@ internal sealed class AssistancePreferences
 
     // Enables assistance only; native AI activation and movement authority remain separate.
     public bool Enabled { get; set; } = true;
+    // Legacy import only; the active sharing preference now belongs to ReplayManagementConfig.
     public bool ShareFightRecordings { get; set; } = false;
     public bool LinkRotationSolverToggle { get; set; }
     public bool AutoAcceptRaises { get; set; }

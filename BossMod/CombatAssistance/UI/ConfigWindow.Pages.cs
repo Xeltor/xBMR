@@ -10,8 +10,11 @@ internal partial class ConfigWindow
 {
     private void DrawGeneralTab()
     {
-        this.DrawToggleSectionHeader("Combat assistance", () => this.config.Enabled, this.defaultConfig.Enabled, this.setEnabled,
-            "Uses the selected combat preferences when automatic movement is active. This does not start AI or choose a preset.");
+        this.DrawToggleSectionHeader("Enable AI", () => this.settings.MayAssist && this.manager.Beh != null, false, this.setEnabled,
+            "Starts automatic movement and combat assistance for your character. Turn off to stop both. Manual movement always takes priority.");
+        this.DrawSectionHeader("Status bar");
+        this.Checkbox("Show AI status in DTR bar", () => this.NativeConfig.ShowDTR, NativeDefaults.ShowDTR,
+            value => this.NativeChange(() => this.NativeConfig.ShowDTR = value));
         this.DrawSectionHeader("RotationSolver");
         this.Checkbox("Link RotationSolver to combat assistance", () => this.config.LinkRotationSolverToggle, this.defaultConfig.LinkRotationSolverToggle,
             v => this.config.LinkRotationSolverToggle = v,
@@ -30,10 +33,10 @@ internal partial class ConfigWindow
             this.config.CombatCamera,
             this.defaultConfig.CombatCamera,
             v => this.config.CombatCamera = v,
-            "Frames the fight with smooth turns and viewing-height changes. Manual input pauses it briefly. Requires Assist automatic movement.");
-        this.DrawAvailability(() => !this.config.ManageMovement && this.config.CombatCamera ? "Requires Assist automatic movement in Movement." : null);
+            "Frames the fight with smooth turns and viewing-height changes. Manual input pauses it briefly. Requires Enable AI.");
+        this.DrawAvailability(() => !this.config.ManageMovement && this.config.CombatCamera ? "Turn on Enable AI in General." : null);
         var cameraDisabledTooltip = !this.config.CombatCamera ? "Requires Automatic camera." :
-            !this.config.ManageMovement ? "Requires Assist automatic movement in Movement." : null;
+            !this.config.ManageMovement ? "Turn on Enable AI in General." : null;
         if (cameraDisabledTooltip != null)
             this.BeginDisabled();
         this.Checkbox("Zoom out for large fights", () => this.config.CameraAutoZoom, this.defaultConfig.CameraAutoZoom,
@@ -54,18 +57,11 @@ internal partial class ConfigWindow
             value => this.NativeChange(() => this.NativeConfig.EchoToChat = value));
         this.Spacing();
 
-        this.DrawSectionHeader("Fight research sharing");
-        this.Checkbox("Share fight recordings", () => this.config.ShareFightRecordings,
-            this.defaultConfig.ShareFightRecordings, v => this.config.ShareFightRecordings = v,
-            "Shares replays for missing or Work in progress modules, skipping other module statuses and unsynced recordings.\nFollows xBMR’s Anonymize replays setting; turning it off may share recorded names and IDs.");
-        this.DynamicText(() => this.FightSharingStatus?.Invoke() ?? "Fight sharing is unavailable.");
-        this.Spacing();
-
         this.DrawSectionHeader("Restore defaults");
         this.Button("Reset everything...", () => { this.confirmResetAll = true; });
         if (this.confirmResetAll)
         {
-            this.Text("Restore combat assistance preferences to defaults? AI activation and native presets stay as selected.");
+            this.Text("Restore AI preferences to defaults? AI stays in its current on/off state.");
             this.Button("Confirm reset everything", () =>
             {
                 this.config.ResetAll();
@@ -79,9 +75,7 @@ internal partial class ConfigWindow
     private void DrawMovementTab()
     {
         this.sectionVisible = this.ActiveTab == 0;
-        this.DrawToggleSectionHeader("Assist automatic movement", () => this.config.ManageMovement, this.defaultConfig.ManageMovement,
-            v => this.config.ManageMovement = v, "Applies combat preferences to automatic movement. Native movement restrictions and manual control keep priority.");
-        var movementDisabledTooltip = !this.config.ManageMovement ? "Requires Assist automatic movement in Movement → Control." : null;
+        var movementDisabledTooltip = !this.config.ManageMovement ? "Turn on Enable AI in General." : null;
         if (!this.config.ManageMovement) this.BeginDisabled();
         this.Checkbox("Use Sprint", () => this.config.UseSprint, this.defaultConfig.UseSprint, v => this.config.UseSprint = v, "Uses Sprint for safety, attack range or dungeon pulls. Occult Sprint also needs Phantom movement abilities.", movementDisabledTooltip);
 
@@ -111,15 +105,15 @@ internal partial class ConfigWindow
         this.Checkbox("Manage interrupts and stuns", () => this.config.ManageCastControl, this.defaultConfig.ManageCastControl,
             v => this.config.ManageCastControl = v,
             tooltip: "Interrupts or stuns threatening casts when useful. Skips stunned or immune targets. Requires RotationSolver.",
-            disabledTooltip: !this.config.ManageMovement ? "Requires Assist automatic movement in Movement." : null);
+            disabledTooltip: !this.config.ManageMovement ? "Turn on Enable AI in General." : null);
         this.sectionVisible = this.ActiveTab == 1;
         this.DrawSectionHeader("Knockbacks");
         this.Checkbox("Plan knockback landings", () => this.config.PlanKnockbackLandings, this.defaultConfig.PlanKnockbackLandings,
             v => this.config.PlanKnockbackLandings = v, tooltip: "Prepares for supported knockbacks with a safe landing near attack or healing range.",
-            disabledTooltip: !this.config.ManageMovement ? "Requires Assist automatic movement in Movement." : null);
+            disabledTooltip: !this.config.ManageMovement ? "Turn on Enable AI in General." : null);
         this.Checkbox("Manage knockback immunity", () => this.config.ManageKnockback, this.defaultConfig.ManageKnockback,
             v => this.config.ManageKnockback = v, tooltip: "Uses Surecast or Arm’s Length when avoiding a knockback helps. Requires RotationSolver.",
-            disabledTooltip: !this.config.ManageMovement ? "Requires Assist automatic movement in Movement." : null);
+            disabledTooltip: !this.config.ManageMovement ? "Turn on Enable AI in General." : null);
         this.sectionVisible = this.ActiveTab == 2;
         this.DrawToggleSectionHeader("Avoid danger zones", () => this.config.ManageForbiddenZoneDistance, this.defaultConfig.ManageForbiddenZoneDistance, v => this.config.ManageForbiddenZoneDistance = v, "Leaves extra room beside AoE edges when attacks and mechanics allow. BossMod still handles dodging.", disabledTooltip: movementDisabledTooltip);
         var forbiddenZoneDisabledTooltip = !this.config.ManageForbiddenZoneDistance ? "Requires Avoid danger zones." : movementDisabledTooltip;
@@ -187,7 +181,7 @@ internal partial class ConfigWindow
     private void DrawAoeAndTrashTab()
     {
         this.DrawSectionHeader("Dungeon pulls");
-        var movementDisabledTooltip = !this.config.ManageMovement ? "Requires Assist automatic movement on the Movement tab." : null;
+        var movementDisabledTooltip = !this.config.ManageMovement ? "Turn on Enable AI in General." : null;
 
         if (!this.config.ManageMovement)
             this.BeginDisabled();
@@ -268,7 +262,7 @@ internal partial class ConfigWindow
             "Delays movement to preserve casting time when a safe escape is available. Requires Black Mage movement abilities.",
             icon: FontAwesomeIcon.SkullCrossbones,
             iconTooltip: "Late movement gives less reaction time. Latency or a moving dash target can cause a hit.");
-        this.DrawAvailability(() => !this.config.ManageMovement ? "Returns to Ley Lines require Assist automatic movement in Movement." : null);
+        this.DrawAvailability(() => !this.config.ManageMovement ? "Returns to Ley Lines require Enable AI." : null);
         this.Combo("Return to Ley Lines", () => this.config.LeyLinesReturn, this.defaultConfig.LeyLinesReturn,
             v => this.config.LeyLinesReturn = v,
             "Returns to Ley Lines when safe, using your chosen movement method.",
@@ -299,7 +293,7 @@ internal partial class ConfigWindow
         this.Spacing();
 
         this.BeginJobSection("Pictomancer");
-        var movementDisabledTooltip = !this.config.ManageMovement ? "Requires Assist automatic movement." : null;
+        var movementDisabledTooltip = !this.config.ManageMovement ? "Requires Enable AI." : null;
         if (!this.config.ManageMovement)
         {
             this.BeginDisabled();
@@ -497,9 +491,6 @@ internal partial class ConfigWindow
         this.Spacing();
 
         this.sectionVisible = this.ActiveTab == 1;
-        this.DrawBossModCompatibility();
-
-        this.sectionVisible = this.ActiveTab == 2;
         this.DrawSectionHeader("Overlay");
         this.Checkbox(
             "Show decision overlay", () =>

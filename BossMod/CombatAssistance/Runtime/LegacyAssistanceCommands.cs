@@ -32,10 +32,10 @@ internal readonly record struct LegacyAssistanceCommand(LegacyAssistanceCommandK
     }
 }
 
-// Compatibility for the old assistance switches, not another AI activation owner.
+// Compatibility commands use the same activation owner as the UI and /bmrai.
 // Shared preferences and the normal save queue are also used by the Material UI.
 internal sealed class LegacyAssistanceCommands(AssistanceSettingsSession settings, Action openConfig,
-    Func<string> nativeStatus, Func<string> recordingStatus, Action<string> print)
+    Func<string> nativeStatus, Func<string> recordingStatus, Action<string> print, Action<bool> setEnabled, Func<bool> isEnabled)
 {
     internal const string Usage = "Usage: /xcai [on|off|toggle|config|knockback on|knockback off|check-ipc|check-recording-ipc]";
 
@@ -70,8 +70,8 @@ internal sealed class LegacyAssistanceCommands(AssistanceSettingsSession setting
         {
             case LegacyAssistanceCommandKind.Enabled:
             case LegacyAssistanceCommandKind.Toggle:
-                preferences.Enabled = command.Kind == LegacyAssistanceCommandKind.Toggle ? !preferences.Enabled : command.Value;
-                print($"Combat assistance: {(preferences.Enabled ? "on" : "off")}. Native AI activation is controlled by /bmrai.");
+                setEnabled(command.Kind == LegacyAssistanceCommandKind.Toggle ? !isEnabled() : command.Value);
+                print($"Combat assistance: {(isEnabled() ? "on" : "off")}.");
                 break;
             case LegacyAssistanceCommandKind.Knockback:
                 preferences.ManageKnockback = command.Value;

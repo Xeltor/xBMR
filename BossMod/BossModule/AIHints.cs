@@ -11,6 +11,9 @@ public sealed partial class AIHints
         public const int PriorityForbidden = -4; // attacking this enemy will probably lead to a wipe; autoattacks and actions that target it will be forcibly prevented (if custom queueing is enabled)
 
         public Actor Actor = actor;
+        internal bool RsrTargetPreference;
+        internal CombatAssistance.Integrations.RsrTargetDecision? RsrTargetDecision;
+        internal bool RsrFallbackTarget;
         private int _priority = priority;
         public int Priority
         {
@@ -20,6 +23,7 @@ public sealed partial class AIHints
                 // we should never change priority if it has been set to pointless, since that means the target is dying and further actions targeting it are a waste
                 if (_priority != PriorityPointless)
                 {
+                    RsrTargetPreference = false;
                     _priority = value;
                 }
             }
@@ -52,7 +56,7 @@ public sealed partial class AIHints
             get;
         }
 
-        public void ForcePriority(int priority) => _priority = priority;
+        public void ForcePriority(int priority) { _priority = priority; RsrTargetPreference = false; }
     }
 
     public enum SpecialMode

@@ -18,7 +18,7 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
     {
         using var wrap = ImRaii.TextWrapPos(0);
 
-        ImGui.TextUnformatted("Xel's Boss Mods Reborn (xBMR) provides boss fight radar, auto-rotation, cooldown planning, and AI. All of its modules can be toggled individually. Support for this fork is available through the xBMR issues link below.");
+        ImGui.TextUnformatted("Xel's Boss Mods Reborn (xBMR) provides boss fight radar, cooldown planning, and AI. All of its modules can be toggled individually. Support for this fork is available through the xBMR issues link below.");
         ImGui.TextUnformatted("This is Xel's fork of BossMod Reborn, based on the original BossMod by awgil. Please report fork-specific issues to xBMR.");
         ImGui.TextUnformatted("Please also make sure to not load VBM and this fork at the same time. The consequences of doing that are unexplored and unsupported.");
         ImGui.Spacing();
@@ -30,18 +30,9 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
             "Enabled for supported bosses, visible in the \"Supported bosses\" tab.",
         ]);
         ImGui.Spacing();
-        DrawSection("Autorotation",
-        [
-            "Executes fully optimal rotations to the best of its ability.",
-            "Go to the \"Autorotation presets\" tab to create a preset.",
-            "Maturity of each rotation module is present in a tooltip.",
-            "Guide for using this feature can be found on the wiki.",
-        ]);
-        ImGui.Spacing();
         DrawSection("Cooldown planner",
         [
             "Creates a CD plan for supported bosses.",
-            "Replaces autorotations in specific fights.",
             "Allows you to time specific abilities to cast at specific times.",
             "Guide for using this feature can be found on the wiki.",
         ]);

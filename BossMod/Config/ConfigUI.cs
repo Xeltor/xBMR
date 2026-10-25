@@ -28,7 +28,6 @@ public sealed class ConfigUI : IDisposable
     private readonly ModuleViewer _mv;
     private readonly ConfigRoot _root;
     private readonly WorldState _ws;
-    private readonly UIPresetDatabaseEditor? _presets;
 
     private readonly List<List<string>> _filterNodes = [];
     private static readonly Dictionary<Type, PropertyRenderer> _propertyRenderers = [];
@@ -39,11 +38,9 @@ public sealed class ConfigUI : IDisposable
         _ws = ws;
         _about = new(replayDir);
         _mv = new(rotationDB?.Plans, ws);
-        _presets = rotationDB != null ? new(rotationDB) : null;
 
         _tabs.Add("Settings", DrawSettings);
         _tabs.Add("Supported fights", () => _mv.Draw(_tree, _ws));
-        _tabs.Add("Autorotation presets", () => _presets?.Draw());
         _tabs.Add("Slash commands", DrawAvailableCommands);
         _tabs.Add("About", _about.Draw);
 
@@ -51,7 +48,9 @@ public sealed class ConfigUI : IDisposable
 
         foreach (var n in _root._nodes.Values)
         {
-            nodes[n.GetType()] = new(n);
+            // Keep unsupported autorotation settings persisted, but out of the settings tree and search.
+            if (n is not AutorotationConfig)
+                nodes[n.GetType()] = new(n);
         }
 
         foreach (var (t, n) in nodes)
@@ -164,18 +163,7 @@ public sealed class ConfigUI : IDisposable
         ( "prefdistance X", "Sets preferred distance to forbidden zones. (default = 0)" ),
         ( "movedelay X", "Sets AI movement decision delay. (default = 0)" ),
         ( "obstaclemaps", "Toggles loading obstacle maps." ),
-        ( "obstaclemaps on/off", "Sets the loading of obstacle maps to on or off." ),
-        ( "setpresetname X", "Sets an autorotation preset for the AI, eg. setpresetname vbm default." )
-    ];
-
-    private static readonly (string, string)[] _autorotationCommands =
-    [
-        ( "ar clear", "Clear current preset; autorotation will do nothing unless plan is active" ),
-        ( "ar disable", "Force disable autorotation; no actions will be executed automatically even if plan is active." ),
-        ( "ar set Preset", "Start executing specified preset." ),
-        ( "ar toggle", "Force disable autorotation if not already; otherwise clear overrides." ),
-        ( "ar toggle Preset", "Start executing specified preset unless it's already active; clear otherwise" ),
-        ( "ar ui", "Toggle autorotation ui." ),
+        ( "obstaclemaps on/off", "Sets the loading of obstacle maps to on or off." )
     ];
 
     private static readonly (string, string)[] _availableOtherCommands =
@@ -197,18 +185,10 @@ public sealed class ConfigUI : IDisposable
         ImGui.Separator();
         ImGui.Text("AI:");
         ImGui.Separator();
-        for (var i = 0; i < 30; ++i)
+        for (var i = 0; i < _availableAICommands.Length; ++i)
         {
             ref var text = ref _availableAICommands[i];
             ImGui.Text($"/bmrai {text.Item1}: {text.Item2}");
-        }
-        ImGui.Separator();
-        ImGui.Text("Autorotation commands:");
-        ImGui.Separator();
-        for (var i = 0; i < 6; ++i)
-        {
-            ref var text = ref _autorotationCommands[i];
-            ImGui.Text($"/bmr {text.Item1}: {text.Item2}");
         }
         ImGui.Separator();
         ImGui.Text("Other commands:");

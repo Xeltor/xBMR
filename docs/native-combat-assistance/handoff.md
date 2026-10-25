@@ -101,3 +101,38 @@ The user's dungeon supplies the next concrete failures to correct; do not restar
 a speculative implementation audit first.
 
 No release/feed publication, standalone uninstall or companion change occurred.
+
+
+### Unified AI activation (2026-10-25)
+
+The General page has one **Enable AI** switch. UI, /bmrai on/off/toggle,
+DTR and legacy /xcai on/off/toggle use native AIManager activation.
+Starting AI enables movement preferences and assistance; stopping it revokes
+both. Loading saved preferences never starts AI. Explicit follow commands
+still select a leader; the default is the local character.
+
+The Automovement config category contains only **Open AI settings**. The DTR
+status toggle lives on the AI General page. Existing config field identities,
+persistence and upstream IPC remain compatible.
+
+Enabling AI automatically corrects hidden legacy controls that block movement,
+actions, automatic targeting, combat/module following, job-range selection,
+terrain maps or movement timing. AIActivationSettings.Normalize applies these
+corrections before constructing the follow behavior and persists only when a
+value changed. All activation paths use this owner; there is no approval popup.
+Loading settings alone never starts AI. Harmless fallback target/leader ranges,
+runtime-managed spacing, focus targeting, AFK/mounted opt-outs, encounter safety,
+module opt-outs, manual handoff and RSR's own settings remain independent.
+Build and offline checks are separate from live gameplay acceptance.
+
+Troubleshooting now contains only Connections and Overlay & help. The obsolete
+BMR settings compatibility subtab and internal movement-service connection row
+are removed. RotationSolver remains an external connection with its existing
+compatibility control; the decision overlay and copyable report remain available.
+
+Fight research sharing is now in /bmr Settings → Replays, as one standard native checkbox
+with a tooltip and no separate heading or status block. ReplayManagementConfig owns the preference and imports
+the former assistance opt-in/opt-out once. A direct replay-setting choice takes
+priority over a pending import. Sharing no longer depends on AI activation;
+existing anonymization, eligibility and combat/loading upload pauses remain.
+The legacy assistance field is retained for import compatibility only.

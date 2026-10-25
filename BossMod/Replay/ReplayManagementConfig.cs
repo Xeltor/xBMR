@@ -18,6 +18,9 @@ public sealed class ReplayManagementConfig : ConfigNode
     [PropertyDisplay("Anonymize replays", tooltip: "If this option is disabled, replays will contain personally identifying information for your character and any other player you see during the recording - specifically, names and content IDs.")]
     public bool Anonymize = false;
 
+    [PropertyDisplay("Share fight recordings", tooltip: "Shares replays for missing or Work in progress modules, skipping other module statuses and unsynced recordings. Follows Anonymize replays; turning anonymization off may share recorded names and IDs. Runs independently of AI and pauses during combat or loading.")]
+    public bool ShareFightRecordings = false;
+
     [PropertyDisplay("Max replays to keep before removal")]
     [PropertySlider(0, 1000)]
     public int MaxReplays = 0;
@@ -37,4 +40,36 @@ public sealed class ReplayManagementConfig : ConfigNode
     [PropertyDisplay("Format for recorded logs")]
     public ReplayLogFormat WorldLogFormat = ReplayLogFormat.BinaryCompressed;
     public string ReplayFolder = "";
+
+    public bool FightSharingPreferenceMigrated = false;
+
+    internal bool ImportFightSharingPreference(bool legacyValue)
+    {
+        if (FightSharingPreferenceMigrated)
+            return false;
+        ShareFightRecordings = legacyValue;
+        FightSharingPreferenceMigrated = true;
+        return true;
+    }
+
+    private bool ObservedSharingChoice { get; set; }
+
+    public ReplayManagementConfig()
+    {
+        // Runs before ConfigRoot's save subscriber, including native checkbox edits.
+        Modified.Subscribe(() =>
+        {
+            if (ShareFightRecordings != ObservedSharingChoice)
+            {
+                FightSharingPreferenceMigrated = true;
+                ObservedSharingChoice = ShareFightRecordings;
+            }
+        });
+    }
+
+    public override void Deserialize(System.Text.Json.JsonElement j, System.Text.Json.JsonSerializerOptions ser)
+    {
+        try { base.Deserialize(j, ser); }
+        finally { ObservedSharingChoice = ShareFightRecordings; }
+    }
 }

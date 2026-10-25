@@ -81,13 +81,28 @@ The old `/xcai` commands remain available after standalone XCAI is removed:
 
 | Command | Behavior |
 | --- | --- |
-| `/xcai`, `/xcai toggle` | Toggle the **Combat assistance** setting. |
-| `/xcai on`, `/xcai off` | Enable or disable combat assistance. Native AI activation remains controlled by `/bmrai`. |
+| `/xcai`, `/xcai toggle` | Toggle **Enable AI**, using the same activation owner as `/bmrai` and the settings window. |
+| `/xcai on`, `/xcai off` | Enable or disable AI through the shared native activation owner. |
 | `/xcai config` | Open the Material settings. |
 | `/xcai knockback on`, `/xcai knockback off` | Set the shared knockback immunity preference; the migration's remaining knockback limitations still apply. |
 | `/xcai check-ipc` | Report current native movement/action status. |
 | `/xcai check-recording-ipc` | Report current recording-sharing status. |
 | `/xcai party on`, `/xcai party off` | Explain the retirement of automatic between-pull following. |
+
+AI settings use one **Enable AI** switch. The Automovement category links to this
+window. Starting AI corrects hidden legacy controls that would block normal AI
+operation; loading saved settings or opening the window never starts AI.
+
+Fight recording sharing is configured under `/bmr` → Settings → Replays. The
+existing opt-in or opt-out is imported once and subsequent replay-setting choices
+are preserved. Sharing operates independently of AI activation and retains its
+anonymization, module eligibility and combat/loading pauses.
+
+In active Henched mode, xBMR honors RSR's specific target preferences and genuine
+exclusions. BMR encounter instructions remain above target preferences; ordinary
+RSR engagement rules are a fallback when native targeting has no eligible target.
+Inactive RSR does not impose its engagement policy on native BMR targeting. See
+[RSR targeting behavior](docs/native-combat-assistance/fate-target-priority.md).
 
 Ley Lines returns compare walking, Between the Lines and Retrace within the
 same safe movement plan. Supported spell timing includes recast benefits for

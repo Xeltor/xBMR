@@ -8,6 +8,23 @@ public static partial class Checks
 {
     private static void OffensiveTargetSelection()
     {
+        var activeFate = FateTargetPolicy.Matches(123, 123, true, 99);
+        Check(activeFate && !FateTargetPolicy.Matches(0, 0, true, 0)
+            && !FateTargetPolicy.Matches(456, 123, true, 0)
+            && !FateTargetPolicy.Matches(123, 123, false, 0)
+            && !FateTargetPolicy.Matches(123, 123, true, 100),
+            "FATE acquisition requires the matching active, synced, incomplete FATE.");
+        var fatePermission = new RsrTargetDecision(RsrTargetPermission.Allowed, 1);
+        Check(fatePermission.EligiblePriority(AIHints.Enemy.PriorityUndesirable, activeFate) == 0
+            && fatePermission.EligiblePriority(0, activeFate) == 0
+            && fatePermission.EligiblePriority(3, activeFate) == 3,
+            "Enabled FATE priority permits passive FATE mobs without raising them above authored encounter priorities.");
+        foreach (var restricted in new[] { AIHints.Enemy.PriorityForbidden, AIHints.Enemy.PriorityInvincible, AIHints.Enemy.PriorityPointless })
+            Check(fatePermission.EligiblePriority(restricted, activeFate) == restricted,
+                "FATE priority preserves forbidden, invincible and dying enemy restrictions.");
+        Check(new RsrTargetDecision(RsrTargetPermission.Allowed, 0).EligiblePriority(-3, activeFate) == -3
+            && fatePermission.EligiblePriority(-3, false) == -3,
+            "An opt-out or unrelated FATE cannot authorize a passive pull.");
         var player = new ExecutionActor(1, default, 0, 0.5f, default);
         OffensiveTargetActor Enemy(ulong id, float x, float z, int priority = 0, bool engaged = true,
             bool dots = false, bool collateral = false)
@@ -15,6 +32,15 @@ public static partial class Checks
         var first = Enemy(2, 5, 0);
         var middle = Enemy(3, 8, 0);
         var last = Enemy(4, 11, 0);
+        var fateFrame = new OffensiveTargetFrame(player, 2, 0, false, true, false, 0,
+            [first, middle with { Priority = 1 }]);
+        Check(fateFrame.PriorityAcquisition(3) == 3
+            && (fateFrame with { RetainSelection = true }).PriorityAcquisition(3) == 0
+            && (fateFrame with { Acquire = false }).PriorityAcquisition(3) == 0
+            && (fateFrame with { Forced = 2 }).PriorityAcquisition(3) == 0
+            && (fateFrame with { Current = 999 }).PriorityAcquisition(3) == 0
+            && (fateFrame with { Current = 3 }).PriorityAcquisition(3) == 0,
+            "A higher priority FATE can replace an ordinary target, respecting manual/authored ownership and saved opt-outs without churn.");
         var circle = new OffensiveActionGeometry(100, 2, 25, 3, 0, false, false, false);
         var single = circle with { EffectRange = 0, CastType = 1 };
         var frame = new OffensiveTargetFrame(player, 2, 0, false, true, true, 0,
@@ -147,7 +173,7 @@ public static partial class Checks
         if (center.GetProperty("TargetFreelyOverride", flags)?.PropertyType != typeof(bool)
             || center.GetProperty("IpcOverrides", flags)?.PropertyType != type)
             throw new InvalidOperationException("RSR independent target writers changed contract");
-        if (new[] { "IsManual", "IsHenched", "IsTargetOnly", "IsPvP" }
+        if (new[] { "State", "IsManual", "IsHenched", "IsTargetOnly", "IsPvP" }
             .Any(name => center.GetProperty(name, flags)?.PropertyType != typeof(bool)))
             throw new InvalidOperationException("RSR native target ownership mode contract changed");
         if (center.GetProperty("CommandNextAction", flags)?.PropertyType != basic.GetType("RotationSolver.Basic.Actions.IAction", true))
@@ -165,6 +191,24 @@ public static partial class Checks
             || canTarget.SetMethod == null)
             throw new InvalidOperationException("RSR original offensive predicate contract changed");
         var validity = basic.GetType("RotationSolver.Basic.Helpers.TargetHelper", true)!.GetMethod("ValidityCheck", flags)!;
+        var actionInfo = basic.GetType("RotationSolver.Basic.Actions.ActionBasicInfo", true)!;
+        var basicCheck = actionInfo.GetMethod("BasicCheck", flags | System.Reflection.BindingFlags.Instance);
+        if (basicCheck?.ReturnType != typeof(bool) || basicCheck.GetParameters() is not { Length: 6 } basicParameters
+            || basicParameters.Take(5).Any(p => p.ParameterType != typeof(bool)) || !basicParameters[5].ParameterType.IsEnum)
+            throw new InvalidOperationException($"RSR original action readiness contract changed: {basicCheck}");
+        _ = basic.GetType("RotationSolver.Basic.Helpers.ObjectHelper", true)!.GetMethod("IsSoloDeepDungeonSmartAttackable", flags)!
+            .CreateDelegate<Func<Dalamud.Game.ClientState.Objects.Types.IBattleChara, bool>>();
+        if (center.GetProperty("TargetFreelyEnabled", flags)?.PropertyType != typeof(bool)
+            || center.GetProperty("InCombat", flags)?.PropertyType != typeof(bool)
+            || center.GetProperty("CurrentTargetToHostileType", flags)?.PropertyType.IsEnum != true)
+            throw new InvalidOperationException("RSR fallback engagement/nearest-target contract changed");
+        foreach (var name in new[] { "IsTopPriorityHostile", "IsTopPriorityNamedHostile" })
+            _ = basic.GetType("RotationSolver.Basic.Helpers.ObjectHelper", true)!.GetMethod(name, flags)!
+                .CreateDelegate<Func<Dalamud.Game.ClientState.Objects.Types.IBattleChara, bool>>();
+        var configType = basic.GetType("RotationSolver.Basic.Service", true)!.GetProperty("Config", flags)!.PropertyType;
+        var fateOption = configType.GetProperty("TargetFatePriority")!.PropertyType;
+        if (fateOption != typeof(bool) && fateOption.GetMethod("op_Implicit", flags, [fateOption])?.ReturnType != typeof(bool))
+            throw new InvalidOperationException("RSR FATE option Boolean conversion contract changed");
         _ = validity.CreateDelegate<Func<Dalamud.Game.ClientState.Objects.Types.IBattleChara, HashSet<uint>, HashSet<long>, bool>>();
         _ = basic.GetType("RotationSolver.Basic.Helpers.ObjectHelper", true)!
             .GetMethod("IsAttackable", flags, [typeof(Dalamud.Game.ClientState.Objects.Types.IBattleChara)])!

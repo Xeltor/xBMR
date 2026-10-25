@@ -16,6 +16,7 @@ public sealed class AIHintsBuilder : IDisposable
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape)> _activeGazes = [];
     private readonly List<Actor> _invincible = [];
     private ArenaBoundsCircle? _activeFateBounds;
+    private CombatAssistance.Integrations.RsrTargetRules? _rsrTargetRules;
 
     private static readonly uint[] invincibleStatuses =
     [
@@ -99,6 +100,7 @@ public sealed class AIHintsBuilder : IDisposable
             }
             FakeAoeTest.Apply(_ws, player, hints);
         }
+        ApplyRsrTargetPreferences(hints);
         hints.Normalize();
         if (_rsr != null)
         {
@@ -131,6 +133,7 @@ public sealed class AIHintsBuilder : IDisposable
         var playerY = _ws.Party.Player() is { } p ? p.PosRot.Y : 0f;
 
         var allowedFateID = Utils.IsPlayerSyncedToFate(_ws) ? _ws.Client.ActiveFate.ID : default;
+        var rsrTargets = _rsrTargetRules = _rsr?.TargetRules;
 
         foreach (var actor in _ws.Actors.Actors.Values)
         {
@@ -153,7 +156,17 @@ public sealed class AIHintsBuilder : IDisposable
                 : actor.InCombat && _ws.Party.FindSlot(actor.TargetID) >= 0 ? (0, "attacking party") // we generally want to assist our party members (note that it includes allied npcs in duties)
                 : (priorityPassive, "passive"); // this enemy is either not pulled yet or fighting someone we don't care about - try not to aggro it by default
 
-            var enemy = hints.Enemies[index] = new(actor, priority, playerIsDefaultTank);
+            CombatAssistance.Integrations.RsrTargetDecision? rsrDecision = null;
+            if (rsrTargets != null)
+            {
+                rsrDecision = Service.ObjectTable.SearchById(actor.InstanceID) is Dalamud.Game.ClientState.Objects.Types.IBattleChara wrapper
+                    && wrapper.IsValid() && wrapper.Address != 0 ? rsrTargets.Observe(wrapper)
+                        : new(CombatAssistance.Integrations.RsrTargetPermission.Unavailable, 0);
+            }
+            var enemy = hints.Enemies[index] = CombatAssistance.Integrations.RsrTargetRules.CreateEnemy(actor, priority,
+                playerIsDefaultTank, rsrDecision, actor.FateID == 0
+                    || CombatAssistance.Targeting.FateTargetPolicy.Matches(actor.FateID, allowedFateID,
+                        allowedFateID != 0, _ws.Client.ActiveFate.Progress));
 
             // maybe unnecessary?
             if (actor.FateID > 0u && actor.FateID == allowedFateID && !Utils.IsBossFate(actor.FateID))
@@ -162,6 +175,28 @@ public sealed class AIHintsBuilder : IDisposable
             }
 
             hints.PotentialTargets.Add(enemy);
+        }
+    }
+
+    private void ApplyRsrTargetPreferences(AIHints hints)
+    {
+        // Encounter priorities/assignments are authoritative. Apply external
+        // preferences only after all module hints, among ordinary eligible mobs.
+        var authored = CombatAssistance.Integrations.RsrTargetRules.ApplyPriorities(hints);
+        // Ordinary engagement is a fallback, never a competing pack selector.
+        // Keep the live checks local; only frozen permission flags leave here.
+        if (authored || hints.PotentialTargets.Any(e => e.Priority >= 0) || _rsrTargetRules == null) return;
+        foreach (var enemy in hints.PotentialTargets.OrderBy(e => (e.Actor.Position - (_ws.Party.Player()?.Position ?? default)).LengthSq()))
+        {
+            if (enemy.Priority != AIHints.Enemy.PriorityUndesirable
+                || enemy.RsrTargetDecision is not { Permission: CombatAssistance.Integrations.RsrTargetPermission.Allowed, EngagementAllowed: true }
+                || enemy.Actor.FateID != 0 && !CombatAssistance.Targeting.FateTargetPolicy.Matches(enemy.Actor.FateID,
+                    _ws.Client.ActiveFate.ID, Utils.IsPlayerSyncedToFate(_ws), _ws.Client.ActiveFate.Progress)
+                || Service.ObjectTable.SearchById(enemy.Actor.InstanceID) is not Dalamud.Game.ClientState.Objects.Types.IBattleChara wrapper
+                || !wrapper.IsValid() || wrapper.Address == 0 || !_rsrTargetRules.CanAcquireFallback(wrapper)) continue;
+            enemy.Priority = 0;
+            enemy.RsrFallbackTarget = true;
+            break; // One fallback target; native pack planning resumes after engagement.
         }
     }
 

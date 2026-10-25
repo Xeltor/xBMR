@@ -61,6 +61,7 @@ public static partial class Checks
         LeyLinesTiming();
         PictomancerTiming();
         OffensiveTargetSelection();
+        RsrTargetSettings();
         OffensivePredicateConsumer();
         NativeTargetChoices();
         NativeTargetOptionInteractions();

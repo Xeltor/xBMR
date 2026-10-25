@@ -4,7 +4,7 @@ using BossMod.CombatAssistance.Planning;
 namespace BossMod.CombatAssistance.Targeting;
 
 internal sealed record OffensiveTargetActor(ExecutionActor Actor, int Priority, bool Engaged,
-    bool ForbidDots = false, bool ForbiddenCollateral = false);
+    bool ForbidDots = false, bool ForbiddenCollateral = false, bool RsrPreferred = false);
 internal sealed record OffensiveActionGeometry(uint Id, int CastType, float Range, float EffectRange,
     float HalfWidth, bool Ground, bool Friendly, bool ProvidesTargetStatus);
 
@@ -39,6 +39,13 @@ internal sealed record OffensiveTargetFrame(ExecutionActor Player, ulong Current
     internal ulong MissingTargetAcquisition(bool currentTargetUsable)
         => !currentTargetUsable && Acquire && !RetainSelection && Forced == 0 && Valid(Player)
             ? Acquisition : 0;
+
+    internal ulong PriorityAcquisition(ulong preferred)
+        => Acquire && !RetainSelection && Forced == 0 && Valid(Player) && preferred != 0
+            && (Current == 0 || Actors.Any(a => a.Actor.Id == Current))
+            && Acquisition == preferred && Actors.First(a => a.Actor.Id == preferred).Priority
+                > (Actors.FirstOrDefault(a => a.Actor.Id == Current)?.Priority ?? -1)
+            ? preferred : 0;
 
     // Constraints shared by original RSR selection and publication. This is not
     // a replacement rotation: single-target status/resource ordering stays in RSR.

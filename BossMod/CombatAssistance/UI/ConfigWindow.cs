@@ -48,7 +48,7 @@ internal partial class ConfigWindow : UIWindow
         ConfigPage.Movement => ["Control", "Knockbacks", "Positioning"],
         ConfigPage.JobSpecific => ["Party support", "Black Mage", "Pictomancer", "Red Mage", "Tanks"],
         ConfigPage.BmrFixes => ["General fixes"],
-        ConfigPage.Troubleshooting => ["Connections", "BMR settings", "Overlay & help"],
+        ConfigPage.Troubleshooting => ["Connections", "Overlay & help"],
         _ => [],
     };
 
@@ -89,7 +89,7 @@ internal partial class ConfigWindow : UIWindow
             manager.Autorot.MovementPlanning.Release("normal");
             manager.Autorot.MovementPlanning.Release("follow");
         };
-        this.setEnabled = enabled => this.config.Enabled = enabled;
+        this.setEnabled = manager.EnableConfig;
         this.debugState = () => BuildDiagnosticText(manager, settings);
         this.dependencyWarning = () => settings.MayEdit ? null : settings.Current.Detail;
         this.trueNorthWarning = () => this.rotationSolverUnavailable;
@@ -192,8 +192,6 @@ internal partial class ConfigWindow : UIWindow
                     using var pageId = ImRaii.PushId(this.selectedPage.ToString());
                     try
                     {
-                        if (this.selectedPage == ConfigPage.General) this.DrawNativeGeneral();
-                        if (this.selectedPage == ConfigPage.Movement && this.ActiveTab == 0) this.DrawNativeMovement();
                         using var unavailable = ImRaii.Disabled(!this.settings.MayEdit);
                         switch (this.selectedPage)
                         {
@@ -316,10 +314,6 @@ internal partial class ConfigWindow : UIWindow
         : connection.Name switch
         {
             "RotationSolver Reborn" => "Provides rotation actions and targets for assisted combat.",
-            "vnavmesh" => "Checks whether movement destinations can be reached.",
-            "Upcoming actions" => "Predicts the next attack for range and positionals.",
-            "Automatic positioning" => "Provides movement guidance during combat.",
-            "Placed ground effects" => "Tracks friendly ground effects for positioning.",
             _ => "Copy a troubleshooting report for details.",
         };
 
@@ -333,14 +327,6 @@ internal partial class ConfigWindow : UIWindow
     private void Button(string label, Action onClick)
     {
         if (this.sectionVisible && M3Widgets.Button(label, label)) onClick();
-    }
-
-    private void DrawBossModCompatibility()
-    {
-        if (!this.sectionVisible) return;
-        this.DrawSectionHeader("Movement settings");
-        this.Text("Movement and action restrictions are shared with /bmr. Native presets keep their own strategies.");
-        this.Text(this.settings.Current.Detail);
     }
 
     private enum ConfigPage { General, Movement, AoeAndTrash, Positionals, JobSpecific, Dashes, BmrFixes, Troubleshooting }
