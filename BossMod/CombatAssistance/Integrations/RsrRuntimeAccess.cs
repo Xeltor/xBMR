@@ -28,7 +28,7 @@ internal sealed class RsrRuntimeAccess(IDalamudPluginInterface plugin)
             _specificPriority = null;
             _namedPriority = null; _targetValidity = null; _stopTargets = null; _blacklistedNames = null;
             _provider = assembly;
-            _basic = assembly == null ? null : ResolveReferencedAssemblyInLoadContext(assembly, "RotationSolver.Basic");
+            _basic = assembly == null ? null : ResolveBasicAssembly(assembly);
             _currentRotation = _basic?.GetType("RotationSolver.Basic.DataCenter")?.GetProperty("CurrentRotation",
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
         }
@@ -37,6 +37,16 @@ internal sealed class RsrRuntimeAccess(IDalamudPluginInterface plugin)
         // a live read, including a job/rotation replacement inside the update.
         rotation = assembly == null ? null : _currentRotation?.GetValue(null);
         return assembly != null && basic != null && rotation != null;
+    }
+
+    // RSR 7.5.7.13 contains Basic in its main assembly. Prefer the actual
+    // provider over any legacy Basic DLL still loaded in the same context.
+    internal static Assembly? ResolveBasicAssembly(Assembly assembly)
+    {
+        const string center = "RotationSolver.Basic.DataCenter";
+        if (assembly.GetType(center) != null) return assembly;
+        var basic = ResolveReferencedAssemblyInLoadContext(assembly, "RotationSolver.Basic");
+        return basic?.GetType(center) != null ? basic : null;
     }
 
     internal static Assembly? ResolveReferencedAssemblyInLoadContext(Assembly assembly, string name)

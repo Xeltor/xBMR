@@ -3,7 +3,6 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System.Collections;
 using System.Reflection;
-using System.Runtime.Loader;
 
 namespace BossMod.CombatAssistance.Integrations;
 
@@ -190,7 +189,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
                 || Read(rotation, "AllBaseActions") is not IEnumerable actions)
                 return [];
             var result = ImmutableHashSet.CreateBuilder<uint>();
-            var basic = RsrRuntimeAccess.ResolveReferencedAssemblyInLoadContext(_assembly, "RotationSolver.Basic");
+            var basic = RsrRuntimeAccess.ResolveBasicAssembly(_assembly);
             var configuredActions = actions.Cast<object>().Concat(basic == null ? [] : RsrNativeMobilitySelection.DutyActions(basic));
             foreach (var action in configuredActions)
             {
@@ -218,8 +217,7 @@ internal sealed partial class RsrActionEvidenceSource(IDalamudPluginInterface pl
     {
         Reset("RSR action contract is unavailable");
         _assembly = assembly;
-        var context = AssemblyLoadContext.GetLoadContext(assembly);
-        var basic = context?.Assemblies.SingleOrDefault(a => a.GetName().Name == "RotationSolver.Basic");
+        var basic = RsrRuntimeAccess.ResolveBasicAssembly(assembly);
         var updater = assembly.GetType("RotationSolver.Updaters.ActionUpdater");
         var dataCenter = (basic ?? assembly).GetType("RotationSolver.Basic.DataCenter");
         const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;

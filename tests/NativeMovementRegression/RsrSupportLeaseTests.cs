@@ -141,6 +141,14 @@ internal static class RsrSupportLeaseTests
         Require(ReferenceEquals(rotation.Support, replacement), "Do not overwrite a replacement made by another owner.");
     }
 
+    internal static Assembly LoadBasicAssembly(Assembly provider, string directory, AssemblyLoadContext context)
+    {
+        if (provider.GetType("RotationSolver.Basic.DataCenter") == null)
+            context.LoadFromAssemblyPath(Path.GetFullPath(Path.Combine(directory, "RotationSolver.Basic.dll")));
+        return RsrRuntimeAccess.ResolveBasicAssembly(provider)
+            ?? throw new InvalidOperationException("Installed RSR state assembly is unavailable.");
+    }
+
     public static int InstalledContract(string path)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
@@ -153,9 +161,19 @@ internal static class RsrSupportLeaseTests
         try
         {
             var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.GetFullPath(path));
-            var basic = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(directory, "RotationSolver.Basic.dll"));
+            var basic = LoadBasicAssembly(assembly, directory, AssemblyLoadContext.Default);
             var actionUpdaterType = assembly.GetType("RotationSolver.Updaters.ActionUpdater", true)!;
             const BindingFlags selectionFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+            var modeState = basic.GetType("RotationSolver.Basic.DataCenter", true)!;
+            foreach (var name in new[] { "State", "IsHenched", "IsAutoDuty", "IsPvPStateEnabled", "IsTargetOnly", "IsManual" })
+                Require(modeState.GetProperty(name, selectionFlags)?.PropertyType == typeof(bool), "Installed RSR mode observation: " + name);
+            var modeParameters = assembly.GetType("RotationSolver.IPC.IPCProvider", true)!
+                .GetMethod("ChangeOperatingModeWithOverrides")!.GetParameters();
+            Require(modeParameters.Length == 5 && modeParameters.All(p => p.ParameterType.IsEnum)
+                && Enum.GetUnderlyingType(modeParameters[0].ParameterType) == typeof(byte)
+                && Enum.GetNames<RsrMode>().All(name => Convert.ToByte(Enum.Parse(modeParameters[0].ParameterType, name)) == (byte)Enum.Parse<RsrMode>(name))
+                && modeParameters.Skip(2).All(p => Convert.ToByte(Enum.Parse(p.ParameterType, "UseSetting")) == 0),
+                "Installed RSR retains the Henched IPC mode and saved-setting contract.");
             var healingUpdater = assembly.GetType("RotationSolver.Updaters.StateUpdater", true)!;
             Require(healingUpdater.GetMethod("StatusFromHealing", selectionFlags)?.ReturnType.IsEnum == true
                 && healingUpdater.GetMethods(selectionFlags).Count(m => m.Name == "ShouldHealSingle" && m.GetParameters().Length == 4) == 1,

@@ -5,6 +5,29 @@ class identities, strategy tracks, presets and native configuration identities
 are retained. The inventory below describes implemented boundaries, not final
 cutover acceptance; the adjacent status file lists remaining work.
 
+## RSR merged assembly compatibility (2026-10-31)
+
+RSR [merged its Basic project into the main assembly](https://github.com/FFXIV-CombatReborn/RotationSolverReborn/commit/bd9c156b067def943705b1b48df89f7238bfbd68).
+In release 7.5.7.13, the existing `RotationSolver.Basic.*` types are in
+`RotationSolver.dll`. Requiring a separate Basic assembly made native mode
+observation unavailable and prevented linked activation from requesting Henched.
+The shared resolver now prefers the provider's own DataCenter type and falls
+back to a verified Basic assembly in that provider's load context for older RSR.
+Action, positional, job and healing evidence use the same resolver. A stale
+separate Basic assembly cannot supersede a merged provider's state.
+
+The mode IPC, ownership rules, saved-setting overrides and activation gates are
+unchanged. Regression checks cover merged/split layouts, missing state and stale
+Basic precedence. The Release build, 143,431 native movement assertions, 89,735
+module assertions and installed RSR 7.5.7.13 mode/support/target/mobility contract
+checks passed. These are offline checks, not live combat acceptance.
+On 2026-10-31, the maintainer confirmed the fix worked in-game and authorized
+release 7.5.7.2.1. This confirms the reported RSR integration repair; it does not
+establish full encounter/job coverage or live acceptance of the WIP Rabanastre
+modules included in the same release.
+
+## Native boundaries
+
 | Boundary | Change and reason |
 | --- | --- |
 | `Framework/Plugin` | Own assistance settings, Material frame/theme lifetime, diagnostics, support updates, opt-in recording sharing, mandatory legacy XCAI removal and its persistent post-removal acknowledgement modal. Existing activation still gates automation. Scope repeated plugin-inventory reads to the synchronous update and expose its existing update timer in current diagnostics. |

@@ -112,8 +112,8 @@ internal static class RsrMeleeFallbackTests
         };
         try
         {
-            var basic = context.LoadFromAssemblyPath(Path.GetFullPath(Path.Combine(directory, "RotationSolver.Basic.dll")));
             var plugin = context.LoadFromAssemblyPath(Path.GetFullPath(Path.Combine(directory, "RotationSolver.dll")));
+            var basic = RsrSupportLeaseTests.LoadBasicAssembly(plugin, directory, context);
             const BindingFlags statics = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
             var helper = basic.GetType("RotationSolver.Basic.Helpers.IActionHelper", true)!;
             var moves = (Array)helper.GetProperty("MovingActions", statics)!.GetValue(null)!;

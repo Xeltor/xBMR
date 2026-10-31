@@ -85,7 +85,7 @@ internal sealed partial class RsrActionEvidenceSource
         try
         {
             const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            var basic = RsrRuntimeAccess.ResolveReferencedAssemblyInLoadContext(_assembly, "RotationSolver.Basic");
+            var basic = RsrRuntimeAccess.ResolveBasicAssembly(_assembly);
             var updater = _assembly.GetType("RotationSolver.Updaters.StateUpdater", true)!;
             var originalNeed = updater.GetMethod("StatusFromHealing", flags) ?? throw new MissingMethodException("RSR healing need");
             var need = originalNeed.Invoke(null, null) as Enum ?? throw new MissingMemberException("RSR healing flags");

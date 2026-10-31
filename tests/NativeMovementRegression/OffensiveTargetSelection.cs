@@ -156,8 +156,9 @@ public static partial class Checks
 
     private static void InstalledTargetScopeContract(string directory)
     {
-        var basic = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(
-            Path.Combine(directory, "RotationSolver.Basic.dll"));
+        var context = System.Runtime.Loader.AssemblyLoadContext.Default;
+        var provider = context.LoadFromAssemblyPath(Path.GetFullPath(Path.Combine(directory, "RotationSolver.dll")));
+        var basic = RsrSupportLeaseTests.LoadBasicAssembly(provider, directory, context);
         var type = basic.GetType("RotationSolver.Basic.Data.IpcStateOverrides", true)!;
         string[] names = ["HostileType", "TargetFreely", "AutoOffAfterCombat", "FriendlyPartyNpcHealRaise"];
         var properties = names.Select(name => type.GetProperty(name) ?? throw new MissingMemberException(type.FullName, name)).ToArray();

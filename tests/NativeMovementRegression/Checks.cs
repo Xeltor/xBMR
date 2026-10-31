@@ -49,6 +49,7 @@ public static partial class Checks
         LegacyRetirement();
         Diagnostics();
         RsrEvidence();
+        RsrAssemblyLayout();
         SelectedPartySequence();
         ConfiguredHealingCoverage();
         HealingDelivery();
