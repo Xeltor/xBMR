@@ -7,6 +7,27 @@ Preserve upstream licence notices. Do not submit AI-assisted changes upstream
 against the policy in `CONTRIBUTING.md` or modify installed plugin binaries as
 part of a source release.
 
+## Upstream contribution policy and fork overrides
+
+`CONTRIBUTING.md` is retained as upstream policy for upstream contributions.
+For work in this fork, agents must follow this file where the policies conflict:
+
+- Ignore upstream's **No AI** restriction for fork-local work; AI-assisted changes
+  are permitted here. They must not be submitted upstream against its policy.
+- Ignore upstream's requirement to test encounter changes in actual duties as a
+  prerequisite for fork acceptance. Follow this file's evidence-based validation
+  and module maturity rules; personal live testing is optional, and offline
+  acceptance must remain distinct from live gameplay proof.
+
+Continue to follow the compatible requirements: place generalized helpers in
+appropriate shared components, extensively test refactors outside encounter
+modules, preserve existing code style, and introduce no new build errors,
+warnings or IDE messages. Upstream pull requests remain subject to upstream's
+full contribution policy, including its first-time acknowledgement requirement.
+Keep `CONTRIBUTING.md` unchanged when merging upstream; retaining or updating its
+upstream text does not revoke these fork overrides. Reassess any new conflicting
+requirements against the explicit fork policy rather than silently adopting them.
+
 ## Encounter research: written guides first
 
 Before creating, fixing or improving a specific encounter module, search online
@@ -76,24 +97,61 @@ it must be clear where to stand now and how to respond next. For back-to-back or
 repeating mechanics, do not draw so many future steps as full yellow hazards that
 the whole arena becomes covered and the useful safe positions disappear.
 
-Choose the clearest presentation for the mechanic. Use shaded yellow to preview
-the next upcoming hazard when that helps distinguish it from the immediate
-danger, or show only a limited number of steps that make the required safe
-position and route clear. Include further steps only when they help players plan
-the response without obscuring the current safe area. Advance the preview and
-fill as hazards become imminent, and promptly remove resolved hazards. Clear or
+Before choosing a presentation, inspect existing mechanics of the same family
+and their shared components in the current checkout. Use established BMR
+patterns as the starting point; for example, `BossMod/Components/Exaflare.cs` and
+`BossMod/Components/RotatingAOE.cs` already distinguish imminent and future
+hazards and support configurable preview counts. Inspect representative encounter
+uses as well as the shared component, including preview advancement, cleanup and
+AI hints/timing. Reuse suitable behavior rather than inventing a separate display
+convention. Existing code demonstrates presentation patterns, not proof of the
+new encounter's geometry or timing; verify those against encounter evidence.
+Record the relevant examples and any deliberate departures in implementation
+notes.
+
+For discrete sequences, the default is to show the immediately upcoming mechanic
+with a bright/full hazard fill and subsequent steps with shaded previews. Choose the
+number of visible steps by readability, hazard size and available safe space;
+there is no fixed two-step limit. Several small upcoming hazards can help show
+the pattern while leaving plenty of safe arena visible. For example, a spiral
+attack around the boss may preview a half-circle arc of successive small shapes
+in shading, with the immediately upcoming hazard bright. Show enough of the
+sequence to make its direction and next response clear, and reduce the preview
+when additional shapes obscure safe positions, routes or mechanic order.
+Multiple hazards belonging to the same step, or genuinely simultaneous mechanics,
+may need to be shown together. Players must be able to distinguish what happens
+first, next, or simultaneously without mistaking a later preview for immediate
+danger. Adapt the presentation when needed to keep that order and the required
+safe positions clear. For discrete sequences, advance the shaded preview to bright
+as it becomes the immediately upcoming step, and promptly remove resolved hazards.
+
+Adapt this convention for moving dangerous objects: shaded previews may lead the
+current bright danger along its predicted path to prompt players to move ahead
+of time. Such a preview can be the first actionable warning; do not require it
+to become bright before players should respond. Make the object's direction,
+current danger, predicted danger and safe escape route clear, with enough lead
+time to avoid being caught by its movement. The bright/shaded convention is a
+presentation tool, not a universal rule for when movement must begin. Clear or
 correct previews on pattern changes, cancellations, transitions and resets.
 
 Keep display choices separate from internal hazard predictions and AI timing.
 Reducing visual clutter must not discard reliable future hazards, delay actionable
 warnings, or weaken the timing, geometry and route constraints consumed by XCAI
-and BMR AI. Preserve enough advance information for players to reach safety.
+and BMR AI. Retain each reliable mechanic's individual activation, last-safe
+response, resolution and expiry timing internally so the AIs can plan the same
+sequence, including safe travel between steps and simultaneous constraints.
+For moving hazards, provide predicted positions and their evidenced timing so
+the AIs can leave the path before the object arrives, independently of shading.
+Preserve enough advance information for players to reach safety.
 
 Validate radar readability at representative points through the sequence,
 including overlaps and alternate patterns: players should be able to identify
-the immediate safe position and next response without decoding an arena covered
-in yellow. Record the chosen preview behavior and any unverified visual behavior
-in the encounter's implementation notes.
+the immediate safe position, mechanic order and next response without decoding
+an arena covered in yellow. Check that the bright/shaded distinction and preview
+advancement remain clear when mechanics overlap, and that moving-hazard previews
+give a clear direction and timely escape cue. Record the chosen preview
+behavior and any unverified visual behavior in the encounter's implementation
+notes.
 
 ## Module maturity: evidence-based promotion, issue-driven reopening
 
