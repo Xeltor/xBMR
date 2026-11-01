@@ -3995,7 +3995,7 @@
       "review": "Native adaptation present; feature and live acceptance tracked in settings inventory",
       "featureGroup": "settings-and-interface",
       "destination": [
-        "BossMod/CombatAssistance/UI/ConfigWindow.Controls.cs"
+        "BossMod/CombatAssistance/UI/AssistanceSettingsPage.Controls.cs"
       ]
     },
     {
@@ -4003,7 +4003,7 @@
       "review": "Native adaptation present; feature and live acceptance tracked in settings inventory",
       "featureGroup": "settings-and-interface",
       "destination": [
-        "BossMod/CombatAssistance/UI/ConfigWindow.Pages.cs"
+        "BossMod/CombatAssistance/UI/AssistanceSettingsPage.Pages.cs"
       ]
     },
     {
@@ -4011,7 +4011,7 @@
       "review": "Native adaptation present; feature and live acceptance tracked in settings inventory",
       "featureGroup": "settings-and-interface",
       "destination": [
-        "BossMod/CombatAssistance/UI/ConfigWindow.cs"
+        "BossMod/CombatAssistance/UI/AssistanceSettingsPage.cs"
       ]
     },
     {

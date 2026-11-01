@@ -30,18 +30,6 @@ internal static class MaterialTheme
         return new Scope(material);
     }
 
-    internal static CardScope BeginCard(string id, string? title = null, string? subtitle = null)
-    {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var previousHeight = M3CardHost.PreviousHeight(id);
-        if (previousHeight > 0)
-            ImGui.GetWindowDrawList().AddRectFilled(origin, origin + new Vector2(width, previousHeight),
-                M3.U32(RaisedSurface), M3.ShapeMedium);
-        var material = M3Card.Begin(id, title, accent: Primary, style: M3CardStyle.Outlined, subtitle: subtitle);
-        return new CardScope(material, origin, width);
-    }
-
     private static Vector4 Rgb(uint rgb) => new((rgb >> 16 & 255) / 255f, (rgb >> 8 & 255) / 255f, (rgb & 255) / 255f, 1f);
 
     internal readonly struct Scope(M3Style.Scope material) : IDisposable
@@ -53,14 +41,4 @@ internal static class MaterialTheme
         }
     }
 
-    internal readonly struct CardScope(M3Card.Scope material, Vector2 origin, float width) : IDisposable
-    {
-        public void Dispose()
-        {
-            var bottom = Math.Max(ImGui.GetCursorScreenPos().Y + M3Card.BottomPadding, origin.Y + 40f * M3.Scale);
-            material.Dispose();
-            ImGui.GetWindowDrawList().AddRect(origin, new Vector2(origin.X + width, bottom),
-                M3.U32(Border), M3.ShapeMedium, ImDrawFlags.None, M3.Scale);
-        }
-    }
 }

@@ -60,10 +60,10 @@ Supported behavior depends on current action evidence and authored encounter
 constraints; dungeon and job-specific live validation continues. Standalone XCAI
 is retired and must not be installed alongside this version.
 
-Use `/bmrai` to open the Material settings window. `/bmrai on`, `/bmrai off`,
-`/bmrai toggle` and `/bmrai follow Slot2` retain their operational meanings.
+Use `/bmrai` to open **Automovement** in the main `/bmr` settings window.
+`/bmrai on`, `/bmrai off`, `/bmrai toggle` and `/bmrai follow Slot2` retain their operational meanings.
 Follow also accepts a party member name. `/bmrai ui`
-toggles the native AI debug view. `/bmr` retains its encounter, preset, replay and
+toggles that settings page. `/bmr` retains its encounter, preset, replay and
 configuration views.
 
 XCAI has merged into xBMR. When this version finds an installed standalone XCAI,
@@ -89,9 +89,10 @@ The old `/xcai` commands remain available after standalone XCAI is removed:
 | `/xcai check-recording-ipc` | Report current recording-sharing status. |
 | `/xcai party on`, `/xcai party off` | Explain the retirement of automatic between-pull following. |
 
-AI settings use one **Enable AI** switch. The Automovement category links to this
-window. Starting AI corrects hidden legacy controls that would block normal AI
-operation; loading saved settings or opening the window never starts AI.
+AI settings use one **Enable AI** switch. The Automovement page contains the
+combat-assistance controls and uses the shared interface theme and sizing.
+Starting AI corrects hidden legacy controls that would block normal AI operation;
+loading saved settings or opening the window never starts AI.
 
 Fight recording sharing is configured under `/bmr` → Settings → Replays. The
 existing opt-in or opt-out is imported once and subsequent replay-setting choices
@@ -177,8 +178,10 @@ loaded, integrated assistance stays inactive to avoid conflicting ownership.
 In **Dungeons & AoE**, **Keep up with dungeon pulls** helps maintain contact
 with an observed moving tank gathering enemies while you are in combat. It
 stops when combat ends and does not activate AI. Automatic tank following between
-pulls has been retired; its old saved setting is ignored. Use the native follow
-controls in **General** when you explicitly want to follow a party member.
+pulls has been retired; its old saved setting is ignored. Native party following
+remains available through `/bmrai follow`; it uses separate movement priorities
+and pauses **Keep up with dungeon pulls**. Its
+controls are not exposed as part of the normal combat-assistance setup.
 
 The decision overlay uses in-world markers for the selected destination, relevant
 action stops and party contact. Diagnostics distinguish a completed search,

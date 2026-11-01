@@ -23,8 +23,8 @@
     {
       "name": "SettingsWindowPosition",
       "type": "System.Numerics.Vector2?",
-      "destination": "Native planning/runtime or Material window",
-      "status": "implemented; live validation pending"
+      "destination": "Retained legacy preference; main BMR settings window owns its position",
+      "status": "preserved; separate assistance window retired"
     },
     {
       "name": "Enabled",

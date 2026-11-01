@@ -4,7 +4,6 @@ using BossMod.CombatAssistance.Config;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
 using RebornMaterial;
 using System;
 using System.Collections.Generic;
@@ -12,7 +11,7 @@ using System.Numerics;
 
 namespace BossMod.CombatAssistance.UI;
 
-internal partial class ConfigWindow : UIWindow
+internal partial class AssistanceSettingsPage
 {
     public Func<string>? FightSharingStatus { get; set; }
 
@@ -30,15 +29,10 @@ internal partial class ConfigWindow : UIWindow
     private readonly Func<string?> trueNorthWarning;
     private readonly Action manageTrueNorthEnabled;
     private readonly Action<string> copyToClipboard;
-    private static readonly FontAwesomeIcon[] PageIcons =
-    [FontAwesomeIcon.Cog, FontAwesomeIcon.Walking, FontAwesomeIcon.Users, FontAwesomeIcon.Crosshairs,
-        FontAwesomeIcon.UserShield, FontAwesomeIcon.Bolt, FontAwesomeIcon.Wrench, FontAwesomeIcon.Stethoscope];
     private ConfigPage selectedPage;
     private readonly Dictionary<ConfigPage, int> selectedTabs = [];
     private readonly HashSet<string> displayedAvailability = [];
-    private readonly List<M3NavItem> navigation = [];
-    private MaterialTheme.Scope theme;
-    private MaterialTheme.CardScope? settingsCard;
+    private M3Card.Scope? settingsCard;
     private DateTime nextAvailabilityRefresh;
     private string? currentDependencyWarning;
     private int ActiveTab => this.selectedTabs.GetValueOrDefault(this.selectedPage);
@@ -69,7 +63,6 @@ internal partial class ConfigWindow : UIWindow
     private bool resetScroll;
     private bool sectionVisible = true;
     private int disabledDepth;
-    private Vector2? lastVisiblePosition;
     private bool jobGridOpen;
 
     public Func<IReadOnlyList<PluginConnectionRow>>? PluginConnections { get; set; }
@@ -77,9 +70,7 @@ internal partial class ConfigWindow : UIWindow
     public Func<string?>? SupportRecipientStatus { get; set; }
     public Func<string?>? ActionPredictionAvailability { get; set; }
 
-    internal ConfigWindow(AIManager manager, AssistanceSettingsSession settings)
-        : base("Combat assistance###AI debug window", false, new Vector2(1180, 820),
-            ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+    internal AssistanceSettingsPage(AIManager manager, AssistanceSettingsSession settings)
     {
         this.manager = manager;
         this.settings = settings;
@@ -95,144 +86,83 @@ internal partial class ConfigWindow : UIWindow
         this.trueNorthWarning = () => this.rotationSolverUnavailable;
         this.manageTrueNorthEnabled = () => { };
         this.copyToClipboard = text => ImGui.SetClipboardText(text);
-        this.Size = new Vector2(1180, 820);
-        this.SizeCondition = ImGuiCond.FirstUseEver;
-        this.SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(940, 650), MaximumSize = new Vector2(float.MaxValue) };
-        this.RespectCloseHotkey = true;
-        this.AllowPinning = false;
-        this.AllowClickthrough = false;
     }
 
-    public override void PreDraw() => this.theme = MaterialTheme.Push();
+    internal void OnHidden() => this.confirmResetAll = false;
 
-    public override void PostDraw()
+    internal void Draw()
     {
-        this.theme.Dispose();
-        this.theme = default;
-    }
-
-    public override void OnOpen()
-    {
-        this.confirmResetAll = false;
-        if (this.config.SettingsWindowPosition is { } position && float.IsFinite(position.X) && float.IsFinite(position.Y))
-        {
-            this.Position = position;
-            this.PositionCondition = ImGuiCond.Appearing;
-        }
-    }
-
-    public override void OnClose() => this.SaveWindowPosition();
-
-    internal void SaveWindowPosition()
-    {
-        if (this.lastVisiblePosition is { } position && this.config.SettingsWindowPosition != position)
-        {
-            this.config.SettingsWindowPosition = position;
-            this.save();
-        }
-    }
-
-    public override void Draw()
-    {
-        this.lastVisiblePosition = ImGui.GetWindowPos();
+        using var id = ImRaii.PushId("combat-assistance");
+        if (this.resetScroll) ImGui.SetScrollY(0);
+        this.resetScroll = false;
         if (DateTime.UtcNow >= this.nextAvailabilityRefresh)
         {
             this.rotationSolverUnavailable = this.RotationSolverAvailability?.Invoke();
             this.currentDependencyWarning = this.dependencyWarning();
             this.nextAvailabilityRefresh = DateTime.UtcNow.AddSeconds(1);
         }
-        this.DrawAppBar();
-        var bodyHeight = Math.Max(1, ImGui.GetContentRegionAvail().Y);
-        var sidebarWidth = 208f * M3.Scale;
-        using (var sidebar = ImRaii.Child("navigation", new Vector2(sidebarWidth, bodyHeight), false))
+        this.displayedAvailability.Clear();
+        this.disabledDepth = 0;
+        this.sectionVisible = true;
+        try
         {
-            if (sidebar)
+            using (ImRaii.Disabled(!this.settings.MayEdit))
+                this.DrawActivation();
+            this.EndSettingsCard();
+            if (this.currentDependencyWarning != null)
+                M3Widgets.Banner("##waiting", this.currentDependencyWarning, M3Severity.Warning, FontAwesomeIcon.Clock);
+
+            var pages = new M3Tab[PageNames.Length];
+            for (var i = 0; i < pages.Length; ++i)
+                pages[i] = new(PageNames[i], Tooltip: PageDescriptions[i]);
+            var selectedPage = M3Navigation.Tabs("sections", pages, (int)this.selectedPage);
+            if (selectedPage >= 0 && selectedPage < pages.Length && selectedPage != (int)this.selectedPage)
+                this.SelectPage((ConfigPage)selectedPage);
+            ImGui.Dummy(new(0, M3.Space2));
+            var names = this.TabNames;
+            if (names.Length > 0)
             {
-                this.navigation.Clear();
-                for (var i = 0; i < PageNames.Length; i++)
-                    this.navigation.Add(new M3NavItem(((ConfigPage)i).ToString(), PageNames[i], PageIcons[i],
-                        this.selectedPage == (ConfigPage)i, PageDescriptions[i], Accent: MaterialTheme.Primary, SeparatorAfter: i == 5));
-                var clicked = M3Navigation.Draw("pages", this.navigation, expanded: true);
-                if (clicked != null && Enum.TryParse<ConfigPage>(clicked, out var page))
-                    this.SelectPage(page);
+                var tabs = new M3Tab[names.Length];
+                for (var i = 0; i < names.Length; ++i) tabs[i] = new(names[i]);
+                var selected = M3Navigation.Tabs("subsections", tabs, this.ActiveTab, secondary: true);
+                if (selected >= 0 && selected < names.Length && selected != this.ActiveTab)
+                {
+                    this.selectedTabs[this.selectedPage] = selected;
+                    this.confirmResetAll = false;
+                    this.resetScroll = true;
+                }
+                ImGui.Dummy(new(0, M3.Space2));
+            }
+            using var pageId = ImRaii.PushId(this.selectedPage.ToString());
+            using var unavailable = ImRaii.Disabled(!this.settings.MayEdit);
+            switch (this.selectedPage)
+            {
+                case ConfigPage.General: this.DrawGeneralTab(); break;
+                case ConfigPage.Movement: this.DrawMovementTab(); break;
+                case ConfigPage.AoeAndTrash: this.DrawAoeAndTrashTab(); break;
+                case ConfigPage.Positionals: this.DrawPositionalsTab(); break;
+                case ConfigPage.JobSpecific: this.DrawJobSpecificTab(); break;
+                case ConfigPage.Dashes: this.DrawDashesTab(); break;
+                case ConfigPage.BmrFixes: this.DrawBmrFixesTab(); break;
+                case ConfigPage.Troubleshooting: this.DrawTroubleshootingTab(); break;
             }
         }
-        ImGui.SameLine();
-        using (var body = ImRaii.Child("page", new Vector2(0, bodyHeight), false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
-        {
-            if (body)
-            {
-                M3Text.Draw(PageNames[(int)this.selectedPage], M3TextStyle.Heading);
-                ImGui.SameLine(0, M3.Space2);
-                M3Widgets.HelpMarker(PageDescriptions[(int)this.selectedPage], FontAwesomeIcon.QuestionCircle);
-                if (this.currentDependencyWarning != null)
-                    M3Text.Draw($"Waiting for: {this.currentDependencyWarning}", M3TextStyle.Warning, wrap: true);
-                var names = this.TabNames;
-                if (names.Length > 0)
-                {
-                    var tabs = new M3Tab[names.Length];
-                    for (var i = 0; i < names.Length; i++) tabs[i] = new M3Tab(names[i]);
-                    var selected = M3Navigation.Tabs("tabs", tabs, this.ActiveTab, secondary: true);
-                    if (selected >= 0 && selected < names.Length && selected != this.ActiveTab)
-                    {
-                        this.selectedTabs[this.selectedPage] = selected;
-                        this.confirmResetAll = false;
-                        this.resetScroll = true;
-                    }
-                }
-                ImGui.Dummy(new Vector2(0, M3.Space3));
-                using var content = ImRaii.Child("settings", Vector2.Zero, false);
-                if (content)
-                {
-                    if (this.resetScroll) ImGui.SetScrollY(0);
-                    this.resetScroll = false;
-                    this.displayedAvailability.Clear();
-                    this.disabledDepth = 0;
-                    this.sectionVisible = true;
-                    using var pageId = ImRaii.PushId(this.selectedPage.ToString());
-                    try
-                    {
-                        using var unavailable = ImRaii.Disabled(!this.settings.MayEdit);
-                        switch (this.selectedPage)
-                        {
-                            case ConfigPage.General: this.DrawGeneralTab(); break;
-                            case ConfigPage.Movement: this.DrawMovementTab(); break;
-                            case ConfigPage.AoeAndTrash: this.DrawAoeAndTrashTab(); break;
-                            case ConfigPage.Positionals: this.DrawPositionalsTab(); break;
-                            case ConfigPage.JobSpecific: this.DrawJobSpecificTab(); break;
-                            case ConfigPage.Dashes: this.DrawDashesTab(); break;
-                            case ConfigPage.BmrFixes: this.DrawBmrFixesTab(); break;
-                            case ConfigPage.Troubleshooting: this.DrawTroubleshootingTab(); break;
-                        }
-                    }
-                    finally
-                    {
-                        this.EndSettingsCard();
-                    }
-                }
-            }
-        }
+        finally { this.EndSettingsCard(); }
     }
 
-    private void DrawAppBar()
+    private void DrawActivation()
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var actionSize = M3Widgets.WindowActionsSize(0);
-        _ = M3Widgets.WindowActions("window-actions", new Vector2(origin.X + width, origin.Y),
-            [], out var closed, fill: MaterialTheme.RaisedSurface);
-        if (closed) this.IsOpen = false;
-        ImGui.SetCursorScreenPos(origin + new Vector2(M3.Space2,
-            Math.Max(0, actionSize.Y - M3Text.Measure("xBMR · Combat assistance", M3TextStyle.Title).Y) * 0.5f));
-        M3Text.Draw("xBMR · Combat assistance", M3TextStyle.Title);
-        ImGui.SetCursorScreenPos(new Vector2(origin.X, origin.Y + actionSize.Y + M3.Space1));
-        M3Widgets.Divider(2);
+        this.DrawToggleSectionHeader("Enable AI", () => this.settings.MayAssist && this.manager.Beh != null, false, this.setEnabled,
+            "Starts automatic movement and combat assistance for your character. Turn off to stop both. Manual movement always takes priority.");
+        if (this.NativeConfig.FollowSlot != PartyState.PlayerSlot || this.manager.MasterSlot != PartyState.PlayerSlot)
+            M3Widgets.Banner("##native-follow", "Native party following is selected. It changes movement priorities and pauses Keep up with dungeon pulls. Use /bmrai follow Slot1 to return to normal combat movement (enables AI).",
+                M3Severity.Warning, FontAwesomeIcon.InfoCircle);
     }
 
     private void BeginSettingsCard(string title, bool toggle = false)
     {
         this.EndSettingsCard();
-        this.settingsCard = MaterialTheme.BeginCard("section-" + title, toggle ? null : title);
+        this.settingsCard = M3Card.Begin("section-" + title, toggle ? null : title);
     }
 
     private void EndSettingsCard()
@@ -301,7 +231,7 @@ internal partial class ConfigWindow : UIWindow
         }
         foreach (var connection in rows)
         {
-            using var card = MaterialTheme.BeginCard(connection.Name, connection.Name);
+            using var card = M3Card.Begin(connection.Name, connection.Name);
             M3Text.Draw(connection.Status, connection.NeedsAttention ? M3TextStyle.Warning
                 : connection.Status is "Connected" or "Available" ? M3TextStyle.Success : M3TextStyle.Muted);
             ImGui.SameLine(0, M3.Space2);

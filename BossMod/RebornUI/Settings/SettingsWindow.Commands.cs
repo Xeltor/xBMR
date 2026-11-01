@@ -9,14 +9,14 @@ internal sealed partial class SettingsWindow
 {
     private static readonly (string, string)[] _availableAICommands =
     [
-        ( "", "Opens combat assistance settings." ),
+        ( "", "Opens the Automovement settings page." ),
         ( "on", "Enables the AI." ),
         ( "off", "Disables the AI." ),
         ( "toggle", "Toggles the AI on/off." ),
         ( "targetmaster", "Toggles the focus on target leader." ),
         ( "follow slotX", "Follows the specified slot, eg. Slot1." ),
         ( "follow name", "Follows the specified party member by name." ),
-        ( "ui", "Toggles the AI menu." ),
+        ( "ui", "Toggles the Automovement settings page." ),
         ( "forbidactions", "Toggles the forbidding of actions. (only for autorotation)" ),
         ( "forbidactions on/off", "Sets forbid actions to on or off. (only for autorotation)" ),
         ( "forbidmovement", "Toggles the forbidding of movement." ),

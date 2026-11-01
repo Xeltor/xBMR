@@ -56,8 +56,7 @@ sealed class AIConfig : ConfigNode
     public string? AIAutorotPresetName;
     public override void DrawCustom(UITree tree, WorldState ws)
     {
-        if (Dalamud.Bindings.ImGui.ImGui.Button("Open AI settings"))
-            AIManager.Instance?.OpenSettings();
+        AIManager.Instance?.SettingsPage.Draw();
     }
 
     // The default leader is self. Hidden controls are corrected when AI starts.

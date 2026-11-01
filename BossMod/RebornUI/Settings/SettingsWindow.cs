@@ -77,6 +77,8 @@ internal sealed partial class SettingsWindow : RebornFoldWindow
     private readonly HomePage _home;
     private readonly ModuleViewer _mv;
     private readonly ConfigRoot _root;
+    private readonly CombatAssistance.UI.AssistanceSettingsPage _assistance;
+    private readonly CombatAssistance.UI.AutomovementSettingsVisibility? _automovementVisibility;
     private readonly WorldState _ws;
     private readonly UIPresetDatabaseEditor? _presets;
     private readonly List<Page> _pages = [];
@@ -98,9 +100,10 @@ internal sealed partial class SettingsWindow : RebornFoldWindow
 
     private bool RailSearchOpen => _railSearch || Searching;
 
-    public SettingsWindow(ConfigRoot config, WorldState ws, DirectoryInfo? replayDir, RotationDatabase? rotationDB) : base("Xel's Boss Mods Reborn (xBMR)###BMRConfig", "xBMR", DefaultSize, DefaultSizeConstraints)
+    public SettingsWindow(ConfigRoot config, WorldState ws, DirectoryInfo? replayDir, RotationDatabase? rotationDB, CombatAssistance.UI.AssistanceSettingsPage assistance) : base("Xel's Boss Mods Reborn (xBMR)###BMRConfig", "xBMR", DefaultSize, DefaultSizeConstraints)
     {
         _root = config;
+        _assistance = assistance;
         _ws = ws;
         _home = new(replayDir, ShowPage);
         _mv = new(rotationDB?.Plans, ws);
@@ -157,10 +160,16 @@ internal sealed partial class SettingsWindow : RebornFoldWindow
 
         BuildPages();
         _page = _pages[0];
+        _automovementVisibility = new(config.Get<AI.AIConfig>(), () => Open(nameof(AI.AIConfig)), () =>
+        {
+            if (_page.Id == nameof(AI.AIConfig)) IsOpen = false;
+        });
     }
 
     protected override void Dispose(bool disposing)
     {
+        _automovementVisibility?.Dispose();
+        _assistance.OnHidden();
         _mv.Dispose();
         base.Dispose(disposing);
     }
@@ -176,9 +185,10 @@ internal sealed partial class SettingsWindow : RebornFoldWindow
 
     public void Open(string page = "")
     {
-        ShowPage(page);
         Restore();
         OpenAndBringToFront();
+        ShowPage(page);
+        PublishAutomovementVisibility();
     }
 
     public void ShowPage(string id)
@@ -187,15 +197,27 @@ internal sealed partial class SettingsWindow : RebornFoldWindow
         {
             if (p.Id == id)
             {
+                if (_page != p) _assistance.OnHidden();
                 _page = p;
                 ClearSearch();
+                PublishAutomovementVisibility();
                 return;
             }
         }
     }
 
+    private void PublishAutomovementVisibility() => _automovementVisibility?.Publish(IsOpen && _page.Id == nameof(AI.AIConfig));
+
+    public override void OnOpen()
+    {
+        base.OnOpen();
+        PublishAutomovementVisibility();
+    }
+
     public override void OnClose()
     {
+        _automovementVisibility?.Publish(false);
+        _assistance.OnHidden();
         M3Snackbar.Clear();
         base.OnClose();
     }
@@ -502,6 +524,11 @@ internal sealed partial class SettingsWindow : RebornFoldWindow
 
     private void DrawNodePage(UINode n)
     {
+        if (n.Node is AI.AIConfig)
+        {
+            _assistance.Draw();
+            return;
+        }
         if (n.Node != null && SettingsLayout.For(n.Node.GetType())?.Notice is { } notice)
         {
             M3Widgets.Banner($"##notice_{n.PathText}", notice.Text, notice.Severity, notice.Icon);

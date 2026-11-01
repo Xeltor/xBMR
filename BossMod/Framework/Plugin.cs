@@ -142,7 +142,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         _rotation.MovementPlanning.Configure(new(_dalamud, _assistance, _rotation, _amex, _movementOverride, _rsr));
         CombatAssistance.UI.MaterialTheme.Initialize(_dalamud);
         _xcaiMigrationWindow = new(_xcaiNotice);
-        _ai = new(_rotation, _amex, _movementOverride, _assistance);
+        _ai = new(_rotation, _amex, _movementOverride, _assistance, () => OpenConfigUI(nameof(AI.AIConfig)));
         _assistanceDiagnostics = new(_dalamud, _ai, _assistance, () => _prevUpdateTime.TotalMilliseconds);
         _fightSharing = new(_dalamud.ConfigDirectory.FullName, CombatAssistance.Sharing.RecordingModuleCatalog.Capture());
         _ai.ConfigureAssistanceStatus(() => _fightSharing.Status, () => _rotation.MovementPlanning.Assistance?.SupportAvailability);
@@ -165,7 +165,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         config.Modified.ExecuteAndSubscribe(() => _wndReplay.UpdateLogDirectory());
         _wndRotation = new(_rotation, _amex, () => OpenConfigUI("Autorotation presets"));
         _wndDebug = new(_ws, _rotation, _zonemod, _amex, _movementOverride, _hintsBuilder, _dalamud, _rsr);
-        RebornUI.MaterialUI.Start(_ws, _rotationDB, _rotation, new DirectoryInfo(replayDir));
+        RebornUI.MaterialUI.Start(_ws, _rotationDB, _rotation, _ai.SettingsPage, new DirectoryInfo(replayDir));
 
         _dalamud.UiBuilder.DisableAutomaticUiHide = true;
         _dalamud.UiBuilder.Draw += DrawUI;
@@ -342,6 +342,11 @@ public sealed class Plugin : IAsyncDalamudPlugin
     {
         if (RebornUI.MaterialUI.OpenSettings(showTab))
             return;
+        if (showTab == nameof(AI.AIConfig))
+        {
+            _ai.SettingsPage.OpenFallback();
+            return;
+        }
         _configUI.ShowTab(showTab);
         _ = new UISimpleWindow("Xel's Boss Mods Reborn (xBMR)", _configUI.Draw, true, new(300, 300));
     }

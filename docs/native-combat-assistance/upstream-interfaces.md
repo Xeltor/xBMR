@@ -17,10 +17,10 @@ navigation, pre-pull hints, party-role controls and RebornMaterial 7.5.7.5.
 The plugin retains its single Material initialization, per-frame update and
 disposal. Both interfaces use the persisted native `InterfaceConfig`; failure
 to construct the new settings window falls back to the classic interface without
-disposing the shared Material state needed by combat assistance. The existing
-assistance window retains its own style scope, visibility and activation owner,
-and is not wrapped in an upstream fold host. The general Automovement page
-opens that window instead of restoring hidden legacy controls. Fork-specific
+disposing the shared Material state needed by combat assistance. The initial
+integration retained the assistance window's own style scope, visibility and
+activation owner rather than wrapping it in an upstream fold host. The
+Automovement consolidation below supersedes that separate window. Fork-specific
 support links point to xBMR issues; `/bmr`, `/bmrai`, settings paths, manual-input
 priority, upstream public IPC and standalone XCAI retirement remain intact.
 
@@ -65,12 +65,59 @@ release 7.5.7.2.1. This confirms the reported RSR integration repair; it does no
 establish full encounter/job coverage or live acceptance of the WIP Rabanastre
 modules included in the same release.
 
+## Automovement settings consolidation (2026-11-01)
+
+Combat-assistance settings now render directly inside the main BMR Automovement
+page. `CombatAssistance/UI/AssistanceSettingsPage` contains the shared controls;
+the separate `AIManagementWindow` and its custom window/navigation shell have
+been removed. The host supplies the existing interface palette, density, sizing
+and scroll behavior. Section cards and upstream scrollable tabs organize the
+existing general, movement, dungeon/AoE, positional, job, ability, correction
+and troubleshooting settings. The Enable AI toggle appears above those
+sections and is the on/off indicator; redundant status text is omitted. Native party-following controls are omitted from the normal assistance
+setup; when explicit following is already selected, a warning explains that it
+changes movement priorities and pauses automatic dungeon pull contact.
+
+The selector was mechanically connected to native following, but the combined
+leader-following experience has not been accepted as ordinary assistance setup.
+`CapturePartyContact` requires both the saved and active leader to be self;
+`PartyContact` regressions verify that explicit following excludes automatic tank
+contact. The selector and outside-combat-follow checkbox were therefore removed
+from this page after review. Existing commands and preferences are preserved,
+and the UI never silently resets a selected leader. Its recovery-command hint
+explicitly states that `/bmrai follow Slot1` enables AI.
+
+`/bmrai`, `/vbmai` and `/xcai config` open that same page. `/bmrai ui` continues
+to toggle visibility through native `AIConfig.DrawUI`. Visibility synchronization
+does not reopen the page after unrelated native setting changes, close another
+settings page, or activate AI. The host detaches its subscription on disposal.
+The existing native activation and operational command paths remain authoritative.
+Native follow commands retain the existing follow owner and saved preferences.
+The classic fallback reuses the same page content when the main Material host
+is unavailable.
+
+Assistance preferences, native AI settings and import schemas retain their
+existing storage. `SettingsWindowPosition` is retained as legacy data; main BMR
+window placement now applies. Per-setting resets and the existing reset-all
+behavior still use the original preference handlers and runtime invalidation.
+
+Validation: Release build and nine Python tests passed; the native suite passed
+143,473 assertions, including visibility restoration, focus preservation,
+idempotence and disposal checks. The development client automatically loaded
+the tested `7.5.7.300` assembly, MVID `79e8c3f5-d6b5-4832-9702-e53829e964d3`.
+Local command checks exercised `/bmrai`, `/vbmai` and `/bmrai ui`; the native
+configuration was semantically unchanged after cleanup and the assistance file
+was byte-identical. Runtime diagnostics remained inactive with ready settings
+and no planning failure. No settings-page error was observed during these checks.
+The game was absent from the captured desktop, so visual layout and full combat
+acceptance remain unverified. No release was published for this development edit.
+
 ## Native boundaries
 
 | Boundary | Change and reason |
 | --- | --- |
 | `Framework/Plugin` | Own assistance settings, Material frame/theme lifetime, diagnostics, support updates, opt-in recording sharing, mandatory legacy XCAI removal and its persistent post-removal acknowledgement modal. Existing activation still gates automation. Scope repeated plugin-inventory reads to the synchronous update and expose its existing update timer in current diagnostics. |
-| `AI/AIManager`, `AIManagementWindow` | Material management window and compatible commands; legacy /xcai switches use shared assistance settings and a non-registering shell fallback, yielding to standalone. The native AI config remains the source for overlapping controls. Dungeon contact checks both saved and active leader selection without changing either. |
+| `AI/AIManager`, `CombatAssistance/UI/AssistanceSettingsPage` | Main BMR Automovement page and compatible commands; legacy /xcai switches use shared assistance settings and a non-registering shell fallback, yielding to standalone. The native AI config remains the source for overlapping controls. Dungeon contact checks both saved and active leader selection without changing either. |
 | `Autorotation/RotationModuleManager` | Own one native movement service and its lifecycle. Collect the current RSR target before movement and refresh the loop target after automatic selection on the assisted path. Expose only whether a native automatic-target module is active. After module policy resolution, submit stationary target assistance through the same host only when no normal/follow owner is running; do not apply a recovery walk from that caller. |
 | `Autorotation/MiscAI/NormalMovement` | Submit automatic and explicit destination intent through the same capture/publication/executor. Resolve existing explicit range/greed choices before search; preserve the exact requested endpoint and its arrival deadline. Native arena entry now follows movement locks and validates its whole physical corridor. Same-target range intent retains combat recovery and the observed readiness clock rather than masking it as optional spacing. |
 | `AI/AIBehaviour`, `AIController` | Submit follow planning and active encounter identity through the same host, including the shared dungeon-arena entry check; preserve leader/follow/manual semantics. Native combat Sprint yields to owned native utility planning and saved Sprint opt-outs. |

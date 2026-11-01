@@ -6,12 +6,10 @@ using System;
 
 namespace BossMod.CombatAssistance.UI;
 
-internal partial class ConfigWindow
+internal partial class AssistanceSettingsPage
 {
     private void DrawGeneralTab()
     {
-        this.DrawToggleSectionHeader("Enable AI", () => this.settings.MayAssist && this.manager.Beh != null, false, this.setEnabled,
-            "Starts automatic movement and combat assistance for your character. Turn off to stop both. Manual movement always takes priority.");
         this.DrawSectionHeader("Status bar");
         this.Checkbox("Show AI status in DTR bar", () => this.NativeConfig.ShowDTR, NativeDefaults.ShowDTR,
             value => this.NativeChange(() => this.NativeConfig.ShowDTR = value));

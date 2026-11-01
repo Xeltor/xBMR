@@ -12,34 +12,28 @@ using System.Numerics;
 
 namespace BossMod.CombatAssistance.UI;
 
-internal partial class ConfigWindow
+internal partial class AssistanceSettingsPage
 {
     private static float HintSlotWidth => 28f * M3.Scale;
-    private static float HintLaneWidth => HintSlotWidth * 2;
+    private static float HintLaneWidth => HintSlotWidth;
     private static float ResetGap => M3.Space2;
 
     private static M3RowInfo BeginControlRow(string label, Vector2 valueSize, bool enabled,
         string? tooltip, string? disabledTooltip, string? risk = null, bool isHeader = false)
     {
-        // Every row reserves the same hint and reset lanes, including rows without help or risk.
-        // Optional metadata must never move a value control or its reset button.
-        var row = M3SettingRow.Begin(label, null,
+        // Match the host's supporting-text rows; keep a fixed risk and reset lane.
+        var supporting = string.Join("\n\n", System.Linq.Enumerable.Where(new[] { tooltip, disabledTooltip },
+            value => !string.IsNullOrEmpty(value)));
+        var row = M3SettingRow.Begin(label, supporting,
             new Vector2(HintLaneWidth + valueSize.X + ResetGap + M3Widgets.IconButtonSize,
                 Math.Max(valueSize.Y, M3Widgets.IconButtonSize)),
-            labelColor: isHeader ? MaterialTheme.Primary : null, disabled: !enabled);
+            labelColor: isHeader ? M3.Scheme.Primary : null, disabled: !enabled);
         var hintsY = row.ControlPosition.Y + (Math.Max(valueSize.Y, M3Widgets.IconButtonSize) - ImGui.GetFrameHeight()) * 0.5f;
         if (risk != null)
         {
             ImGui.SetCursorScreenPos(new Vector2(row.ControlPosition.X
                 + (HintSlotWidth - M3Widgets.HelpMarkerWidth(FontAwesomeIcon.SkullCrossbones)) * 0.5f, hintsY));
             M3Widgets.HelpMarker(risk, FontAwesomeIcon.SkullCrossbones, M3.Scheme.Error);
-        }
-        if (tooltip != null || disabledTooltip != null)
-        {
-            ImGui.SetCursorScreenPos(new Vector2(row.ControlPosition.X + HintSlotWidth
-                + (HintSlotWidth - M3Widgets.HelpMarkerWidth(FontAwesomeIcon.QuestionCircle)) * 0.5f, hintsY));
-            M3Widgets.HelpMarker(string.Join("\n\n", System.Linq.Enumerable.Where(new[] { tooltip, disabledTooltip },
-                value => !string.IsNullOrEmpty(value))), FontAwesomeIcon.QuestionCircle);
         }
         ImGui.SetCursorScreenPos(row.ControlPosition + new Vector2(HintLaneWidth,
             (Math.Max(valueSize.Y, M3Widgets.IconButtonSize) - valueSize.Y) * 0.5f));

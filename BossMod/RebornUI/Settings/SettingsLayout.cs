@@ -221,11 +221,7 @@ internal static class SettingsLayout
             Icon = FontAwesomeIcon.Robot,
             Description = "Native combat assistance, movement and party following",
             Tags = ["ai", "follow", "assistance"],
-            Custom = static (_, _, _) =>
-            {
-                if (M3SettingRow.NavigationRow("##assistance", "Open combat assistance", "AI activation, movement, following and combat preferences", FontAwesomeIcon.Robot, FontAwesomeIcon.ChevronRight, M3.Scheme.Primary))
-                    AIManager.Instance?.OpenSettings();
-            },
+            Custom = static (_, _, _) => AIManager.Instance?.SettingsPage.Draw(),
         },
 
         [typeof(AutorotationConfig)] = new()
