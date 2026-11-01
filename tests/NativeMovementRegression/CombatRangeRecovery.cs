@@ -41,6 +41,8 @@ public static partial class Checks
         var filler = Action(map, 12, 0, new ulong[9], Enumerable.Repeat(1f, 9).ToArray());
         var talon = filler with { Id = 90, Earliest = 2, LockSeconds = .6f };
         Check(MeleeRecoveryPreference.ForPlanning(Class.DRG, talon) == null
+            && MeleeRecoveryPreference.ForPlanning(Class.GNB, talon with { Id = 16143 }) == null
+            && MeleeRecoveryPreference.ForPlanning(Class.GNB, talon with { Id = 16143 }, requiredForRecovery: true)?.Id == 16143
             && MeleeRecoveryPreference.ForPlanning(Class.BRD, talon) == talon
             && MeleeRecoveryPreference.ForPlanning(Class.DRG, filler) == filler,
             "Piercing Talon cannot reserve a wait before melee recovery; ordinary ranged jobs and real melee attacks retain their opportunities.");

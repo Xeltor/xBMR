@@ -29,6 +29,7 @@ internal static class NativeMovementSearch
         NavigationDecision.Context recoveryContext)
     {
         MovementPlan Refine(MovementPlan plan) => NativeMechanicClearance.Refine(context, plan, cancel);
+        var assessingApproach = true;
         void Publish(MovementPlan plan)
         {
             // An inside search incumbent is not an outside-space fallback until
@@ -36,7 +37,7 @@ internal static class NativeMovementSearch
             // recovery remains independently available while it runs.
             if (plan.Status == MovementSearchStatus.Searching && (!context.PreferredEnemyEndpoint(plan.UsefulDestination)
                 || !context.PreferredArenaEndpoint(plan.UsefulDestination))) return;
-            publish(Refine(plan));
+            publish(Refine(plan with { ApproachPending = assessingApproach }));
         }
         if (context.ForcedMovement != null || context.Native is not { } native)
             return Refine(JointMovementSearch.Search(context, cancellation: cancel, publishBest: Publish));
@@ -80,12 +81,14 @@ internal static class NativeMovementSearch
                         Publish(plan with { NativeRecovery = recovery });
                 });
             if (opportunity.Status == MovementSearchStatus.Invalidated) return opportunity;
+            assessingApproach = false;
             if (opportunity.HasVerifiedRoute && context.PreservesPresent(opportunity.DeliveredActions))
             {
                 incumbent = opportunity;
                 Publish(opportunity with { NativeRecovery = recovery });
             }
         }
+        assessingApproach = false;
         var result = JointMovementSearch.Search(context, cancellation: cancel, nativeIncumbent: incumbent,
             publishBest: plan => Publish(plan with { NativeRecovery = recovery }));
         if (result.Status == MovementSearchStatus.Invalidated)

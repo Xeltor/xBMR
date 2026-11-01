@@ -69,10 +69,10 @@ public static partial class Checks
         var ordinary = Context(map, 0);
         var action = Action(map, 6, 0, [0, 0], [1, 1], cast: 5);
         var combat = new MovementCombatIntent([action], 0, true, NativeRecoveryReason: "native knockback authority");
-        Check(!NativeMovementHost.RequestsCombatOptimization(combat, new())
-            && NativeMovementHost.RequestsCombatOptimization(combat with { NativeRecoveryReason = null }, new()),
+        Check(!NativeMovementHost.RequestsCombatOptimization(combat, new(), true, true)
+            && NativeMovementHost.RequestsCombatOptimization(combat with { NativeRecoveryReason = null }, new(), true, true),
             "The actual host request boundary cannot optimize a cast through an unmodeled forced displacement.");
-        Check(!NativeMovementHost.RequestsCombatOptimization(combat with { NativeRecoveryReason = null }, new(ExplicitDestination: ordinary.Origin)),
+        Check(!NativeMovementHost.RequestsCombatOptimization(combat with { NativeRecoveryReason = null }, new(ExplicitDestination: ordinary.Origin), true, true),
             "Explicit instructions retain their separate native authority rather than acquiring combat optimization.");
         var old = JointMovementSearch.Search(new(ordinary.Identity, map, 0, 0, [true, true], [0, 0], [action], []), Exhaustive);
         var disabled = new MovementPlanningContext(ordinary.Identity, map, 0, 0, [true, true], [0, 0], [], [], optimize: false);

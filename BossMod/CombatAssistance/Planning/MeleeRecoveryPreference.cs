@@ -7,6 +7,10 @@ internal static class MeleeRecoveryPreference
 {
     internal static uint FallbackAction(Class job) => job switch
     {
+        Class.GLA or Class.PLD => (uint)PLD.AID.ShieldLob,
+        Class.MRD or Class.WAR => (uint)WAR.AID.Tomahawk,
+        Class.DRK => (uint)DRK.AID.Unmend,
+        Class.GNB => (uint)GNB.AID.LightningShot,
         Class.LNC or Class.DRG => 90,
         Class.ROG or Class.NIN => 2247,
         Class.SAM => 7486,
@@ -20,6 +24,6 @@ internal static class MeleeRecoveryPreference
     internal static Positional DesiredPositional(Positional selected, float executesIn, float bypassUntil)
         => bypassUntil > Math.Max(0, executesIn) ? Positional.Any : selected;
 
-    internal static PlanningAction? ForPlanning(Class job, PlanningAction? action)
-        => action != null && IsFallback(job, action.Id) ? null : action;
+    internal static PlanningAction? ForPlanning(Class job, PlanningAction? action, bool requiredForRecovery = false)
+        => !requiredForRecovery && action != null && IsFallback(job, action.Id) ? null : action;
 }

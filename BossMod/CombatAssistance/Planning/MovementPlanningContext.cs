@@ -687,6 +687,8 @@ internal sealed record MovementPlan(NavigationIdentity Input, MovementSearchStat
     // Only the provisional recovery publication carries this flag. A finished
     // search with no strict route must execute recovery, even if a new job starts.
     internal bool OptimizationPending { get; init; }
+    // Early walking incumbents may precede the first comparison with mobility.
+    internal bool ApproachPending { get; init; }
     internal bool HasVerifiedRoute => NativePriority != float.MinValue && Status is MovementSearchStatus.Searching or MovementSearchStatus.Complete or MovementSearchStatus.Bounded;
     // Slack measures delaying the entire sequence. Cast/wait stages before the
     // first movement are already planned time, not extra delay. Native rotation

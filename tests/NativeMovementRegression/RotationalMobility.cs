@@ -170,12 +170,15 @@ public static partial class Checks
             "Only automatic owned rotational delivery is held; forced uses, opt-outs and ordinary attacks retain their original handling.");
         var manager = (ActionManagerEx)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(ActionManagerEx));
         var field = typeof(ActionManagerEx).GetField("_automaticDeliveryGate", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Func<ActionID, bool> firstGate = _ => false, secondGate = _ => true;
+        Func<ActionID, ulong, bool> firstGate = (_, target) => target != 10, secondGate = (_, _) => true;
         using (manager.EnterAutomaticDeliveryGate(firstGate))
         {
             using (manager.EnterAutomaticDeliveryGate(secondGate))
                 Check(ReferenceEquals(field.GetValue(manager), secondGate), "Nested original-callback delivery scope owns only its installed predicate.");
             Check(ReferenceEquals(field.GetValue(manager), firstGate), "Unwinding a nested scope restores the prior owner.");
+            var installed = (Func<ActionID, ulong, bool>)field.GetValue(manager)!;
+            Check(!installed(new(ActionType.Spell, 16143), 10) && installed(new(ActionType.Spell, 16143), 20),
+                "Automatic filler delivery retains its actual recipient; recovery for one target cannot veto another target's action.");
         }
         Check(field.GetValue(manager) == null, "The callback cannot leave an action veto installed after the original RSR update.");
         Check(PlanningCastTiming.ProcStatus(3) == 167 && PlanningCastTiming.ProcStatus(255) == 0,

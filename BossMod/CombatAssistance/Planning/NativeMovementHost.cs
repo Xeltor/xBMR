@@ -28,6 +28,10 @@ internal sealed class NativeMovementHost : IDisposable
     internal bool PlansOwnerTiming { get; private set; }
     internal int StageIndex => _executor.StageIndex;
     internal long InputRevision => _revision;
+    internal bool OpportunityPending => _service.HasUnconsumedWork
+        && (CurrentPlan is not { HasVerifiedRoute: true } || CurrentPlan.ApproachPending);
+    internal bool OwnerRecentlyUpdated(DateTime now) => _lastOwnerUpdate != default
+        && (now - _lastOwnerUpdate).TotalSeconds is >= 0 and < .25;
     internal ImmutableArray<RejectedMobility> RejectedMobility => _rejectedMobility;
     internal object PhysicalObservation => new { _physical.QueryAvailable, _physical.LastReason,
         LastRouteQueries = _physical.LastQueries, _physical.RefreshQueries, _physical.KnownSurfaces, _physical.CurrentBlocks };
@@ -62,9 +66,11 @@ internal sealed class NativeMovementHost : IDisposable
         };
     }
 
-    internal static bool RequestsCombatOptimization(Runtime.MovementCombatIntent? combat, MovementIntent intent)
+    internal static bool RequestsCombatOptimization(Runtime.MovementCombatIntent? combat, MovementIntent intent,
+        bool engaged, bool encounterActive)
         => intent.ExplicitDestination == null && combat is { Enabled: true, NativeRecoveryReason: null,
-            UnlockSeconds: <= MovementPlanningContext.MaximumHorizonSeconds };
+            UnlockSeconds: <= MovementPlanningContext.MaximumHorizonSeconds }
+            && (engaged || encounterActive || combat.ForcedMovement != null);
 
     // Walking continuity prevents jitter, but cannot veto a faster, freshly
     // executable mobility or outside-footprint alternative for the same need.
@@ -195,13 +201,12 @@ internal sealed class NativeMovementHost : IDisposable
         }
     }
 
+    // Selecting an NPC, standing near collision, or retaining an inactive module
+    // does not authorize steering. Real goals and mechanic warnings still do.
     internal static bool CanSkipIdleNavigation(AIHints hints, Actor player, bool encounter, bool engaged, MovementIntent intent)
-        => !encounter && !engaged && !player.InCombat && player.TargetID == 0
+        => !encounter && !engaged && !player.InCombat
             && intent.ExplicitDestination == null && intent.Range == null
-            && ReferenceEquals(hints.PathfindMapBounds, AIHints.DefaultBounds)
-            && hints.PathfindMapArenaProjectionLayer == null
-            && hints.PathfindMapBounds.Contains(player.Position - hints.PathfindMapCenter)
-            && hints.GoalZones.Count == 0 && hints.ForbiddenZones.Count == 0 && hints.TemporaryObstacles.Count == 0
+            && hints.GoalZones.Count == 0 && hints.ForbiddenZones.Count == 0
             && hints.Teleporters.Count == 0 && hints.ForbiddenDirections.Count == 0
             && hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Normal && hints.ForcedMovement == null
             && hints.InteractWithTarget == null && hints.PredictedDamage.Count == 0;
@@ -311,7 +316,7 @@ internal sealed class NativeMovementHost : IDisposable
             Release(owner);
             return new() { LeewaySeconds = float.MaxValue };
         }
-        if (Assistance != null && CanSkipIdleNavigation(hints, player, Assistance.HasEncounterModule,
+        if (Assistance != null && CanSkipIdleNavigation(hints, player, Assistance.HasActiveEncounter,
             Runtime.NativeCombatEngagement.Active(world, hints, player), intent))
         {
             Release(_owner ?? owner);
@@ -343,7 +348,8 @@ internal sealed class NativeMovementHost : IDisposable
         var combat = Assistance?.Capture(world, hints, player, displacement);
         _combatCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
         phase = System.Diagnostics.Stopwatch.GetTimestamp();
-        var optimizeCombat = RequestsCombatOptimization(combat, intent);
+        var optimizeCombat = RequestsCombatOptimization(combat, intent,
+            Runtime.NativeCombatEngagement.Active(world, hints, player), Assistance?.HasActiveEncounter == true);
         var optimize = optimizeCombat || explicitInstruction;
         var map = native.CopyStrictMap();
         var origin = map.WorldToGrid(player.Position);

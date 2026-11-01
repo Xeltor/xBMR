@@ -171,7 +171,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
             && _rotation.WorldState.Party.Player() is { IsDead: false, MountId: 0 } player
             && NativeForcedMovementCapture.NeedsExclusivePlanning(_rotation.WorldState, _rotation.Bossmods.ActiveModule, player);
     internal bool IngressCastLocked => _actions.MoveMightInterruptCast;
-    internal bool HasEncounterModule => _rotation.Bossmods.ActiveModule != null;
+    internal bool HasActiveEncounter => _rotation.Bossmods.ActiveModule?.StateMachine.ActiveState != null;
 
     internal bool HasMovementAuthority(Actor player, AIHints hints)
         => Service.ClientState.IsLoggedIn && Service.ObjectTable.LocalPlayer is { } local && local.IsValid()
@@ -295,7 +295,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
                 : new([], unlock, false, Travel: travel, StationaryOnly: true);
         }
         PlanningAction? immediate = null;
-        if (action != MeleeRecoveryPreference.ForPlanning(player.Class, action))
+        if (action != MeleeRecoveryPreference.ForPlanning(player.Class, action, player.Role == Role.Tank && _tankRecovery.Pending))
         {
             // Ranged fallback cannot reserve a stationary delivery ahead of a
             // safe melee recovery. RSR retains its normal action selection while
@@ -800,7 +800,7 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
     {
         var module = _rotation.Bossmods.ActiveModule;
         var timeline = module?.StateMachine;
-        var downtime = PartyFacingPreference.EligibleDowntime(module != null, !hints.PriorityTargetsSpan.IsEmpty,
+        var downtime = PartyFacingPreference.EligibleDowntime(HasActiveEncounter, !hints.PriorityTargetsSpan.IsEmpty,
             timeline?.ActiveState != null ? timeline.NextTransitionWithFlag(StateMachine.StateHint.DowntimeStart) : DateTime.MaxValue,
             timeline?.ActiveState != null ? timeline.NextTransitionWithFlag(StateMachine.StateHint.DowntimeEnd) : DateTime.MaxValue);
         return _settings.MayAssist && _settings.Preferences.ManageSocialTurning && !_ai.ForbidActions && downtime
@@ -842,32 +842,57 @@ internal sealed partial class CombatAssistanceRuntime : IDisposable
         return _rotationalDelivery.MaySubmit(execution, plan, context, stage, out rejection);
     }
 
-    private unsafe bool DeferMeleeFallback(uint id)
+    private unsafe bool DeferMeleeFallback(uint id, ulong target)
     {
+        var world = _rotation.WorldState;
+        var hints = _rotation.Hints;
+        var host = _rotation.MovementPlanning;
         if (!SupportAllowed() || !_settings.Preferences.ManageMovement || CompulsoryMovementProtected
-            || _rotation.WorldState.Party.Player() is not { Role: Role.Melee } player
-            || !MeleeRecoveryPreference.IsFallback(player.Class, id) || _movementFrame is not { } frame
-            || !ReferenceEquals(_rotation.MovementPlanning.CurrentPlan, frame.Plan)
-            || _rotation.MovementPlanning.Execution is null or { Kind: MovementExecutionKind.Invalidated }
+            || world.Party.Player() is not { Role: Role.Melee or Role.Tank } player
+            || !HasMovementAuthority(player, hints) || !NativeCombatEngagement.Active(world, hints, player)
+            || !MeleeRecoveryPreference.IsFallback(player.Class, id) || target == 0 || target != player.TargetID
+            || hints.ForcedTarget?.InstanceID is { } forced && forced != target
+            // Aggro recovery is an independent recipient requirement, not filler.
+            || player.Role == Role.Tank && _tankRecovery.Pending
             || Service.ObjectTable.LocalPlayer is not { } actual || !actual.IsValid() || actual.Address == 0
-            || actual.GameObjectId != player.InstanceID || _rotation.Hints.ForcedTarget?.InstanceID is { } forced && forced != frame.Context.TargetId
-            || player.TargetID != frame.Context.TargetId)
+            || actual.GameObjectId != player.InstanceID)
             return false;
+        var point = new WPos(actual.Position.X, actual.Position.Z);
+        if (CaptureCombatRange(hints, player) is not { } range || range.TargetId != target || !range.NeedsRecovery(point))
+            return false;
+        if (_movementFrame is not { } frame || frame.Context.TargetId != target || frame.Context.Range?.RecoverExecution != true)
+            return host.OwnerRecentlyUpdated(world.CurrentTime)
+                && _meleeRecoveryWindow.AwaitPlanning(player.InstanceID, target, id,
+                    System.Diagnostics.Stopwatch.GetTimestamp());
+        if (!ReferenceEquals(host.CurrentPlan, frame.Plan) || host.Execution is null or { Kind: MovementExecutionKind.Invalidated })
+        {
+            _meleeRecoveryWindow.PlanningObserved(player.InstanceID, target, id);
+            return false;
+        }
         var last = _rotation.LastCast;
         if (last.Time > _lastGcdDelivery && last.Data is { } data && ActionDefinitions.Instance[data.Action]?.IsGCD == true)
             _lastGcdDelivery = last.Time;
-        var point = new WPos(actual.Position.X, actual.Position.Z);
-        var arrival = NativeMeleeRecoveryWindow.VerifiedArrival(frame.Plan, frame.Context, frame.Stage, player.TargetID,
+        var arrival = NativeMeleeRecoveryWindow.VerifiedArrival(frame.Plan, frame.Context, frame.Stage, target,
             System.Diagnostics.Stopwatch.GetTimestamp(), point);
-        if (arrival == null) return false;
         var action = new ActionID(ActionType.Spell, id);
         var definition = ActionDefinitions.Instance[action];
         if (definition?.IsGCD != true) return false;
         var recast = _actions.GetAdjustedRecastTime(action) * .001f;
         var cast = _actions.GetAdjustedCastTime(action) * .001f;
-        return _meleeRecoveryWindow.Defer(player.InstanceID, player.TargetID, id, _lastGcdDelivery,
-            _rotation.WorldState.CurrentTime, Math.Max(0, _actions.GCD()),
-            Math.Max(recast, cast + (cast > 0 ? definition.CastAnimLock : definition.InstantAnimLock)), arrival.Value, _rotation.MovementPlanning.InputRevision);
+        var ready = Math.Max(0, _actions.GCD());
+        var recovery = Math.Max(recast, cast + (cast > 0 ? definition.CastAnimLock : definition.InstantAnimLock));
+        // A native walking witness can precede the worker's first mobility pass.
+        // Do not let that provisional walk spend the GCD before a ready dash is
+        // assessed. No movement is authorized by this bounded pending state.
+        if ((arrival == null || arrival >= ready + recovery) && host.OpportunityPending
+            && System.Diagnostics.Stopwatch.GetElapsedTime(frame.Context.Identity.CapturedTimestamp).TotalSeconds is >= 0 and < .25
+            && frame.Context.MobilityMechanics.Any(m => m.ReadyIn + m.SetupSeconds + m.TravelSeconds < ready + recovery)
+            && _meleeRecoveryWindow.AwaitPlanning(player.InstanceID, target, id, System.Diagnostics.Stopwatch.GetTimestamp()))
+            return true;
+        _meleeRecoveryWindow.PlanningObserved(player.InstanceID, target, id);
+        if (arrival == null) return false;
+        return _meleeRecoveryWindow.Defer(player.InstanceID, target, id, _lastGcdDelivery,
+            world.CurrentTime, ready, recovery, arrival.Value, host.InputRevision);
     }
 
     internal bool ApplyPlannedAction(MovementExecution execution, MovementPlan plan, MovementPlanningContext context,

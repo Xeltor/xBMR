@@ -9,11 +9,11 @@ internal sealed class PartyFacingPreference
     private DateTime _last;
     internal static readonly Angle Tolerance = 22.5f.Degrees();
 
-    // This preference belongs to encounter downtime, including immunity phases
-    // where the local combat flag or timeline state can temporarily disappear.
-    internal static bool EligibleDowntime(bool modulePresent, bool targetsAvailable,
+    // A selected but inactive module is not encounter downtime. An active
+    // timeline can retain immunity phases even when the local combat flag drops.
+    internal static bool EligibleDowntime(bool encounterActive, bool targetsAvailable,
         DateTime nextDowntimeStart, DateTime nextDowntimeEnd)
-        => modulePresent && (!targetsAvailable || nextDowntimeEnd != DateTime.MaxValue
+        => encounterActive && (!targetsAvailable || nextDowntimeEnd != DateTime.MaxValue
             && nextDowntimeEnd < nextDowntimeStart);
 
     internal Angle? Observe(DateTime now, bool allowed, IEnumerable<Angle> allies, int required, Angle current)

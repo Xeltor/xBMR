@@ -13,7 +13,7 @@ internal sealed class RsrRotationalDelivery : IDisposable
     private readonly ActionManagerEx _actions;
     private readonly RsrSelectionScopeOwner _owner;
     private readonly Func<bool> _allowed;
-    private readonly Func<uint, bool>? _deferFallback;
+    private readonly Func<uint, ulong, bool>? _deferFallback;
     private readonly Func<MovementPlan, MovementPlanningContext, int, bool>? _approvePreparation;
     private readonly RsrSelectionScopeOwner.Registration _registration;
     private Type? _center;
@@ -29,7 +29,7 @@ internal sealed class RsrRotationalDelivery : IDisposable
     internal bool ExplicitlyControlled => Resolve() && ExplicitUse();
     internal string Status { get; private set; } = "Rotational delivery retained by RSR";
     internal RsrRotationalDelivery(RsrRuntimeAccess runtime, ActionManagerEx actions, RsrSelectionScopeOwner owner, Func<bool> allowed,
-        Func<uint, bool>? deferFallback = null, Func<MovementPlan, MovementPlanningContext, int, bool>? approvePreparation = null)
+        Func<uint, ulong, bool>? deferFallback = null, Func<MovementPlan, MovementPlanningContext, int, bool>? approvePreparation = null)
     {
         _runtime = runtime; _actions = actions; _owner = owner; _allowed = allowed; _deferFallback = deferFallback; _approvePreparation = approvePreparation;
         // Wrap existing duty/support slots, so their healing and explicit duty
@@ -193,14 +193,14 @@ internal sealed class RsrRotationalDelivery : IDisposable
     {
         public void Dispose() => exit();
     }
-    private bool Permit(ActionID action)
+    private bool Permit(ActionID action, ulong target)
     {
         try
         {
             var explicitUse = ExplicitUse();
-            if (!explicitUse && action.Type == ActionType.Spell && _deferFallback?.Invoke(action.ID) == true)
+            if (!explicitUse && action.Type == ActionType.Spell && _deferFallback?.Invoke(action.ID, target) == true)
             {
-                Status = "Verified melee recovery retains this GCD; ranged filler would delay melee";
+                Status = "Melee approach has priority over automatic ranged filler";
                 return false;
             }
             return Permits(action.Type, action.ID, explicitUse, _allowed());

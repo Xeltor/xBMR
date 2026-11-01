@@ -7,7 +7,8 @@ namespace BossMod.CombatAssistance.Planning;
 internal static class MovementPlanValidation
 {
     internal const float ArrivalTolerance = 0.1f;
-    internal sealed record Result(bool Allowed, string Reason, float DepartureSeconds = 0, float CompletionSeconds = float.NaN);
+    internal sealed record Result(bool Allowed, string Reason, float DepartureSeconds = 0, float CompletionSeconds = float.NaN,
+        float RangeAccessSeconds = float.NaN);
 
     internal static Result Validate(MovementPlan plan, MovementPlanningContext current, int firstStage,
         bool hasAuthority, long? timestamp = null, WPos? actualPosition = null, bool continuingCommittedRoute = false)
@@ -96,6 +97,7 @@ internal static class MovementPlanValidation
             return new(false, "current lock no longer clears native deadline");
         slack = Math.Min(slack, lockSlack);
         var resources = PlanningResourceState.Initial(current.Resources, current.Recharges);
+        var rangeAccess = new PlanningRangeAccess(current.Range?.RecoveryReadyIn ?? 0);
         var positionalBypassUntil = current.PositionalBypassUntil;
         var travel = current.Travel;
         float? departure = null;
@@ -351,6 +353,11 @@ internal static class MovementPlanValidation
                     stage.Kind is MovementStageKind.Cast or MovementStageKind.UtilityAction ? Math.Max(time + duration, actionReadyAt) : time + duration + landingLock))
                 return new(false, "authored movement, action or facing prohibition changed");
             slack = Math.Min(slack, segmentSlack);
+            if (current.Range is { RecoverExecution: true } range)
+                // Use this validation's actual pose, remaining travel and action
+                // locks. A route may enter attack range before its final endpoint.
+                rangeAccess = rangeAccess.Advance(range, Math.Max(range.RecoveryReadyIn, Math.Max(actionReadyAt, gcdReadyAt)),
+                    stage.Kind, position, landing, time, time + duration + landingLock);
             time += duration + landingLock;
             previousWait = stage.Kind == MovementStageKind.Wait ? duration : 0;
             fieldBenefitAllowed = PlanningCastTiming.BenefitAfter(fieldBenefitAllowed, stage, current.Actions);
@@ -381,6 +388,7 @@ internal static class MovementPlanValidation
             && z.Benefit == zone.Benefit && z.EffectiveCenter(relocatedField) == zone.Center && z.Contains(plan.UsefulDestination, time, relocatedField))))
             return new(false, "friendly effect no longer covers the executable arrival");
         var departureDeadline = firstDeparture ?? (slack == float.MaxValue ? float.MaxValue : slack + (departure ?? 0));
-        return new(true, "fresh complete executable route", Math.Min(departureDeadline, plan.RemainingDepartureSeconds(timestamp ?? Stopwatch.GetTimestamp())), time);
+        return new(true, "fresh complete executable route", Math.Min(departureDeadline, plan.RemainingDepartureSeconds(timestamp ?? Stopwatch.GetTimestamp())), time,
+            rangeAccess.Loss == 0 ? rangeAccess.At : float.NaN);
     }
 }

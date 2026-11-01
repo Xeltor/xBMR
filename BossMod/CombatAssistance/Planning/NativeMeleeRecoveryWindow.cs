@@ -6,6 +6,30 @@ internal sealed class NativeMeleeRecoveryWindow
 {
     private (ulong Actor, ulong Target, uint Action, DateTime Gcd, long Problem)? _key;
     private DateTime _until;
+    private (ulong Actor, ulong Target, uint Action)? _pending;
+    private bool _planningObserved;
+    private long _observedTimestamp;
+
+    // RSR can deliver before the movement owner captures a newly engaged target.
+    // Allow its first mobility assessment, bounded by the existing native
+    // freshness ceiling. Equivalent callbacks cannot renew this opportunity.
+    internal bool AwaitPlanning(ulong actor, ulong target, uint action, long timestamp)
+    {
+        if (actor == 0 || target == 0 || action == 0) return false;
+        var key = (actor, target, action);
+        if (_pending != key)
+        {
+            _pending = key; _planningObserved = false; _observedTimestamp = timestamp;
+        }
+        return !_planningObserved
+            && System.Diagnostics.Stopwatch.GetElapsedTime(_observedTimestamp, timestamp).TotalSeconds is >= 0 and < .25;
+    }
+
+    internal void PlanningObserved(ulong actor, ulong target, uint action)
+    {
+        _pending = (actor, target, action);
+        _planningObserved = true;
+    }
 
     internal bool Defer(ulong actor, ulong target, uint action, DateTime gcd, DateTime now,
         float ready, float recovery, float arrival, long problem = 0)
@@ -41,8 +65,8 @@ internal sealed class NativeMeleeRecoveryWindow
             || System.Diagnostics.Stopwatch.GetElapsedTime(context.Identity.CapturedTimestamp, timestamp).TotalSeconds is < 0 or >= .25)
             return null;
         var proof = MovementPlanValidation.Validate(plan, context, stage, true, timestamp, actual, continuingCommittedRoute: true);
-        return proof.Allowed && float.IsFinite(proof.CompletionSeconds) && proof.CompletionSeconds >= 0 ? proof.CompletionSeconds : null;
+        return proof.Allowed && float.IsFinite(proof.RangeAccessSeconds) && proof.RangeAccessSeconds >= 0 ? proof.RangeAccessSeconds : null;
     }
 
-    internal void Reset() { _key = null; _until = default; }
+    internal void Reset() { _key = null; _until = default; _pending = null; _planningObserved = false; _observedTimestamp = 0; }
 }

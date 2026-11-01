@@ -31,6 +31,8 @@ internal sealed class MovementPlanningService : IDisposable
     private bool _disposed;
     internal string? LastFailure { get; private set; }
     internal bool Busy => _worker is { IsCompleted: false };
+    // Completion on the worker is not yet an assessment consumed by the owner.
+    internal bool HasUnconsumedWork => _worker != null;
 
     internal MovementPlanningService(Func<MovementPlanningContext, CancellationToken, MovementPlan>? search = null, Func<long>? clock = null)
     {
