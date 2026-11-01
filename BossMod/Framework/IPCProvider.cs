@@ -290,10 +290,15 @@ sealed class IPCProvider : IDisposable
 
         // VBM clients use IReadOnlyList (including collection expressions); older BMR clients use List.
         // Keep returning a concrete List so both subscriber return types remain compatible.
-        Register("Configuration", (IReadOnlyList<string> args, bool save) => IPCConfiguration.Execute(Service.Config, args, save));
+        Register("Configuration", (IReadOnlyList<string> args, bool save) =>
+            ai.QuestionableControl.BlocksConfiguration(args) && CombatAssistance.Runtime.QuestionableAiControl.IsQuestionableCaller()
+                ? new List<string> { "Questionable control accepts on/off only; configuration unchanged." }
+                : IPCConfiguration.Execute(Service.Config, args, save));
         // same arguments as Configuration, but the change is never saved; ClearTransient restores the user's values
-        Register("Configuration.SetTransient", (List<string> args) => Service.Config.SetTransient(args.AsSpan()));
-        Register("Configuration.ClearTransient", () => Service.Config.ClearTransient());
+        Register("Configuration.SetTransient", (List<string> args) => ai.QuestionableControl.IsCaller
+            ? new List<string> { "Questionable control accepts on/off only; configuration unchanged." }
+            : Service.Config.SetTransient(args.AsSpan()));
+        Register("Configuration.ClearTransient", () => ai.QuestionableControl.IsCaller ? 0 : Service.Config.ClearTransient());
 
         var lastModified = DateTime.Now;
         Service.Config.Modified.Subscribe(() => lastModified = DateTime.Now);
@@ -316,6 +321,8 @@ sealed class IPCProvider : IDisposable
 
         Register("Presets.Get", (string name) =>
         {
+            if (ai.QuestionableControl.IsCaller)
+                return ai.QuestionableControl.GetPreset(name);
             var preset = autorotation.Database.Presets.FindPresetByName(name);
             return preset != null ? JsonSerializer.Serialize(preset, Serialization.BuildSerializationOptions()) : null;
         });
@@ -326,6 +333,11 @@ sealed class IPCProvider : IDisposable
             {
                 return false;
             }
+
+            if (ai.QuestionableControl.IsCaller)
+                return node is JsonObject obj && obj["Name"] is JsonValue nameNode
+                    && nameNode.TryGetValue<string>(out var requestedName)
+                    && ai.QuestionableControl.CreatePreset(requestedName, overwrite);
 
             // preset converter operates on array of presets; plan converter doesn't but expects an `Encounter` key in the object
             node = new JsonArray(node);
@@ -355,6 +367,8 @@ sealed class IPCProvider : IDisposable
         });
         Register("Presets.Delete", (string name) =>
         {
+            if (ai.QuestionableControl.IsCaller)
+                return ai.QuestionableControl.DeletePreset(name);
             var index = autorotation.Database.Presets.UserPresets.FindIndex(x => x.Name == name);
             if (index < 0)
             {
@@ -365,9 +379,13 @@ sealed class IPCProvider : IDisposable
             return true;
         });
 
-        Register("Presets.GetActive", () => autorotation.Preset?.Name);
+        Register("Presets.GetActive", () => ai.QuestionableControl.IsCaller
+            ? ai.QuestionableControl.ActivePreset : autorotation.Preset?.Name);
         Register("Presets.SetActive", (string name) =>
         {
+            ai.UpdateQuestionableControl();
+            if (ai.QuestionableControl.IsCaller)
+                return Service.Framework.IsInFrameworkUpdateThread && ai.QuestionableControl.Start(name);
             var preset = autorotation.Database.Presets.FindPresetByName(name);
             if (preset == null)
             {
@@ -379,6 +397,8 @@ sealed class IPCProvider : IDisposable
         });
         Register("Presets.ClearActive", () =>
         {
+            if (ai.QuestionableControl.IsCaller)
+                return Service.Framework.IsInFrameworkUpdateThread && ai.QuestionableControl.Stop();
             if (autorotation.Preset == null)
             {
                 return false;
@@ -390,6 +410,8 @@ sealed class IPCProvider : IDisposable
         Register("Presets.GetForceDisabled", () => autorotation.Preset == RotationModuleManager.ForceDisable);
         Register("Presets.SetForceDisabled", () =>
         {
+            if (ai.QuestionableControl.IsCaller)
+                return Service.Framework.IsInFrameworkUpdateThread && ai.QuestionableControl.Stop();
             if (autorotation.Preset == RotationModuleManager.ForceDisable)
             {
                 return false;

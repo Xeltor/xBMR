@@ -10,6 +10,7 @@ internal sealed partial class SettingsWindow
     private static readonly (string, string)[] _availableAICommands =
     [
         ( "", "Opens the Automovement settings page." ),
+        ( "questionable on/off", "Allow or disable Questionable on/off control." ),
         ( "on", "Enables the AI." ),
         ( "off", "Disables the AI." ),
         ( "toggle", "Toggles the AI on/off." ),

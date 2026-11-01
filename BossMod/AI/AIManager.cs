@@ -13,6 +13,8 @@ sealed class AIManager : IDisposable
     private static readonly AIConfig _config = Service.Config.Get<AIConfig>();
     internal readonly CombatAssistance.UI.AssistanceSettingsPage SettingsPage;
     private readonly Action _openSettings;
+    internal readonly CombatAssistance.Runtime.QuestionableAiControl QuestionableControl;
+    private readonly Dalamud.Plugin.Ipc.ICallGateSubscriber<bool> _questionableRunning;
     private readonly CombatAssistance.Config.AssistanceSettingsSession _settings;
     private readonly CombatAssistance.UI.MigrationCommandAlias _migrationAlias;
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
@@ -26,6 +28,8 @@ sealed class AIManager : IDisposable
     public AIManager(RotationModuleManager autorot, ActionManagerEx amex, MovementOverride movement, CombatAssistance.Config.AssistanceSettingsSession settings, Action openSettings)
     {
         _settings = settings;
+        _questionableRunning = Service.PluginInterface.GetIpcSubscriber<bool>("Questionable.IsRunning");
+        QuestionableControl = new(() => Beh != null, SetQuestionableEnabled);
         Instance = this;
         Autorot = autorot;
         SettingsPage = new(this, settings);
@@ -100,6 +104,7 @@ sealed class AIManager : IDisposable
 
     public void SwitchToIdle()
     {
+        QuestionableControl.ReleaseOwnership();
         StopFollowing();
         if (_settings.MayEdit && _settings.Preferences.Enabled)
         {
@@ -118,15 +123,16 @@ sealed class AIManager : IDisposable
         Controller.Clear();
     }
 
-    public void SwitchToFollow(int masterSlot)
+    public void SwitchToFollow(int masterSlot, bool preservePreferences = false)
     {
+        QuestionableControl.ReleaseOwnership();
         if (!_settings.MayEdit)
             return;
         StopFollowing();
-        if (AIActivationSettings.Normalize(_config))
+        if (!preservePreferences && AIActivationSettings.Normalize(_config))
             _config.Modified.Fire();
         _settings.Preferences.Enabled = true;
-        _settings.Preferences.ManageMovement = true;
+        if (!preservePreferences) _settings.Preferences.ManageMovement = true;
         _settings.Active = true;
         _settings.Save();
         MasterSlot = WorldState.Party[masterSlot]?.Name == null ? 0 : masterSlot;
@@ -143,6 +149,26 @@ sealed class AIManager : IDisposable
             }
         }
         Beh = new AIBehaviour(Controller, Autorot, preset);
+    }
+
+    internal void UpdateQuestionableControl()
+    {
+        if (!Service.Framework.IsInFrameworkUpdateThread) return;
+        var enabled = _settings.Preferences.QuestionableControlsAi;
+        bool? running = null;
+        try
+        {
+            if (enabled && _questionableRunning.HasFunction) running = _questionableRunning.InvokeFunc();
+        }
+        catch { } // Missing/unloaded provider withdraws only the activation we own.
+        QuestionableControl.Observe(enabled, _settings.MayEdit, running);
+    }
+
+    private void SetQuestionableEnabled(bool enabled)
+    {
+        // An external start changes the master switch, never feature opt-outs.
+        if (enabled) SwitchToFollow(_config.FollowSlot, preservePreferences: true);
+        else SwitchToIdle();
     }
 
     internal void OpenSettings()
@@ -186,9 +212,32 @@ sealed class AIManager : IDisposable
         }
 
         var configModified = false;
+        if (QuestionableControl.IsCaller)
+        {
+            UpdateQuestionableControl();
+            if (messageData[0].Equals("off", StringComparison.OrdinalIgnoreCase))
+                QuestionableControl.Stop();
+            else if (messageData[0].Equals("on", StringComparison.OrdinalIgnoreCase))
+                QuestionableControl.Start();
+            return;
+        }
 
         switch (messageData[0].ToUpperInvariant())
         {
+            case "QUESTIONABLE":
+                if (messageData.Length != 2 || messageData[1].ToLowerInvariant() is not ("on" or "off"))
+                {
+                    Service.ChatGui.Print("[BMRAI] Use /bmrai questionable on or /bmrai questionable off.");
+                    break;
+                }
+                if (_settings.MayEdit)
+                {
+                    _settings.Preferences.QuestionableControlsAi = messageData[1].Equals("on", StringComparison.OrdinalIgnoreCase);
+                    _settings.Save();
+                    UpdateQuestionableControl();
+                    Service.ChatGui.Print($"[BMRAI] Questionable on/off control: {(_settings.Preferences.QuestionableControlsAi ? "allowed" : "disabled")}.");
+                }
+                break;
             case "ON":
                 EnableConfig(true);
                 break;

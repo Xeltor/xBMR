@@ -229,6 +229,9 @@ public sealed class Plugin : IAsyncDalamudPlugin
     {
         Service.Log($"OnCommand: {cmd} {args}");
         var split = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (_ai.QuestionableControl.BlocksCompatibilityCommand(cmd, split)
+            && CombatAssistance.Runtime.QuestionableAiControl.IsQuestionableCaller())
+            return;
         if (split.Length == 0)
         {
             OpenConfigUI();
@@ -384,6 +387,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         var gcPause = GC.GetTotalPauseDuration();
         using var observations = CombatAssistance.Integrations.ReflectionObjectSearch.BeginObservation(_dalamud);
         UpdateAssistanceSettings();
+        _ai.UpdateQuestionableControl();
         var settingsDone = System.Diagnostics.Stopwatch.GetTimestamp();
         RebornMaterial.M3.BeginFrame();
         var tsStart = DateTime.Now;

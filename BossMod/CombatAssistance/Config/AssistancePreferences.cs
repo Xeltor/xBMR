@@ -46,6 +46,7 @@ internal sealed class AssistancePreferences
     public bool Enabled { get; set; } = true;
     // Legacy import only; the active sharing preference now belongs to ReplayManagementConfig.
     public bool ShareFightRecordings { get; set; } = false;
+    public bool QuestionableControlsAi { get; set; }
     public bool LinkRotationSolverToggle { get; set; }
     public bool AutoAcceptRaises { get; set; }
     public bool FixRsrMeleeRangedAfterMovement { get; set; } = true;
@@ -517,6 +518,7 @@ internal sealed class AssistancePreferences
     {
         this.Enabled = true;
         this.ShareFightRecordings = false;
+        this.QuestionableControlsAi = false;
         this.LinkRotationSolverToggle = false;
         this.AutoAcceptRaises = false;
         this.FixRsrMeleeRangedAfterMovement = true;

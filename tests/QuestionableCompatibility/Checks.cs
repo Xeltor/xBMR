@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using BossMod;
 using BossMod.Autorotation;
 
-static class Checks
+static partial class Checks
 {
     private static int assertions;
     private static void Check(bool condition, string message)
@@ -21,6 +21,7 @@ static class Checks
         Service.Config.Initialize();
         Configuration(dalamudDirectory);
         Presets(questionableDll);
+        QuestionableControl(questionableDll);
         Console.WriteLine($"{assertions} Questionable compatibility assertions passed; offline IPC and preset validation, no live gameplay proof.");
     }
 

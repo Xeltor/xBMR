@@ -3,6 +3,12 @@
   "complete": true,
   "settings": [
     {
+      "name": "QuestionableControlsAi",
+      "type": "bool",
+      "destination": "Native Questionable active-run on/off permission; defaults off; feature settings remain authoritative",
+      "status": "implemented; live quest/combat validation pending"
+    },
+    {
       "name": "Version",
       "type": "int",
       "destination": "Versioned AssistanceSettingsDocument plus imported preference migrations",

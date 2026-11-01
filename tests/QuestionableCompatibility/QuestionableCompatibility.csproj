@@ -5,10 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <BossModAssembly Condition="'$(BossModAssembly)' == ''">../../BossMod/bin/Release/BossModReborn.dll</BossModAssembly>
     <DALAMUD_HOME Condition="'$(DALAMUD_HOME)' == ''">$(HOME)/.xlcore/dalamud/Hooks/dev</DALAMUD_HOME>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="BossModReborn" HintPath="../../BossMod/bin/Release/BossModReborn.dll" Private="false" />
+    <Reference Include="BossModReborn" HintPath="$(BossModAssembly)" Private="false" />
     <Reference Include="Lumina" HintPath="$(DALAMUD_HOME)/Lumina.dll" Private="false" />
   </ItemGroup>
 </Project>

@@ -217,3 +217,47 @@ Phantom movement uses the existing external RSR `DataCenter.CurrentDutyRotation`
 identity and generated `IBaseAction` getters/Lazy fields, alongside regular job
 rotation ownership. Saved enable flags come from the original duty actions; no
 new upstream IPC or action writer is introduced. See [Phantom movement](phantom-mobility.md).
+
+## Questionable on/off control (2026-11-01)
+
+`QuestionableControlsAi` is an explicit, default-off permission in Automovement
+General, also set with `/bmrai questionable on|off`. Questionable's public
+`Questionable.IsRunning` signal grants control for its active run. An observed
+false-to-true transition starts native AI; loading during an already-running or
+unknown session does not. A fresh Questionable combat/solo-duty start can also
+request activation during an active run. Stop, unavailable IPC, lost settings
+readiness or revoked permission ends only activation owned by this integration.
+Explicit native activation/follow/off commands release that ownership. Steady
+run-state polling does not undo a manual change. Existing safety and manual
+movement handoff remain authoritative.
+
+Questionable must use its **BossMod** combat module, rather than its RSR module,
+which controls RSR directly. xBMR's own rotation-link, movement, following, job
+and other feature preferences determine behavior. External starts bypass native
+enable-time normalization and do not turn on movement or the rotation link.
+
+The installed Questionable BossMod protocol uses `/vbmai off` followed by
+`BossMod.Presets.SetActive`, plus preset creation/deletion, configuration writes
+and `/vbm` setup commands. Its three recognized preset names are treated as
+in-memory handshake metadata, never imported, persisted or selected as rotation
+policy. Its setup commands and configuration writes are ignored; reads retain
+their native contract. This policy also holds when control permission is off:
+Questionable cannot fall back to applying its own preset or settings. Other IPC
+callers, native commands and the upstream endpoint names/signatures remain intact.
+Dalamud supplies no IPC sender identity, so these synchronous compatibility
+boundaries attribute callers by Questionable assembly metadata on the call stack.
+This is a compatibility adapter, not a security boundary or a provider-endorsed
+fork integration.
+
+Research used Questionable source commit
+[`f737a0865627bc6fa70fb7024ab403b3e4881736`](https://github.com/PunishXIV/Questionable/tree/f737a0865627bc6fa70fb7024ab403b3e4881736):
+[`BossModIpc`](https://github.com/PunishXIV/Questionable/blob/f737a0865627bc6fa70fb7024ab403b3e4881736/Questionable/External/BossModIpc.cs),
+[`BossModModule`](https://github.com/PunishXIV/Questionable/blob/f737a0865627bc6fa70fb7024ab403b3e4881736/Questionable/Controller/CombatModules/BossModModule.cs),
+[`QuestionableIpc`](https://github.com/PunishXIV/Questionable/blob/f737a0865627bc6fa70fb7024ab403b3e4881736/Questionable/External/QuestionableIpc.cs)
+and `QuestController.Stop` (clears tasks and resets automation to Manual).
+Installed-provider contract checks invoke actual Questionable 15.756.3.60 methods
+with inert subscribers for combat start, solo-duty setup, movement transition and
+cleanup. They verify caller attribution, settings preservation and manual
+activation ownership without running quests or altering installed plugins.
+Build/offline validation and development reload remain distinct from live quest
+and combat acceptance.

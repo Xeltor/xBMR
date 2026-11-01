@@ -10,6 +10,10 @@ internal partial class AssistanceSettingsPage
 {
     private void DrawGeneralTab()
     {
+        this.DrawSectionHeader("Questionable");
+        this.Checkbox("Allow Questionable to turn AI on and off", () => this.config.QuestionableControlsAi, this.defaultConfig.QuestionableControlsAi,
+            value => this.config.QuestionableControlsAi = value,
+            "Allows control during an active Questionable run. Stops only the activation started here when Questionable stops, pauses or becomes unavailable. Your assistance settings remain authoritative; its combat presets and setup changes are not applied. Select BossMod as Questionable's combat module.");
         this.DrawSectionHeader("Status bar");
         this.Checkbox("Show AI status in DTR bar", () => this.NativeConfig.ShowDTR, NativeDefaults.ShowDTR,
             value => this.NativeChange(() => this.NativeConfig.ShowDTR = value));

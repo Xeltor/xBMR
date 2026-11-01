@@ -44,7 +44,16 @@ resolved. Promotion and reopening rules are in [AGENTS.md](AGENTS.md).
 
 ## Questionable compatibility
 
-Select **BossMod** as Questionable's combat module. xBMR provides the shared
+Select **BossMod** as Questionable's combat module, then allow Questionable
+on/off control in `/bmrai` → Automovement → General, or use
+`/bmrai questionable on`. This permission defaults off. During an active
+Questionable run, it may turn AI on or off; xBMR's own movement, rotation and
+feature settings determine behavior. Questionable's preset payloads and setup
+writes do not replace those settings. Stopping Questionable ends only AI
+activation started by this integration, preserving explicit manual control.
+Questionable itself requires no changes.
+
+xBMR provides the shared
 `BossMod.*` preset IPC and the `/vbm` and `/vbmai` command aliases itself; no
 companion plugin is required. Questionable may still display its BossMod Reborn
 warning and mark the original BossMod plugin as missing. The inspected version's
