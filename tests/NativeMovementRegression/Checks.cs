@@ -35,6 +35,7 @@ public static partial class Checks
         NativeConstraintReview();
         NativeSnapshotParity();
         SettingsImport();
+        MaterialSettings();
         NativeOwnership();
         NativeProblemChanges();
         NativeHostLifecycle();

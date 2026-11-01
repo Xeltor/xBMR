@@ -1,8 +1,8 @@
 # Third-party notices
 
-Combat assistance uses RebornMaterial 7.5.6.2 by The CombatReborn Team,
+The settings interface and combat assistance use RebornMaterial 7.5.7.5 by The CombatReborn Team,
 distributed as a separate, unmodified assembly under LGPL-3.0-or-later.
-Its package records source revision `7f6946d74d7e150d99889bf678d7684184895e10`
+Its package records source revision `0d00d83c916428ba089ca1e0016f68e5b0f5521e`
 in https://github.com/LTS-FFXIV/RebornMaterial. The package license is
 https://licenses.nuget.org/LGPL-3.0-or-later.
 
@@ -35,3 +35,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+The settings and tool windows are drawn with RebornMaterial, which is linked as a separate assembly (`RebornMaterial.dll`).
+
+RebornMaterial: https://github.com/LTS-FFXIV/RebornMaterial
+
+Copyright (c) The Combat Reborn Team
+
+Licensed under the GNU Lesser General Public License, version 3 or any later version: https://www.gnu.org/licenses/lgpl-3.0.html

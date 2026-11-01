@@ -17,8 +17,8 @@ internal static class MaterialTheme
 
     internal static void Initialize(IDalamudPluginInterface pluginInterface)
     {
-        M3.ElementBaseline = 1f;
-        M3.Initialize(pluginInterface, new M3Settings { UiAccentColor = Primary });
+        M3.ElementBaseline = 0.75f;
+        M3.Initialize(pluginInterface, Service.Config.Get<RebornUI.InterfaceConfig>());
     }
 
     internal static Scope Push()

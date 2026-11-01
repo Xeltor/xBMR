@@ -5,6 +5,45 @@ class identities, strategy tracks, presets and native configuration identities
 are retained. The inventory below describes implemented boundaries, not final
 cutover acceptance; the adjacent status file lists remaining work.
 
+## Upstream 7.5.7.3 interface integration (2026-11-01)
+
+Integrated the exact [7.5.7.3 tag](https://github.com/FFXIV-CombatReborn/BossmodReborn/releases/tag/7.5.7.3),
+commit `c35c484a76cdf36061990996b48a35939b976be8`, containing
+[upstream PR #1390](https://github.com/FFXIV-CombatReborn/BossmodReborn/pull/1390).
+The fork revision resets to zero: source label `7.5.7.3.0`, install version
+`7.5.7.300`. This imports Material settings, encounter settings, supported-fight
+navigation, pre-pull hints, party-role controls and RebornMaterial 7.5.7.5.
+
+The plugin retains its single Material initialization, per-frame update and
+disposal. Both interfaces use the persisted native `InterfaceConfig`; failure
+to construct the new settings window falls back to the classic interface without
+disposing the shared Material state needed by combat assistance. The existing
+assistance window retains its own style scope, visibility and activation owner,
+and is not wrapped in an upstream fold host. The general Automovement page
+opens that window instead of restoring hidden legacy controls. Fork-specific
+support links point to xBMR issues; `/bmr`, `/bmrai`, settings paths, manual-input
+priority, upstream public IPC and standalone XCAI retirement remain intact.
+
+The upstream RSR change shares a cached loaded-plugin check between action
+tweaks and manual smart targeting. It does not replace the fork's merged/split
+RSR assembly resolver or linked-mode ownership. Packaging retains the retirement
+metadata, third-party notices and separate unmodified Material dependency; the
+upstream publishing workflow remains disabled in this fork.
+
+Focused regression coverage checks generated radio metadata, native AI setting
+preservation and interface-setting persistence. Build and offline checks remain
+separate from loaded-client observation and live gameplay acceptance.
+
+Validation on 2026-11-01: Release build passed with six obsolete-API warnings in
+unchanged source; nine Python tests and all 20 configured regression suites
+passed, including 143,464 native movement and 89,735 module assertions. The
+development client automatically loaded install version `7.5.7.300`, MVID
+`183cb94f-2630-48e9-b9cd-29cfe9f18e0f`, matching the tested assembly. The current
+diagnostic snapshot reported ready settings, inactive assistance and no planning
+failure. An existing saved DMU `P1GravenImage2Strategy` deserialization warning
+also occurred on the previous build and remains outside this interface upgrade.
+The new UI's full visual behavior and live combat gameplay remain unverified.
+
 ## RSR merged assembly compatibility (2026-10-31)
 
 RSR [merged its Basic project into the main assembly](https://github.com/FFXIV-CombatReborn/RotationSolverReborn/commit/bd9c156b067def943705b1b48df89f7238bfbd68).

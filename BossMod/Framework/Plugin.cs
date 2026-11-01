@@ -165,6 +165,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         config.Modified.ExecuteAndSubscribe(() => _wndReplay.UpdateLogDirectory());
         _wndRotation = new(_rotation, _amex, () => OpenConfigUI("Autorotation presets"));
         _wndDebug = new(_ws, _rotation, _zonemod, _amex, _movementOverride, _hintsBuilder, _dalamud, _rsr);
+        RebornUI.MaterialUI.Start(_ws, _rotationDB, _rotation, new DirectoryInfo(replayDir));
 
         _dalamud.UiBuilder.DisableAutomaticUiHide = true;
         _dalamud.UiBuilder.Draw += DrawUI;
@@ -186,6 +187,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
             _worldOverlayNode?.Dispose();
             _worldOverlayNode = null;
             Dx11ArenaRenderer.Shutdown();
+            RebornUI.MaterialUI.Stop();
         });
         await Service.Framework.RunOnFrameworkThread(() =>
         {
@@ -338,6 +340,8 @@ public sealed class Plugin : IAsyncDalamudPlugin
 
     private void OpenConfigUI(string showTab = "")
     {
+        if (RebornUI.MaterialUI.OpenSettings(showTab))
+            return;
         _configUI.ShowTab(showTab);
         _ = new UISimpleWindow("Xel's Boss Mods Reborn (xBMR)", _configUI.Draw, true, new(300, 300));
     }
