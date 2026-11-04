@@ -161,6 +161,9 @@ public sealed partial class AIHints
 
     // indicates to AI mode that it should try to interact with some object
     public Actor? InteractWithTarget;
+    // Allow a required in-range interaction to use the next free action window.
+    internal Actor? PriorityInteraction;
+    internal bool HasPriorityInteraction => PriorityInteraction is { IsTargetable: true, IsDeadOrDestroyed: false } && PriorityInteraction == InteractWithTarget;
 
     // positioning: list of shapes that are either forbidden to stand in now or will be in near future
     // AI will try to move in such a way to avoid standing in any forbidden zone after its activation or outside of some restricted zone after its activation, even at the cost of uptime
@@ -196,6 +199,8 @@ public sealed partial class AIHints
     internal bool StackCarrierSeparationActive;
     internal bool NativeStackCarrierSeparationRequested;
     internal bool NativeFateFrameAlignmentRequested;
+    // Encounter-authored traversal retains native pathfinding and movement ownership.
+    internal bool UseNativeNavigation;
 
     // closest special movement/targeting/action mode, if any
     // activation = when the restriction starts (e.g. bomb detonation), finish = when the restriction ends (e.g. pyretic expires)
@@ -212,6 +217,8 @@ public sealed partial class AIHints
 
     // for misdirection: if forced movement is set, make real direction be within this angle
     public Angle MisdirectionThreshold;
+    internal bool IsMisdirectionActive(DateTime now)
+        => ImminentSpecialMode.mode == SpecialMode.Misdirection && ImminentSpecialMode.activation <= now;
 
     // predicted incoming damage (raidwides, tankbusters, etc.)
     // AI will attempt to shield & mitigate
@@ -258,6 +265,7 @@ public sealed partial class AIHints
         ForcedMovement = null;
         SpinDirection = null;
         InteractWithTarget = null;
+        PriorityInteraction = null;
         ForbiddenZones.Clear();
         ClearCastSources();
         ClearProjectionSources();
@@ -269,6 +277,7 @@ public sealed partial class AIHints
         ForbiddenDirections.Clear();
         StackCarrierSeparationActive = false;
         MovementOwner = null;
+        UseNativeNavigation = false;
         ImminentSpecialMode = default;
         NoMovementAllowsManualInput = false;
         MisdirectionThreshold = 15f.Degrees();
@@ -690,6 +699,7 @@ public sealed partial class AIHints
 
     public Func<WPos, float> GoalSingleTarget(Actor target, Positional positional, Actor player, ActorState actorState, float range = 2.6f, float cushion = 0f)
     {
+        positional = PositionalMovement.ForTarget(positional, target, player, actorState);
         var f = GoalSingleTarget(target.Position, target.Rotation, positional, range + target.HitboxRadius, cushion);
         var g = FollowTarget(target, player, actorState, range);
 

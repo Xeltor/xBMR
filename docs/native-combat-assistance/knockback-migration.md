@@ -1,5 +1,33 @@
 # Native knockback migration
 
+## 2026-11-04: attack access after a push
+
+The old XCAI decision policy compared verified physical recovery and immunity
+by attack opportunity, saving immunity when the results tied. The native
+planner now starts a new attack-access comparison at the authored knockback
+onset. A pre-push contact cannot satisfy the recovery window. Immunity uses the
+same onset, while a physical branch must finish its flight before it can claim
+contact. Cast and GCD clocks, route safety, and resource conservation still
+apply. The planner has no authority to cancel a displacement already in flight.
+The original RSR movement selectors now stay available to the planner through
+a verified preparation phase. They pass through when displacement timing or
+authority is unavailable. This allows an accept-and-dash route to compete with
+walking and immunity using the same native checks.
+
+In normal Ala Mhigo, the alt's replay showed Art of the Swell (8293) from
+Zenos near arena center and the clone version (9606) from an offset origin.
+Cast-start sequences 274853, 283837 and 289780 identify the two variants.
+Effect 275496 confirms the boss version delivered a native knockback. The
+previous fixed five-yalm center hint was an approximation for the boss's
+centered 15-yalm push. Both sources now publish a typed preparation envelope
+using their own cast origin and the existing 20-yalm playable circle.
+The planner can separate that envelope while retaining independent hazards.
+The guides confirm the center response and clone variant. They do not provide
+exact server snapshot or flight timing. [Thonky's Ala Mhigo guide](https://www.thonky.com/final-fantasy-xiv/duties/ala-mhigo)
+
+The pre-push choice still requires corroborated effect timing. First-use or
+unsupported projections retain native recovery and original rotation authority.
+
 ## Current scope: authored mechanics only
 
 On 2026-10-24 the user explicitly excluded projecting and learning unknown

@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+﻿using BossMod.Pathfinding;
+using Dalamud.Game.ClientState.Conditions;
 
 namespace BossMod.AI;
 
@@ -8,6 +9,7 @@ namespace BossMod.AI;
 sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride movement)
 {
     public WPos? NaviTargetPos;
+    public WDir? MisdirectionHeading;
     public float? NaviTargetVertical;
     public bool AllowInterruptingCastByMovement; // explicit override (e.g. misdirection); normal leeway-based decision is made in Update
     public float NaviLeewaySeconds = float.MaxValue;
@@ -25,12 +27,42 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
     public void Clear()
     {
         NaviTargetPos = null;
+        MisdirectionHeading = null;
         NaviTargetVertical = null;
         AllowInterruptingCastByMovement = false;
         NaviLeewaySeconds = float.MaxValue;
         ForceCancelCastOtherAI = false;
         ForceCancelCastMechanicAI = false;
         _castHold.Reset();
+    }
+
+    internal static WDir? SelectMisdirectionHeading(Map? map, WPos position, WPos waypoint, Angle arrow,
+        float toleranceDegrees = 45f, float clearanceSquared = 3f)
+    {
+        var displacement = waypoint - position;
+        var distanceSquared = displacement.LengthSq();
+        if (distanceSquared < 0.01f || !arrow.AlmostEqual(Angle.FromDirection(displacement), toleranceDegrees.Degrees().Rad))
+            return null;
+
+        var heading = arrow.ToDirection();
+        if (map == null)
+            return heading;
+
+        var start = map.WorldToGrid(position);
+        if (!map.InBounds(start.x, start.y))
+            return null;
+
+        var end = map.WorldToGrid(position + 100f * heading);
+        var startG = map.PixelMaxG[map.GridToIndex(start)];
+        foreach (var (x, y) in map.EnumeratePixelsInLine(start.x, start.y, end.x, end.y))
+        {
+            if (!map.InBounds(x, y) || map.PixelMaxG[map.GridToIndex(x, y)] < startG)
+            {
+                var firstBlocked = map.GridToWorld(x, y, 0.5f, 0.5f);
+                return (firstBlocked - position).LengthSq() >= Math.Min(clearanceSquared, distanceSquared) ? heading : null;
+            }
+        }
+        return heading;
     }
 
     public void SetFocusTarget(Actor? actor)
@@ -83,7 +115,9 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
 
         if (hints.ForcedMovement == null && desiredPosition != null)
         {
-            hints.ForcedMovement = desiredPosition.Value - player.PosRot.XYZ();
+            // Deliver the heading whose path we checked. Sending the waypoint's
+            // bearing instead can make the input hook veto a usable arrow.
+            hints.ForcedMovement = MisdirectionHeading?.ToVec3() ?? (desiredPosition.Value - player.PosRot.XYZ());
             if (followActive)
                 hints.ObserveController(ws, player, "bmr-follow", desiredPosition, hints.ForcedMovement,
                     true, "native-follow-destination", navigation);

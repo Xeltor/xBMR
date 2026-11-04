@@ -7,14 +7,15 @@ namespace BossMod.CombatAssistance.Integrations;
 // Movement is selected by the native planner. RSR still owns rotation selection,
 // action configuration and manually forced uses. One missing/changed action is
 // local: it cannot disable the remaining legal mobility options.
-internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<bool> allowed, Func<uint, object, bool> stationaryUse) : IDisposable
+internal sealed class RsrNativeMobilitySelection(RsrRuntimeAccess runtime, Func<bool> allowed,
+    Func<bool> forecastAvailable, Func<uint, object, bool> stationaryUse) : IDisposable
 {
     private readonly Dictionary<uint, RsrOriginalActionSelectionLease> _leases = [];
     private readonly HashSet<uint> _yielded = [];
     private object? _rotation;
     private object? _duty;
     private DateTime _validUntil;
-    private bool Fresh => DateTime.UtcNow < _validUntil && allowed();
+    private bool Fresh => DateTime.UtcNow < _validUntil && allowed() && forecastAvailable();
     internal ImmutableHashSet<uint> Owned => Fresh
         ? _leases.Where(pair => pair.Value.Owned).Select(pair => pair.Key).ToImmutableHashSet() : [];
     internal string Status { get; private set; } = "RSR retains mobility";

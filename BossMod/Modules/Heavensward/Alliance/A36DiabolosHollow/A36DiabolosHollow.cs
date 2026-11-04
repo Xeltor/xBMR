@@ -22,9 +22,15 @@ public class A36DiabolosHollow(WorldState ws, Actor primary) : BossModule(ws, pr
     protected override void CalculateModuleAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         PortalSafety.HoldAutomaticMovement(actor, hints, WorldState.CurrentTime);
+        var inPortal = PortalSafety.InPortal(actor);
         foreach (var enemy in hints.PotentialTargets)
-            if (enemy.Priority >= 0 && (enemy.Actor.OID == (uint)OID.Deathgate || enemy.Actor.OID == (uint)OID.NightHound))
+        {
+            // Targets from either floor may still be loaded during a transition.
+            if (PortalSafety.InPortal(enemy.Actor) != inPortal)
+                enemy.Priority = Math.Min(enemy.Priority, AIHints.Enemy.PriorityUndesirable);
+            else if (!inPortal && enemy.Priority >= 0 && enemy.Actor.OID is (uint)OID.Deathgate or (uint)OID.NightHound)
                 enemy.Priority = 2;
+        }
     }
 
     protected override void DrawEnemies(int pcSlot, Actor pc)

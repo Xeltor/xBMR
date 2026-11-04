@@ -414,7 +414,10 @@ public sealed class Plugin : IAsyncDalamudPlugin
         var aiDone = System.Diagnostics.Stopwatch.GetTimestamp();
         _rotation.MovementPlanning.Assistance?.UpdatePresentation();
         _broadcast.Update();
-        _amex.FinishActionGather();
+        var prioritizeInteraction = _hints.HasPriorityInteraction
+            && AutomationCanInteract && !_movementOverride.IsMoveRequested()
+            && _ws.CurrentTime >= _throttleInteract && CheckInteractRange(_ws.Party.Player(), _hints.InteractWithTarget);
+        _amex.FinishActionGather(prioritizeInteraction);
         var presentationDone = System.Diagnostics.Stopwatch.GetTimestamp();
 
         var uiHidden = Service.GameGui.GameUiHidden || Service.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Service.Condition[ConditionFlag.WatchingCutscene78] || Service.Condition[ConditionFlag.WatchingCutscene];
@@ -471,6 +474,8 @@ public sealed class Plugin : IAsyncDalamudPlugin
             || UIState.Instance()->IsUnlockLinkUnlockedOrQuestCompleted(link);
     }
 
+    private static bool AutomationCanInteract => AI.AIManager.Instance?.Beh != null || Autorotation.MiscAI.NormalMovement.Instance != null;
+
     private unsafe void ExecuteHints()
     {
         _movementOverride.DesiredDirection = _hints.EffectiveForcedMovement;
@@ -487,7 +492,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
             Service.Log($"[ExecHints] Canceling status {s.statusId} from {s.sourceId:X} -> {res}");
         }
 
-        if (AI.AIManager.Instance?.Beh != null || Autorotation.MiscAI.NormalMovement.Instance != null) // only jump or interact if AI is being used
+        if (AutomationCanInteract) // only jump or interact if AI is being used
         {
             if (_hints.WantJump && _ws.CurrentTime > _throttleJump)
             {
@@ -495,14 +500,17 @@ public sealed class Plugin : IAsyncDalamudPlugin
                 FFXIVClientStructs.FFXIV.Client.Game.ActionManager.Instance()->UseAction(FFXIVClientStructs.FFXIV.Client.Game.ActionType.GeneralAction, 2);
                 _throttleJump = _ws.FutureTime(0.1d);
             }
-            if (CheckInteractRange(_ws.Party.Player(), _hints.InteractWithTarget))
+            var target = _hints.InteractWithTarget;
+            var yieldToManualInput = _hints.HasPriorityInteraction
+                && (_movementOverride.IsMoveRequested() || _amex.HasPendingManualAction);
+            if (!yieldToManualInput && CheckInteractRange(_ws.Party.Player(), target))
             {
                 // many eventobj interactions "immediately" start some cast animation (delayed by server roundtrip), and if we keep trying to move toward the target after sending the interact request, it will be canceled and force us to start over
                 _movementOverride.DesiredDirection = default;
 
                 if (_amex.EffectiveAnimationLock == 0 && _ws.CurrentTime >= _throttleInteract)
                 {
-                    FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem.Instance()->InteractWithObject(GetActorObject(_hints.InteractWithTarget), false);
+                    FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem.Instance()->InteractWithObject(GetActorObject(target), false);
                     _throttleInteract = _ws.FutureTime(1.1d);
                 }
             }

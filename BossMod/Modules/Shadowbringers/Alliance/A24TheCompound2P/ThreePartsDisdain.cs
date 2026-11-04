@@ -1,119 +1,106 @@
-using BossMod.Global.DeepDungeon;
-
 namespace BossMod.Shadowbringers.Alliance.A24TheCompound2P;
 
 sealed class ThreePartsDisdainStack(BossModule module) : Components.GenericStackSpread(module)
 {
+    private Actor? _caster;
+    private ActorCastInfo? _cast;
+    private uint _nextAction;
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID == (uint)AID.ThreePartsDisdain1 && WorldState.Actors.Find(spell.TargetID) is Actor t)
-        {
-            Stacks.Add(new(t, 6f, 24, 24, Module.CastFinishAt(spell)));
-        }
+        if (spell.Action.ID != (uint)AID.ThreePartsDisdain1 || _cast == spell || WorldState.Actors.Find(spell.TargetID) is not { } target)
+            return;
+        Stacks.Clear();
+        Stacks.Add(new(target, 6f, 24, 24, Module.CastFinishAt(spell)));
+        _caster = caster;
+        _cast = spell;
+        _nextAction = spell.Action.ID;
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if (spell.Action.ID == (uint)AID.ThreePartsDisdain3)
+        var action = spell.Action.ID;
+        if (caster != _caster || Stacks.Count == 0 || action < _nextAction || action > (uint)AID.ThreePartsDisdain3)
+            return;
+        if (action == (uint)AID.ThreePartsDisdain3)
         {
-            Stacks.Clear();
+            Clear();
+            return;
         }
+        _nextAction = action + 1;
+        Stacks.Ref(0).Activation = WorldState.FutureTime(NextHitDelay(action));
+    }
+
+    // Retained 20891 -> 20892 and 20892 -> 20893 intervals in the recorded sequence.
+    public static double NextHitDelay(uint action) => action == (uint)AID.ThreePartsDisdain1 ? 1.09 : 1.38;
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (_cast == spell && !spell.EventHappened && _nextAction == (uint)AID.ThreePartsDisdain1)
+            Clear();
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        if (actor == _caster || Stacks.Count != 0 && Stacks[0].Target == actor)
+            Clear();
     }
 
     public override void Update()
     {
-        if (Stacks.Count != 0) // assume dead target means stack is cancelled
-        {
-            ref readonly var stack = ref Stacks.Ref(0);
-            if (stack.Target.IsDead)
-            {
-                Stacks.Clear();
-            }
-        }
+        if (Stacks.Count != 0 && (Stacks[0].Target.IsDeadOrDestroyed || _caster!.IsDeadOrDestroyed
+            || WorldState.CurrentTime > Stacks[0].Activation.AddSeconds(2)))
+            Clear();
     }
+
+    private void Clear()
+    {
+        Stacks.Clear();
+        _caster = null;
+        _cast = null;
+    }
+
+    public (Actor Caster, Stack Stack, int Stage)? Pending()
+        => _caster is { IsDeadOrDestroyed: false } caster && Stacks.Count != 0 && !Stacks[0].Target.IsDeadOrDestroyed
+            ? (caster, Stacks[0], (int)(_nextAction - (uint)AID.ThreePartsDisdain1)) : null;
 }
 
 sealed class ThreePartsDisdainKnockback(BossModule module) : Components.GenericKnockback(module)
 {
-    private Actor? target;
-    private readonly DateTime[] activation = new DateTime[3];
-    private readonly A24TheCompound2P bossmod = (A24TheCompound2P)module;
+    private static readonly float[] Distances = [8f, 8f, 12f];
 
     public override ReadOnlySpan<Knockback> ActiveKnockbacks(int slot, Actor actor)
     {
-        if (target == null)
-        {
+        if (Module.FindComponent<ThreePartsDisdainStack>()?.Pending() is not { } pending || !pending.Stack.IsInside(actor))
             return [];
-        }
-
-        if (actor.Position.InCircle(target.Position, 6f))
+        var (caster, stack, stage) = pending;
+        var direction = Angle.FromDirection(stack.Target.Position - caster.Position);
+        var knockbacks = new Knockback[Distances.Length - stage];
+        var activation = stack.Activation;
+        for (var i = stage; i < Distances.Length; ++i)
         {
-            var primaryPos = bossmod.BossP2!.Position;
-            var count = 3 - NumCasts;
-            var knockback = new Knockback[count];
-            for (var i = 0; i < count; ++i)
-            {
-                knockback[i] = new Knockback(primaryPos, i != count - 1 ? 8f : 12f, activation[i], direction: Angle.FromDirection(target.Position - primaryPos), kind: Kind.DirForward, ignoreImmunes: true);
-            }
-            return knockback;
+            knockbacks[i - stage] = new(caster.Position, Distances[i], activation, direction: direction,
+                kind: Kind.DirForward, actorID: caster.InstanceID, ignoreImmunes: true);
+            activation = activation.AddSeconds(ThreePartsDisdainStack.NextHitDelay((uint)AID.ThreePartsDisdain1 + (uint)i));
         }
-        return [];
-    }
-
-    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
-    {
-        if (spell.Action.ID == (uint)AID.ThreePartsDisdain1 && WorldState.Actors.Find(spell.TargetID) is Actor t)
-        {
-            target = t;
-            var act = Module.CastFinishAt(spell);
-            for (var i = 0; i < 3; ++i)
-            {
-                activation[i] = act.AddSeconds(i == 1 ? i * 1.2d : i == 2 ? 1.4d : default);
-            }
-        }
-    }
-
-    public override void OnEventCast(Actor caster, ActorCastEvent spell)
-    {
-        if (spell.Action.ID is (uint)AID.ThreePartsDisdain1 or (uint)AID.ThreePartsDisdain2 or (uint)AID.ThreePartsDisdain3)
-        {
-            if (++NumCasts == 3) // TODO: find out what happens if stack target dies after first hit...
-            {
-                target = null;
-                NumCasts = 0;
-            }
-        }
-    }
-
-    public override void Update()
-    {
-        if (target != null && target.IsDead) // assume dead target means stack is cancelled
-        {
-            target = null;
-            NumCasts = 0;
-        }
+        return knockbacks;
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        var knockback = ActiveKnockbacks(slot, actor);
-        if (knockback.Length != 0)
+        if (Module.FindComponent<ThreePartsDisdainStack>()?.Pending() is not { } pending)
+            return;
+        var (caster, stack, stage) = pending;
+        if (actor == stack.Target)
         {
-            ref readonly var kb = ref knockback[0];
-            var loc = kb.Origin;
-            var distTarget = 28f - NumCasts * 8f;
-            var destDir = kb.Direction.ToDirection();
-            var distStackers = NumCasts < 2 ? 8f : 12f;
-            var destPos = loc + distStackers * destDir;
-            var act = kb.Activation.AddSeconds(1d);
-            if (actor != target)
-            {
-                hints.AddForbiddenZone(new SDKnockbackFixedDirectionIntoCircle(distStackers * destDir, destPos, 6f), act); // we want to stay inside stack
-            }
-            else // if we are bait target we have more freedom
-            {
-                hints.AddForbiddenZone(new SDKnockbackInAABBSquareAwayFromOrigin(Arena.Center, loc, distTarget, 29f), act);
-            }
+            // Preserve the one-yalm arena inset for the carrier's whole sequence.
+            var remainingDistance = stage == 0 ? 28f : stage == 1 ? 20f : 12f;
+            hints.AddForbiddenZone(new SDKnockbackInAABBSquareAwayFromOrigin(Arena.Center, caster.Position, remainingDistance, 29f), stack.Activation);
+        }
+        else if (stack.IsInside(actor))
+        {
+            var direction = Angle.FromDirection(stack.Target.Position - caster.Position).ToDirection();
+            hints.AddForbiddenZone(new SDKnockbackInAABBSquareFixedDirection(Arena.Center, Distances[stage] * direction, 29f), stack.Activation);
         }
     }
 }

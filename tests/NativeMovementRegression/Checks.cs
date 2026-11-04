@@ -50,6 +50,7 @@ public static partial class Checks
         LegacyRetirement();
         Diagnostics();
         RsrEvidence();
+        PositionalMovementEligibility();
         RsrAssemblyLayout();
         SelectedPartySequence();
         ConfiguredHealingCoverage();
@@ -639,9 +640,11 @@ public static partial class Checks
             mobilityMechanics: [new(7, MobilityMechanic.Target, 20, 0, 0, 0, .1f, 0, [new(10, new(2.5f, 2.5f), 0)])]);
         var publications = new List<MovementPlan>();
         NativeMovementSearch.Run(mobilityContext, default, publications.Add);
-        Check(publications.Skip(1).Any(p => p.Status == MovementSearchStatus.Searching
-            && p.Stages.Any(s => s.ActionId == 7)),
-            "A complete useful dash is published from the initial opportunity pass while its other alternatives are still being searched.");
+        var firstDash = publications.FindIndex(p => p.HasVerifiedRoute && p.Stages.Any(s => s.ActionId == 7));
+        Check(firstDash >= 0 && publications[firstDash].Status == MovementSearchStatus.Searching
+            && publications.Take(firstDash).All(p => p.Status != MovementSearchStatus.Bounded)
+            && MovementPlanValidation.Validate(publications[firstDash], mobilityContext, 0, true, mobilityContext.Identity.CapturedTimestamp).Allowed,
+            "A direct dash is evaluated in the first opportunity search before the separate walking corridor pass.");
 
         var urgent = input with { Warnings = [(new SDCircle(identity.Origin, 1.1f), identity.WorldTime.AddSeconds(1.8), 1)],
             Goals = new([point => point.X > 1 ? 10 : 0]) };

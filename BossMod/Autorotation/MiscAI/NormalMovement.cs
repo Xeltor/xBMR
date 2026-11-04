@@ -182,6 +182,7 @@ public sealed class NormalMovement : RotationModule
         }
 
         var allowSpecialModes = strategy.Option(Track.SpecialModes).As<SpecialModesStrategy>() == SpecialModesStrategy.Automatic;
+        var misdirectionActive = allowSpecialModes && Hints.IsMisdirectionActive(World.CurrentTime);
         if (allowSpecialModes)
         {
             if (Player.PendingKnockbacks.Count > 0)
@@ -258,7 +259,7 @@ public sealed class NormalMovement : RotationModule
             ? new(rangeReference.InstanceID, rangeReference.Position, Player.HitboxRadius + rangeReference.HitboxRadius
                 + (Player.Role is Role.Tank or Role.Melee ? MeleeRange : CasterRange) - GreedTolerance) : null;
         var movementIntent = new CombatAssistance.Planning.MovementIntent(movementDelay, dodgeDelay, separateDodgeDelay,
-            castStrategy is CastStrategy.DropMove or CastStrategy.DropInstants, rangeIntent);
+            castStrategy is CastStrategy.DropMove or CastStrategy.DropInstants, rangeIntent, HandleMisdirection: allowSpecialModes);
         NavigationDecision navi = default;
         var resetStats = true;
         switch (destinationStrategy)
@@ -404,41 +405,12 @@ public sealed class NormalMovement : RotationModule
         }
 
         // we want to move somewhere, check whether we're allowed to
-        var misdirectionActive = allowSpecialModes && Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && Hints.ImminentSpecialMode.activation <= World.CurrentTime;
         if (misdirectionActive)
         {
-            // special case for misdirection
-            // assume it's always fine to drop casts during misdirection (add new option to the specialmode track if it's ever not the case, i guess...)
-            // we have only two options really - either move to the current forced direction, or wait (and this direction will change) - so see whether moving now brings us closer to the destination
-            // if our destination is not the last one (turn != 0), we can only move if it will move us *further* from second-next point - otherwise we're moving towards the wall
-            // the tolerance angle can be inferred from following consideration: in the worst case our movement should keep us at the same distance to destination (or it can move us closer)
-            // so let's consider isosceles triangle with legs equal to distance to target, and base equal to distance we move over a period of time - the base angle is then our threshold
-            // this means that cos(threshold) = speed * dt / 2 / distance
-            // assuming we wanna move at least for a second, speed is standard 6, threshold of 60 degrees would be fine for distances >= 6
-            // for micro adjusts, if we move for 1 frame (1/60s), threshold of 60 degrees would be fine for distance 0.1, which is our typical threshold
-            var threshold = 30f.Degrees();
-            var allowMovement = World.Client.ForcedMovementDirection.AlmostEqual(Angle.FromDirection(dir), threshold.Rad);
-            if (allowMovement && destinationStrategy == DestinationStrategy.Pathfind)
-            {
-                // if we have a map, we can try to see if current direction has long enough unobstructed path
-                // TODO: maybe just check a single closest grid cell that we would intersect if we go forward?..
-                allowMovement = CalculateUnobstructedPathLength(World.Client.ForcedMovementDirection) >= Math.Min(4, distSq);
-            }
-            Hints.ForcedMovement = allowMovement ? World.Client.ForcedMovementDirection.ToDirection().ToVec3() : default;
-
-            //var halfThreshold = Hints.MisdirectionThreshold; // even much smaller threshold seems to work fine in practice (TODO: reconsider...)
-            //var idealDir = Angle.FromDirection(dir);
-            //if (destinationStrategy == DestinationStrategy.Pathfind)
-            //{
-            //    var lenL = CalculateUnobstructedPathLength(idealDir + halfThreshold);
-            //    var lenR = CalculateUnobstructedPathLength(idealDir - halfThreshold);
-            //    if (lenL < 4)
-            //        idealDir -= halfThreshold;
-            //    if (lenR < 4)
-            //        idealDir += halfThreshold;
-            //}
-            //var withinThreshold = World.Client.ForcedMovementDirection.AlmostEqual(idealDir, halfThreshold.Rad);
-            //Hints.ForcedMovement = withinThreshold ? World.Client.ForcedMovementDirection.ToDirection().ToVec3(Player.PosRot.Y) : default;
+            // Start or continue only along an arrow that makes safe progress.
+            var map = destinationStrategy == DestinationStrategy.Pathfind ? _navCtx.Map : null;
+            Hints.ForcedMovement = AI.AIController.SelectMisdirectionHeading(map, Player.Position, navi.Destination.Value,
+                World.Client.ForcedMovementDirection, toleranceDegrees: 30f, clearanceSquared: 4f)?.ToVec3();
         }
         else
         {
@@ -460,40 +432,23 @@ public sealed class NormalMovement : RotationModule
         };
         Hints.MaxCastTime = Math.Max(0, Math.Min(Hints.MaxCastTime, maxCastTime));
         Hints.ForceCancelCastOther |= castStrategy == CastStrategy.DropMove;
-        var leewayCastDeparture = false;
-        if (castStrategy is CastStrategy.Leeway && castInProgress)
-        {
-            var effectiveCastRemaining = Math.Max(0f, castRemaining - 0.5f);
-            if (Hints.MaxCastTime < effectiveCastRemaining)
-            {
-                Hints.ForceCancelCastOther = true;
-                // no leeway, cast might have been initiated by user, keep moving
-                Hints.ForcedMovement = dir.ToVec3();
-                leewayCastDeparture = true;
-            }
-        }
+        var leewayCastDeparture = castStrategy is CastStrategy.Leeway && castInProgress
+            && ApplyCastLeeway(Hints, dir, misdirectionActive, castRemaining);
         Observe(leewayCastDeparture ? "native-leeway-cast-departure"
             : misdirectionActive ? "native-misdirection-decision"
             : castInProgress && castStrategy is not (CastStrategy.DropMove or CastStrategy.DropInstants) ? "native-cast-decision" : "native-destination-decision",
             navi.Destination, wroteMovement: true, fromSearch: destinationStrategy == DestinationStrategy.Pathfind);
     }
 
-    private float CalculateUnobstructedPathLength(Angle dir)
+    internal static bool ApplyCastLeeway(AIHints hints, WDir direction, bool misdirectionActive, float castRemaining)
     {
-        var start = _navCtx.Map.WorldToGrid(Player.Position);
-        if (!_navCtx.Map.InBounds(start.x, start.y))
-            return 0;
+        if (hints.MaxCastTime >= Math.Max(0f, castRemaining - 0.5f))
+            return false;
 
-        var end = _navCtx.Map.WorldToGrid(Player.Position + 100f * dir.ToDirection());
-        var startG = _navCtx.Map.PixelMaxG[_navCtx.Map.GridToIndex(start.x, start.y)];
-        foreach (var p in _navCtx.Map.EnumeratePixelsInLine(start.x, start.y, end.x, end.y))
-        {
-            if (!_navCtx.Map.InBounds(p.x, p.y) || _navCtx.Map.PixelMaxG[_navCtx.Map.GridToIndex(p.x, p.y)] < startG)
-            {
-                var dest = _navCtx.Map.GridToWorld(p.x, p.y, 0.5f, 0.5f);
-                return (dest - Player.Position).LengthSq();
-            }
-        }
-        return float.MaxValue;
+        hints.ForceCancelCastOther = true;
+        // Casting leeway cannot turn an unsafe arrow into a valid movement input.
+        if (!misdirectionActive)
+            hints.ForcedMovement = direction.ToVec3();
+        return hints.ForcedMovement != null;
     }
 }

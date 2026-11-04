@@ -68,12 +68,17 @@ static partial class Checks
         component.OnActorDestroyed(deathgate);
         Check(Guidance().Count == 0, "replacement by an unrelated object clears old gate semantics");
 
-        CreateGate(92, 6411);
+        var portalGate = CreateGate(92, 6411);
         player.PosRot = new(350, -300, -445, 0);
         Check(Guidance().Count == 0, "main-floor gate instructions do not reach portal participants");
         Check(module.CalculateGlobalHints(player).SequenceEqual(["Portal arena: move manually; automatic movement is paused."]),
             "last PortalSafety component keeps its manual instruction through overlapping gate guidance");
+        world.Execute(new ActorState.OpCastInfo(portalGate.InstanceID, flow));
+        var portalHints = module.CalculateGlobalHints(player);
+        Check(portalHints.Count == 2 && portalHints[1].Contains("Deep Flow"),
+            "an observed Deep Flow countdown survives the portal movement hold");
         world.Execute(new ActorState.OpDestroy(92));
+        Check(module.CalculateGlobalHints(player).Count == 1, "gate disappearance clears the portal countdown");
         using var fresh = Hollow(World());
         var reset = Component<BossComponent>(fresh, "GateGuidance");
         BossComponent.GlobalHints clean = [];

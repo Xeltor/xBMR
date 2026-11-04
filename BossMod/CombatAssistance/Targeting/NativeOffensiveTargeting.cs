@@ -362,9 +362,8 @@ internal sealed partial class NativeOffensiveTargeting : IDisposable
             var preferred = frame.Acquisition;
             // Henched RSR cannot select an action on a preferred enemy until we
             // establish its hard target. Respect native/manual acquisition gates.
-            if (frame.Actors.Any(a => a.Actor.Id == preferred && a.RsrPreferred)
-                && frame.PriorityAcquisition(preferred) != 0 && _manager.Hints.ForcedTarget == null)
-                return PublishTarget(frame, preferred, 0, "Honor RSR's specific target preference within native permissions; awaiting original RSR action selection");
+            if (frame.PriorityAcquisition(preferred) != 0 && _manager.Hints.ForcedTarget == null)
+                return PublishTarget(frame, preferred, 0, "Honor native combat priority within target permissions; awaiting original RSR action selection");
             var currentExcluded = frame.Actors.Any(a => a.Actor.Id == frame.Current && a.Priority == AIHints.Enemy.PriorityForbidden);
             var acquisition = frame.MissingTargetAcquisition(!currentExcluded
                 && current is { IsTargetable: true, IsDead: false, IsDestroyed: false });

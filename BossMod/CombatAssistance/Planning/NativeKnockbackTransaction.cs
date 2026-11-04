@@ -18,6 +18,7 @@ internal sealed class NativeKnockbackTransaction
     private KnockbackTransactionFrame? _frame;
     private DateTime _lastAt;
     internal bool Active => _frame != null;
+    internal bool Preparing => _frame is { Preparing: true, Failure: null };
     internal NativeKnockbackPhase? Phase => _frame?.Phase;
     internal float CastWindow(DateTime now) => _frame?.Failure != null ? 0 : _frame?.Phase.Timing is not { } timing || now >= timing.LandingLatestUtc
         ? float.MaxValue : Math.Max(0, (float)(Earliest(_frame.Phase) - now).TotalSeconds);

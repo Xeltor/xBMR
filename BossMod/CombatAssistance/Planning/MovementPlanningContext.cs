@@ -115,6 +115,7 @@ internal sealed class MovementPlanningContext
     internal PlanningMechanicClearance? MechanicClearance { get; }
     internal ImmutableArray<PlanningEnemyFootprint> EnemyFootprints { get; }
     internal PlanningArenaInterior? ArenaInterior { get; }
+    internal bool RetainsAttackRange(WPos point) => Range is { RecoverExecution: true } range && range.Loss(point) == 0;
     internal bool HasEndpointPreferences => !EnemyFootprints.IsEmpty || ArenaInterior != null;
     internal bool PreferredArenaEndpoint(WPos point) => ArenaInterior == null || Cell(point) is var cell && cell >= 0 && ArenaInterior.Cells[cell];
     internal bool PreferredEnemyEndpoint(WPos point) => EnemyFootprints.All(e => !point.InCircle(e.Center, e.Radius))

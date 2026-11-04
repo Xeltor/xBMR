@@ -6,7 +6,7 @@ class FeintParticleBeam(BossModule module) : Components.GenericAOEs(module)
     private WPos _position;
     private DateTime _activation;
     private int _remaining;
-    private bool _initialHit;
+    private bool _initialHit, _castStarted;
     private static readonly AOEShapeCircle Initial = new(8), Followup = new(3);
     public bool IsChased(Actor actor) => _target == actor && _activation != default;
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
@@ -18,12 +18,14 @@ class FeintParticleBeam(BossModule module) : Components.GenericAOEs(module)
             _activation = WorldState.FutureTime(3.5);
             _remaining = 10;
             _initialHit = false;
+            _castStarted = false;
         }
     }
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.FeintParticleBeam1)
         {
+            _castStarted = true;
             _position = spell.LocXZ;
             _activation = Module.CastFinishAt(spell);
             _initialHit = false;
@@ -67,7 +69,7 @@ class FeintParticleBeam(BossModule module) : Components.GenericAOEs(module)
     {
         if (_activation == default || _initialHit && _target == null)
             return [];
-        var position = _position;
+        var position = !_castStarted && !_initialHit && _target != null ? _target.Position : _position;
         if (_initialHit && _target != null)
         {
             var delta = _target.Position - position;

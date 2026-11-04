@@ -66,6 +66,12 @@ class Roulette(BossModule module) : Components.GenericAOEs(module, warningText: 
     }
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
-        => _selected is { IsDestroyed: false } selected && _activation != default && Direction(selected.OID) is { } direction
-            ? new AOEInstance[] { new(Quarter, selected.Position, direction, _activation, actorID: selected.InstanceID) } : [];
+    {
+        if (_selected is not { IsDestroyed: false } selected || Direction(selected.OID) is not { } direction)
+            return [];
+        var locked = _activation != default;
+        // The rotating light is only a preview. Route around the quadrant once it stops.
+        return new AOEInstance[] { new(Quarter, selected.Position, direction, _activation,
+            color: locked ? Colors.Danger : Colors.AOE, risky: locked, actorID: selected.InstanceID) };
+    }
 }

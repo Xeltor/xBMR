@@ -52,7 +52,7 @@ public sealed class ActionQueue
     public void Clear() => Entries.Clear();
     public void Push(in ActionID action, Actor? target, float priority, float expire = float.MaxValue, float delay = default, float castTime = default, Vector3 targetPos = default, Angle? facingAngle = null, bool manual = false, bool forced = false) => Entries.Add(new(action, target, priority, expire, delay, castTime, targetPos, facingAngle, manual, forced));
 
-    public Entry FindBest(WorldState ws, Actor player, ReadOnlySpan<Cooldown> cooldowns, float animationLock, AIHints hints, float instantAnimLockDelay, bool allowDismount)
+    public Entry FindBest(WorldState ws, Actor player, ReadOnlySpan<Cooldown> cooldowns, float animationLock, AIHints hints, float instantAnimLockDelay, bool allowDismount, bool manualOnly = false)
     {
         Entries.Sort(static (b, a) => (a.Priority, -a.Expire).CompareTo((b.Priority, -b.Expire)));
         Entry best = default;
@@ -65,6 +65,11 @@ public sealed class ActionQueue
             if (candidate.Priority < Priority.Minimal)
             {
                 break; // this and further actions are something we don't really want to execute (prio < minimal)
+            }
+
+            if (manualOnly && !candidate.Manual)
+            {
+                continue;
             }
 
             var def = ActionDefinitions.Instance[candidate.Action];

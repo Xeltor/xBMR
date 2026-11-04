@@ -23,6 +23,7 @@ class PortalSafety(BossModule module) : BossComponent(module)
         {
             hints.Clear();
             hints.Add(Instruction);
+            Module.FindComponent<GateGuidance>()?.AddGlobalHints(actor, hints);
         }
     }
 

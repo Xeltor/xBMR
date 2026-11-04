@@ -96,6 +96,10 @@ static partial class Regression
             refine.TotalTime = 1.7f;
             component.OnCastStarted(helper, refine);
             Check(component.ActiveKnockbacks(0, player)[0].Activation == module.CastFinishAt(refine), "helper cue refines the impending snapshot");
+            cast.EventHappened = false;
+            component.OnCastFinished(boss, cast);
+            component.OnEventCast(Actor(201, 0x233C, boss.Position), Effect(50347));
+            Check(component.ActiveKnockbacks(0, player).Length == 1, "confirmed helper survives an obsolete visual callback or unrelated helper effect");
             component.OnEventCast(helper, Effect(50347));
             Check(component.ActiveKnockbacks(0, player).Length == 0 && component.NumCasts == 1, "resolved push clears its forecast once");
             component.OnCastStarted(boss, Cast(50694, boss.Position));

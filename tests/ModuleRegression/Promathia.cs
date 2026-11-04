@@ -48,9 +48,25 @@ static partial class Regression
         genesis.AddAIHints(0, player, default, hints);
         Check(hints.ForbiddenZones.Count == 0 && module.Arena.Bounds is ArenaBoundsCircle,
             "cancelled False Genesis removes preparation without destroying the floor");
-        genesis.OnCastStarted(boss, Cast(50343, boss.Position));
+        var resolved = Cast(50343, boss.Position);
+        genesis.OnCastStarted(boss, resolved);
         changes.OnEventCast(boss, Effect(50343));
-        Check(!module.Arena.InBounds(new(-820, -820)), "successful False Genesis changes to disconnected platforms");
+        resolved.EventHappened = true;
+        genesis.OnCastFinished(boss, resolved);
+        hints = new();
+        genesis.AddAIHints(0, player, default, hints);
+        Check(module.Arena.Bounds is ArenaBoundsCircle && hints.ForbiddenZones.Count == 1,
+            "successful visual keeps the crossing floor and arrival guidance until the helper hit");
+        var helper = Actor(101, 0x233C, module.Center);
+        changes.OnEventCast(helper, Effect(50344));
+        genesis.OnEventCast(helper, Effect(50344));
+        Check(!module.Arena.InBounds(new(-820, -820)), "helper hit changes to disconnected platforms");
+        hints = new();
+        genesis.AddAIHints(0, player, default, hints);
+        Check(hints.ForbiddenZones.Count == 0, "island navigation replaces the pre-hit arrival restriction");
+        var islands = module.Arena.Bounds;
+        changes.OnMapEffect(0x0C, 0x00020001);
+        Check(ReferenceEquals(islands, module.Arena.Bounds), "island map confirmation is idempotent");
         foreach (var (center, _) in PromathiaPlatforms)
             Check(module.Arena.InBounds(center), "each platform remains inside the transformed arena");
         changes.OnMapEffect(0x0C, 0x00080004);
@@ -59,13 +75,15 @@ static partial class Regression
         genesis.AddAIHints(0, player, default, hints);
         Check(module.Arena.Bounds is ArenaBoundsCircle && module.Arena.InBounds(new(-820, -820))
             && hints.ForbiddenZones.Count == 0, "arena restoration also clears pending preparation");
+        changes.OnMapEffect(0x0C, 0x00020001);
+        Check(!module.Arena.InBounds(new(-820, -820)), "map activation recovers the floor state when the helper hit was missed");
     }
 
     private static void PromathiaKnockback()
     {
         var module = Module(PromathiaPrefix + "A34Promathia", new(-820, -820));
         var changes = Component<BossComponent>(module, PromathiaPrefix + "ArenaChanges");
-        changes.OnEventCast(Actor(100, 0x4DEE, new(-820, -844.5f)), Effect(50343));
+        changes.OnMapEffect(0x0C, 0x00020001);
         var seed = Component<SimpleKnockbacks>(module, PromathiaPrefix + "EmptySeed");
         var player = Actor(1, 0, PromathiaPlatforms[0].Center, true);
         module.WorldState.Party.Members[0] = new(0, player.InstanceID, false);

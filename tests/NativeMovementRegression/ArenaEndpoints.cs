@@ -26,8 +26,8 @@ public static partial class Checks
         Check(reference.UsefulDestination == plan.UsefulDestination,
             "First-pass stopping and pruning agree with the reference interior endpoint.");
         var edgeWalk = NativeMovementIncumbent.CaptureRoute(input, [input.Origin, Point(map, 56)])!;
-        Check(NativeMovementHost.MobilityImprovesWalking(edgeWalk, 0, plan, input, input.Identity.CapturedTimestamp)
-            && !NativeMovementHost.MobilityImprovesWalking(plan, 0, edgeWalk, input, input.Identity.CapturedTimestamp),
+        Check(NativeMovementHost.ImprovesCommittedWalk(edgeWalk, 0, plan, input, input.Identity.CapturedTimestamp)
+            && !NativeMovementHost.ImprovesCommittedWalk(plan, 0, edgeWalk, input, input.Identity.CapturedTimestamp),
             "A freshly proved interior destination can replace an edge-directed walk, without reverting to its edge endpoint.");
         var centered = Input(origin: 60);
         var held = JointMovementSearch.Search(centered, Exhaustive);
@@ -54,6 +54,37 @@ public static partial class Checks
         var healing = Input(healing: new([new(20, baseline.Origin, 0, .2f, [new(100, .4f)])]));
         Check(JointMovementSearch.Search(healing, Exhaustive).UsefulDestination == baseline.Origin,
             "Interior comfort cannot drop an independently required healing recipient.");
+
+        var edgeTarget = Point(map, 55);
+        var approachOrigin = Point(map, 60);
+        MovementPlanningContext EdgeFight()
+            => new(baseline.Identity with { Origin = approachOrigin, CapturedTimestamp = Stopwatch.GetTimestamp() },
+                map, 0, 0, Enumerable.Repeat(true, 121).ToArray(), new float[121], [], [],
+                range: new(10, edgeTarget, .4f, RecoverExecution: true), arenaInterior: interior);
+        var fight = EdgeFight();
+        var engage = JointMovementSearch.Search(fight, Exhaustive, stopAtCurrentOpportunity: true);
+        Check(engage.HasVerifiedRoute && fight.Range!.Loss(engage.UsefulDestination) == 0
+            && !fight.PreferredArenaEndpoint(engage.UsefulDestination),
+            "Close to a safely reachable target when every in-range endpoint is near the arena edge.");
+        var approach = NativeWalkingApproach.Search(fight);
+        Check(approach is { HasVerifiedRoute: true } && fight.Range!.Loss(approach.UsefulDestination) == 0,
+            "Publish the verified edge approach without waiting for the full combat search.");
+        var interiorWalk = NativeMovementIncumbent.CaptureRoute(fight, [approachOrigin, Point(map, 59)])!;
+        Check(NativeMovementHost.ImprovesCommittedWalk(interiorWalk, 0, engage, fight, fight.Identity.CapturedTimestamp)
+            && !NativeMovementHost.ImprovesCommittedWalk(engage, 0, interiorWalk, fight, fight.Identity.CapturedTimestamp),
+            "A verified route into range can replace an interior-only walk and cannot be displaced by it.");
+        map.PixelPriority[60] = 1;
+        var assignedFight = EdgeFight();
+        Check(JointMovementSearch.Search(assignedFight, Exhaustive).UsefulDestination == approachOrigin,
+            "Restoring attack range cannot override native assignment priority.");
+        map.PixelPriority[60] = 0;
+        map.PixelMaxG[55] = -1;
+        var blockedFight = EdgeFight();
+        Check(blockedFight.Range!.Loss(JointMovementSearch.Search(blockedFight, Exhaustive).UsefulDestination) > 0
+            && !MovementPlanValidation.Validate(engage, blockedFight, 0, true, blockedFight.Identity.CapturedTimestamp).Allowed,
+            "The planner still keeps its distance if the only in-range cell is unsafe.");
+        map.PixelMaxG[55] = float.MaxValue;
+
         map.PixelPriority[55] = 1;
         var priority = Input();
         Check(JointMovementSearch.Search(priority, Exhaustive).UsefulDestination == priority.Origin,

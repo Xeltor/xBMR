@@ -19,22 +19,152 @@ public enum AID : uint
     CoilingIvy = 8901 // Boss->self, 3.0s cast, single-target
 }
 
-sealed class FeedingTime(BossModule module) : Components.InterceptTether(module, (uint)AID.FeedingTime)
+sealed class FeedingTime(BossModule module) : Components.CastHint(module, (uint)AID.Fodder, "Sapling tethers incoming")
 {
-    private DateTime _activation;
+    private const uint FeedingTether = 84;
+    private const uint AlternateFeedingTether = 17;
+    private const double FeedingDelay = 10.9;
+    private const float LaneHalfWidth = 0.5f;
+
+    private readonly Dictionary<Actor, (DateTime Activation, ulong Target)> _saplings = [];
+
     public override void OnActorCreated(Actor actor)
     {
         if (actor.OID == (uint)OID.PaintedSapling)
-            _activation = WorldState.FutureTime(10.9d);
+            _saplings.TryAdd(actor, (WorldState.FutureTime(FeedingDelay), 0));
+    }
+
+    public override void OnActorDestroyed(Actor actor) => _saplings.Remove(actor);
+
+    public override void OnTethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (tether.ID is FeedingTether or AlternateFeedingTether && _saplings.TryGetValue(source, out var lane))
+            _saplings[source] = (lane.Activation, tether.Target);
+    }
+
+    public override void OnUntethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (_saplings.TryGetValue(source, out var lane) && lane.Target == tether.Target)
+            _saplings[source] = (lane.Activation, 0);
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID == (uint)AID.FeedingTime)
+            _saplings.Remove(caster);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (AssignedLane(actor) is { } lane)
+            hints.Add("Intercept the sapling tether!", lane.Shape.Contains(actor.Position));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (Active)
+        if (actor.FindStatus(CoilingIvy.Fetters) == null && AssignedLane(actor) is { } lane)
+            hints.AddForbiddenZone(lane.Shape, lane.Activation, source: lane.Source.InstanceID);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        var assigned = AssignedLane(pc)?.Source;
+        foreach (var (source, (_, targetID)) in _saplings)
+            if (targetID != 0 && WorldState.Actors.Find(targetID) is { } target)
+                Arena.AddLine(source.Position, target.Position, source == assigned ? Colors.Safe : default);
+    }
+
+    private (Actor Source, SDInvertedRect Shape, DateTime Activation)? AssignedLane(Actor actor)
+    {
+        if (_saplings.Count == 0 || actor.IsDead || actor.Type != ActorType.Player)
+            return null;
+
+        var boss = Module.PrimaryActor;
+        var freeLanes = new List<(Actor Source, SDInvertedRect Shape, DateTime Activation)>();
+        foreach (var (source, (activation, target)) in _saplings)
         {
-            var source = Module.Enemies((uint)OID.PaintedSapling)[slot];
-            var target = Module.PrimaryActor;
-            hints.AddForbiddenZone(new SDInvertedRect(target.Position + (target.HitboxRadius + 0.1f) * target.DirectionTo(source), source.Position, 0.5f), _activation);
+            if (source.IsDead || (target != boss.InstanceID && target != actor.InstanceID))
+                continue;
+
+            var offset = source.Position - boss.Position;
+            var distance = offset.Length();
+            var innerRadius = boss.HitboxRadius + 0.1f;
+            if (distance <= innerRadius)
+                continue;
+
+            var from = boss.Position + (innerRadius / distance) * offset;
+            var lane = (source, new SDInvertedRect(from, source.Position, LaneHalfWidth), activation);
+            if (target == actor.InstanceID)
+                return lane;
+            freeLanes.Add(lane);
+        }
+
+        if (freeLanes.Count == 0)
+            return null;
+
+        // Actual tether recipients reserve their lanes, including Trust companions.
+        // Assign the remaining lanes in party order without waiting for companions to move.
+        foreach (var member in Raid.WithoutSlot(excludeAlliance: true, excludeNPCs: true))
+        {
+            if (member.Type != ActorType.Player || _saplings.Values.Any(lane => lane.Target == member.InstanceID))
+                continue;
+
+            var nearest = freeLanes.MinBy(lane => (-lane.Shape.Distance(member.Position), lane.Source.InstanceID));
+            if (member == actor)
+                return nearest;
+
+            freeLanes.Remove(nearest);
+            if (freeLanes.Count == 0)
+                break;
+        }
+
+        return null;
+    }
+}
+
+sealed class CoilingIvy(BossModule module) : Components.CastHint(module, (uint)AID.CoilingIvy, "Roots incoming")
+{
+    public const uint Fetters = 1153;
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (actor.FindStatus(Fetters) != null)
+            hints.Add("Destroy your Painted Root to break free!");
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        var fettered = actor.FindStatus(Fetters) != null;
+        if (fettered)
+        {
+            // This status blocks movement but still allows attacks on the root.
+            hints.AddSpecialMode(AIHints.SpecialMode.NoMovement, WorldState.CurrentTime);
+            if (hints.ImminentSpecialMode.mode == AIHints.SpecialMode.NoMovement)
+                hints.NoMovementAllowsManualInput = true;
+            hints.ForbidDashes = true;
+        }
+
+        AIHints.Enemy? ownRoot = null;
+        var nearestDistanceSq = 1f; // the root spawns at the bound player's feet
+        foreach (var enemy in hints.PotentialTargets)
+        {
+            var root = enemy.Actor;
+            if (root.OID != (uint)OID.PaintedRoot || !root.IsTargetable || root.IsDeadOrDestroyed || root.PendingDead)
+                continue;
+
+            enemy.Priority = 1;
+            var distanceSq = (root.Position - actor.Position).LengthSq();
+            if (fettered && distanceSq < nearestDistanceSq)
+            {
+                ownRoot = enemy;
+                nearestDistanceSq = distanceSq;
+            }
+        }
+
+        if (ownRoot != null)
+        {
+            ownRoot.Priority = 2;
+            ownRoot.ShouldBeTargeted = true;
         }
     }
 }
@@ -70,6 +200,7 @@ sealed class D022GriauleStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<FeedingTime>()
             .ActivateOnEnter<Tiiimbeeer>()
+            .ActivateOnEnter<CoilingIvy>()
             .ActivateOnEnter<Swinge>();
     }
 }
@@ -91,19 +222,5 @@ public sealed class D022Griaule : BossModule
     {
         Arena.Actor(PrimaryActor);
         Arena.Actors(Enemies((uint)OID.PaintedRoot));
-    }
-
-    protected override void CalculateModuleAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
-    {
-        var count = hints.PotentialTargets.Count;
-        for (var i = 0; i < count; ++i)
-        {
-            var e = hints.PotentialTargets[i];
-            e.Priority = e.Actor.OID switch
-            {
-                (uint)OID.PaintedRoot => 1,
-                _ => 0
-            };
-        }
     }
 }

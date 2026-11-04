@@ -29,107 +29,111 @@ sealed class RelentlessSpiralTransfer(BossModule module) : Components.GenericAOE
     }
 }
 
-sealed class PrimeBladeTransfer(BossModule module) : Components.GenericAOEs(module)
+sealed class PrimeBladeTransfer(BossModule module) : Components.GenericAOEs(module, warningText: "Dodge the transferred Prime Blade!")
 {
-    private readonly List<AOEInstance> _aoes = [with(4)];
-    private static readonly AOEShapeCircle circle = new(20f);
+    private sealed class TransferCast(ActorCastInfo spell, AOEShape shape, WPos origin, DateTime activation)
+    {
+        public readonly ActorCastInfo Spell = spell;
+        public readonly AOEShape Shape = shape;
+        public readonly WPos Origin = origin;
+        public readonly DateTime Activation = activation;
+        public WPos? Destination;
+        public Angle? ArrivalFacing;
+    }
+
+    private readonly Dictionary<Actor, Actor> _links = [];
+    private readonly Dictionary<Actor, TransferCast> _casts = [];
+    private static readonly AOEShapeCircle Circle = new(20f);
     public static readonly AOEShapeDonut Donut = new(8f, 43f);
     public static readonly AOEShapeRect Rect = new(85f, 10f);
-    private readonly List<(WPos source, Actor target)> _tethers = [with(4)]; // tether target can teleport after tether got applied (in the same frame), leading to incorrect locations if used directly in OnTethered
-    private readonly List<(AOEShape shape, WPos origin, DateTime activation)> _casters = [with(4)];
-    private readonly A24TheCompound2P bossmod = (A24TheCompound2P)module;
 
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+    private static AOEShape? Shape(uint action) => action switch
+    {
+        (uint)AID.PrimeBladeCircle2 => Circle,
+        (uint)AID.PrimeBladeDonut2 => Donut,
+        (uint)AID.PrimeBladeRect2 => Rect,
+        _ => null
+    };
 
     public override void OnTethered(Actor source, in ActorTetherInfo tether)
     {
-        if (tether.ID == (uint)TetherID.Transfer1 && WorldState.Actors.Find(tether.Target) is Actor t)
-        {
-            _tethers.Add((source.Position, t));
-        }
+        if (tether.ID == (uint)TetherID.Transfer1 && WorldState.Actors.Find(tether.Target) is { } target)
+            _links[source] = target;
+    }
+
+    public override void OnUntethered(Actor source, in ActorTetherInfo tether)
+    {
+        if (tether.ID == (uint)TetherID.Transfer1 && _links.GetValueOrDefault(source)?.InstanceID == tether.Target)
+            _links.Remove(source);
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        AOEShape? shape = spell.Action.ID switch
-        {
-            (uint)AID.PrimeBladeCircle2 => circle,
-            (uint)AID.PrimeBladeDonut2 => Donut,
-            (uint)AID.PrimeBladeRect2 => Rect, // TODO: rectangle teleport changes rotation of spell, need more long replays to find out how it works
-            _ => null
-        };
-        if (shape != null)
-        {
-            var posXZ = caster.Position;
-            _casters.Add((shape, new((int)posXZ.X, (int)posXZ.Z), Module.CastFinishAt(spell)));
-        }
+        if (Shape(spell.Action.ID) is { } shape && _casts.GetValueOrDefault(caster)?.Spell != spell)
+            _casts[caster] = new(spell, shape, caster.Position, Module.CastFinishAt(spell));
     }
 
     public override void Update()
     {
-        var count = _casters.Count - 1;
-        for (var i = count; i >= 0; --i)
+        foreach (var (caster, cast) in _casts.ToArray())
         {
-            var c = _casters[i];
-            var countT = _tethers.Count - 1;
-            for (var j = countT; j >= 0; --j)
+            if (caster.IsDeadOrDestroyed || WorldState.CurrentTime > cast.Activation.AddSeconds(1))
             {
-                var t = _tethers[j];
-                if (c.origin == t.target.Position)
-                {
-                    if (c.shape != Rect)
-                    {
-                        AddAOE(c.shape, t.source, default, c.activation);
-                        RemoveCasterAndTether(i, j);
-                    }
-                    else
-                    {
-                        // until we know how the teleporting rect works we just wait with drawing it until the caster teleported
-                        if (t.source.AlmostEqual(bossmod.BossP2!.Position, 1f))
-                        {
-                            AddAOE(Rect, t.source, bossmod.BossP2.Rotation, c.activation);
-                            RemoveCasterAndTether(i, j);
-                            break;
-                        }
-                        var puppets = Module.Enemies((uint)OID.Puppet2P);
-                        var countP = puppets.Count;
-                        for (var k = 0; k < countP; ++k)
-                        {
-                            var p = puppets[k];
-                            if (t.source.AlmostEqual(p.Position, 1f))
-                            {
-                                AddAOE(Rect, t.source, p.Rotation, c.activation);
-                                RemoveCasterAndTether(i, j);
-                                break;
-                            }
-                        }
-                    }
-                    break;
-                }
+                _casts.Remove(caster);
+                continue;
             }
-            void AddAOE(AOEShape shape, WPos position, Angle rotation, DateTime activation) => _aoes.Add(new(shape, position.Quantized(), rotation, activation));
 
-            void RemoveCasterAndTether(int casterIndex, int tetherIndex)
+            if (cast.Destination == null)
             {
-                _casters.RemoveAt(casterIndex);
-                _tethers.RemoveAt(tetherIndex);
+                // Helper poses can arrive after the tether in the same frame.
+                var destinations = _links.Where(l => !l.Key.IsDeadOrDestroyed && !l.Value.IsDeadOrDestroyed
+                    && l.Value.Position.AlmostEqual(cast.Origin, 0.75f) && !l.Key.Position.AlmostEqual(cast.Origin, 1))
+                    .Select(l => l.Key.Position.Quantized()).Distinct().Take(2).ToArray();
+                if (destinations.Length == 1)
+                    cast.Destination = destinations[0];
             }
+
+            // The tether identifies the destination. The specific caster's first
+            // observed pose there supplies the line direction.
+            if (cast.Shape == Rect && cast.ArrivalFacing == null && cast.Destination is { } pos && caster.Position.AlmostEqual(pos, 1))
+                cast.ArrivalFacing = caster.Rotation;
         }
+    }
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
+    {
+        List<AOEInstance> aoes = [];
+        foreach (var (caster, cast) in _casts)
+            if (cast.Destination is { } pos && (cast.Shape != Rect || cast.ArrivalFacing.HasValue))
+                aoes.Add(new(cast.Shape, pos, cast.ArrivalFacing ?? default, cast.Activation, actorID: caster.InstanceID));
+        return CollectionsMarshal.AsSpan(aoes);
+    }
+
+    public override void AddGlobalHints(Actor actor, GlobalHints hints)
+    {
+        if (_casts.Values.Any(c => c.Shape == Rect && c.ArrivalFacing == null))
+            hints.Add("Prime Blade: prepare to dodge the line after the teleport!");
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _casts.Remove(actor);
+        _links.Remove(actor);
+        foreach (var link in _links.Where(l => l.Value == actor).ToArray())
+            _links.Remove(link.Key);
     }
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
-        switch (spell.Action.ID)
-        {
-            case (uint)AID.PrimeBladeCircle2:
-            case (uint)AID.PrimeBladeDonut2:
-            case (uint)AID.PrimeBladeRect2:
-                _aoes.Clear();
-                break;
-            case (uint)AID.ForcedTransfer1:
-            case (uint)AID.ForcedTransfer2:
-                _tethers.Clear(); // other mechanics use the same tether ID
-                break;
-        }
+        if (_casts.GetValueOrDefault(caster)?.Spell == spell)
+            _casts.Remove(caster);
+        else if (spell.Action.ID is (uint)AID.ForcedTransfer1 or (uint)AID.ForcedTransfer2)
+            _links.Clear(); // other mechanics use the same tether ID
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (_casts.GetValueOrDefault(caster)?.Spell.Action == spell.Action)
+            _casts.Remove(caster);
     }
 }

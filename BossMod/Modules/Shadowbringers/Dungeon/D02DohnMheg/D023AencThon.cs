@@ -64,10 +64,15 @@ sealed class FunambulistsFantasia(BossModule module) : BossComponent(module)
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (chasmArena && Module.Enemies((uint)OID.LiarsLyre) is var lyre && lyre.Count != 0)
+        if (!chasmArena)
+            return;
+
+        hints.UseNativeNavigation = true;
+        hints.ForbidDashes = true;
+        if (Module.Enemies((uint)OID.LiarsLyre).FirstOrDefault(lyre => !lyre.IsDeadOrDestroyed) is { } target)
         {
             hints.ActionsToExecute.Push(ActionID.MakeSpell(ClassShared.AID.Sprint), actor, ActionQueue.Priority.High);
-            hints.GoalZones.Add(AIHints.GoalSingleTarget(lyre[0], 1f, 5f));
+            hints.GoalZones.Add(AIHints.GoalSingleTarget(target, 1f, 5f));
         }
     }
 }
@@ -179,10 +184,8 @@ public sealed class D033AencThon : BossModule
         for (var i = 0; i < count; ++i)
         {
             var e = hints.PotentialTargets[i];
-            if (e.Actor.OID == (uint)OID.LiarsLyre && (actor.Position - e.Actor.Position).LengthSq() > 15f)
-            {
-                e.Priority = AIHints.Enemy.PriorityInvincible;
-            }
+            if (e.Actor.OID == (uint)OID.LiarsLyre)
+                e.Priority = (actor.Position - e.Actor.Position).LengthSq() > 15f ? AIHints.Enemy.PriorityInvincible : 1;
         }
     }
 

@@ -3,7 +3,8 @@ namespace BossMod.CombatAssistance.Planning;
 // Owner instructions are captured before search. They never rewrite a selected
 // waypoint. Explicit destinations continue to use their existing native authority.
 internal sealed record MovementIntent(float MoveDelay = 0, float DodgeDelay = 0, bool SeparateDodgeDelay = false,
-    bool InterruptCast = false, PlanningRange? Range = null, WPos? ExplicitDestination = null, float ArrivalDeadline = float.MaxValue);
+    bool InterruptCast = false, PlanningRange? Range = null, WPos? ExplicitDestination = null, float ArrivalDeadline = float.MaxValue,
+    bool HandleMisdirection = true);
 
 internal sealed record PlanningRange(ulong TargetId, WPos Center, float Radius, bool RecoverExecution = false, float RecoveryReadyIn = 0)
 {

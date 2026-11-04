@@ -152,6 +152,13 @@ Focused regressions cover these choices, distant objectives, blocked routes,
 selected casts and simultaneous attack range/pull contact. Build and offline
 validation are separate from client reload and representative gameplay acceptance.
 
+An Ala Mhigo recording from the alt shows Piercing Talon requested 0.85 seconds
+before Winged Glide on the same newly selected enemy. RSR can switch the live
+target and submit in the same callback. The melee fallback gate checks that
+live target against captured native eligibility and gives the movement owner
+its existing bounded assessment window while the captured target catches up.
+Native target assignments and the original route checks still govern delivery.
+
 ## Stack gathering regression — 2026-10-25
 
 The maintainer's Clyteum recording reproduces a shared movement regression:

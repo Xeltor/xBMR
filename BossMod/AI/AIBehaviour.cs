@@ -72,7 +72,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         _afkMode = _config.AutoAFK && !master.InCombat && (WorldState.CurrentTime - _masterLastMoved).TotalSeconds > _config.AFKModeTimer;
         var gazeImminent = autorot.Hints.ForbiddenDirections.Count != 0 && autorot.Hints.ForbiddenDirections.Ref(0).activation <= WorldState.FutureTime(0.5d);
         var pyreticImminent = autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && autorot.Hints.ImminentSpecialMode.activation <= WorldState.FutureTime(1d);
-        var misdirectionMode = autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && autorot.Hints.ImminentSpecialMode.activation <= WorldState.CurrentTime;
+        var misdirectionMode = autorot.Hints.IsMisdirectionActive(WorldState.CurrentTime);
         var forbidTargeting = _config.ForbidActions || _afkMode || gazeImminent || pyreticImminent;
         var hadNavi = _naviDecision.Destination != null;
         var hints = autorot.Hints;
@@ -147,7 +147,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 hints.SpinDirection = player.DirectionTo(dest).ToAngle();
             }
         }
-        UpdateMovement(player, master, gazeImminent || pyreticImminent, misdirectionMode ? hints.MisdirectionThreshold : default, !forbidTargeting ? hints.ActionsToExecute : null);
+        UpdateMovement(player, master, gazeImminent || pyreticImminent, misdirectionMode, !forbidTargeting ? hints.ActionsToExecute : null);
     }
 
     // returns null if we're to be idle, otherwise target to attack
@@ -240,12 +240,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             return;
         }
 
-        // if target-of-target is player, don't try flanking, it's probably impossible... - unless target is currently casting (TODO: reconsider?)
-        // skip if targeting a dummy, they don't rotate
-        if (targeting.Target.Actor.TargetID == player.InstanceID && targeting.Target.Actor.CastInfo == null && targeting.Target.Actor.NameID != 541u)
-        {
-            targeting.PreferredPosition = Positional.Any;
-        }
+        targeting.PreferredPosition = PositionalMovement.ForTarget(targeting.PreferredPosition, targeting.Target.Actor, player, WorldState.Actors);
     }
 
     private NavigationDecision BuildNavigationDecision(Actor player, Actor master, Targeting targeting)
@@ -298,10 +293,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 var maxdist = _config.UseCombatPositioningRange
                     ? autorot.MovementPlanning.Assistance?.FollowTargetRange(player, target, _config.MaxDistanceToTarget) ?? _config.MaxDistanceToTarget
                     : _config.MaxDistanceToTarget;
-                if (positional is Positional.Rear or Positional.Flank && (target.CastInfo == null && target.NameID != 541u && target.TargetID == player.InstanceID || target.Omnidirectional)) // if player is target, rear/flank is usually impossible unless target is casting
-                {
-                    positional = Positional.Any;
-                }
+                positional = PositionalMovement.ForTarget(positional, target, player, WorldState.Actors);
 
                 hints.GoalZones.Add(AIHints.GoalSingleTarget(master, positional, positional != Positional.Any ? 2.6f : maxdist));
 
@@ -366,8 +358,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         return masterIsMoving;
     }
 
-    private void UpdateMovement(Actor player, Actor master, bool gazeOrPyreticImminent, Angle misdirectionAngle, ActionQueue? queueForSprint)
+    private void UpdateMovement(Actor player, Actor master, bool gazeOrPyreticImminent, bool misdirectionActive, ActionQueue? queueForSprint)
     {
+        ctrl.MisdirectionHeading = null;
         if (gazeOrPyreticImminent)
         {
             // gaze or pyretic imminent, drop any movement - we should have moved to safe zone already...
@@ -375,55 +368,14 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             ctrl.NaviTargetVertical = null;
             ctrl.ForceCancelCastMechanicAI = true;
         }
-        else if (misdirectionAngle != default && _naviDecision.Destination is WPos destination)
+        else if (misdirectionActive && _naviDecision.Destination is WPos destination)
         {
+            ctrl.MisdirectionHeading = AIController.SelectMisdirectionHeading(_naviCtx.Map, player.Position, destination, WorldState.Client.ForcedMovementDirection);
+            ctrl.NaviTargetPos = ctrl.MisdirectionHeading != null ? destination : null;
+            ctrl.NaviTargetVertical = null;
             ctrl.AllowInterruptingCastByMovement = true;
-            var dir = destination - player.Position;
-            var distSq = dir.LengthSq();
-            var threshold = 45f.Degrees();
-            var forceddir = WorldState.Client.ForcedMovementDirection;
-            var allowMovement = forceddir.AlmostEqual(Angle.FromDirection(dir), threshold.Rad);
-            if (allowMovement)
-            {
-                allowMovement = CalculateUnobstructedPathLength(forceddir) >= Math.Min(3f, distSq);
-            }
-
-            ctrl.NaviTargetPos = allowMovement && distSq >= 0.01f ? destination : null;
-
-            float CalculateUnobstructedPathLength(Angle dir)
-            {
-                var start = _naviCtx.Map.WorldToGrid(player.Position);
-                var startx = start.x;
-                var starty = start.y;
-                if (!_naviCtx.Map.InBounds(startx, starty))
-                {
-                    return 0f;
-                }
-
-                var end = _naviCtx.Map.WorldToGrid(player.Position + 100f * dir.ToDirection());
-                var startG = _naviCtx.Map.PixelMaxG[_naviCtx.Map.GridToIndex(startx, starty)];
-                var pixels = _naviCtx.Map.EnumeratePixelsInLine(startx, starty, end.x, end.y);
-                var len = pixels.Length;
-                for (var i = 0; i < len; ++i)
-                {
-                    var p = pixels[i];
-                    var px = p.x;
-                    var py = p.y;
-                    if (!_naviCtx.Map.InBounds(px, py) || _naviCtx.Map.PixelMaxG[_naviCtx.Map.GridToIndex(px, py)] < startG)
-                    {
-                        var dest = _naviCtx.Map.GridToWorld(px, py, 0.5f, 0.5f);
-                        return (dest - player.Position).LengthSq();
-                    }
-                }
-                return float.MaxValue;
-            }
-
-            // debug
-            //void drawLine(WPos from, WPos to, uint color) => Camera.Instance!.DrawWorldLine(new(from.X, player.PosRot.Y, from.Z), new(to.X, player.PosRot.Y, to.Z), color);
-            //var toDest = _naviDecision.Destination.Value - player.Position;
-            //drawLine(player.Position, _naviDecision.Destination.Value, Colors.Safe);
-            //drawLine(_naviDecision.Destination.Value, _naviDecision.Destination.Value + toDest.Normalized().OrthoL(), Colors.Safe);
-            //drawLine(player.Position, ctrl.NaviTargetPos.Value, Colors.Danger);
+            ctrl.ForceCancelCastMechanicAI = false;
+            ctrl.ForceCancelCastOtherAI = false;
         }
         else
         {

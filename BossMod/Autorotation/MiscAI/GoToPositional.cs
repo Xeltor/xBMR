@@ -45,6 +45,7 @@ public sealed class GoToPositional(RotationModuleManager manager, Actor player) 
 
         // when enabled, RotationSolverReborn's live desired positional overrides the manual track selection
         var positional = _config.FollowRSRDesiredPositional ? Hints.RSRDesiredPositional : strategy.Option(Tracks.Positional).As<Positional>();
+        positional = PositionalMovement.ForTarget(positional, primaryTarget, Player, World.Actors);
         if (positional == Positional.Any)
             return;
 

@@ -7,6 +7,7 @@ public enum OID : uint
     Rofocale2 = 0x2026, // R5.850, x?
     LinaMewrilah = 0x23E, // R0.500, x?
     Archaeodemon = 0x1FC3, // R1.950, x?
+    PrisonWall = 0x1EA1A1, // EventObj, layouts 7082094/7082095/7082097
     Embrace = 0x20B7, // R1.000, x?
     DarkCircle1 = 0x1EA877, // R0.500, x?, EventObj type
     DarkCircle2 = 0x1EA879, // R0.500, x?, EventObj type
@@ -51,12 +52,14 @@ public enum AID : uint
 
     Maverick1 = 9865, // Rofocale2/Boss->location, 6.0s cast, range 60 width 16 rect
     Maverick2 = 10022, // Rofocale2/Boss->location, 6.0s cast, range 60 width 16 rect
+    Maverick3 = 10036, // Rofocale->location, 1.0s cast, range 60 width 16 rect
 
-    Unknown = 9868, // Rofocale1->location, no cast, range 10 width 10 rect
+    CirclingCharge = 9868, // Rofocale1->location, no cast, range 10 width 10 rect
     Karma = 9842, // Archaeodemon->self, 3.0s cast, range 30 90-degree cone
     UnholyDarkness = 9843, // Archaeodemon->location, 3.5s cast, range 8 circle
     HeavenlySubjugation1 = 9866, // Boss->self, 3.5s cast, single-target
     HeavenlySubjugation2 = 9867, // Rofocale1->location, no cast, range 60 width 60 rect
+    HeavenlySubjugation3 = 9876, // Alternate damage action, no cast, range 60 width 60 rect
     Embrace1 = 9861, // Boss->self, 2.0s cast, single-target
     Embrace2 = 9862, // Rofocale1->location, 3.0s cast, range 3 circle
     Embrace3 = 9863, // Rofocale1->self, no cast, range 7 circle
@@ -81,6 +84,6 @@ public enum SID : uint
 
 public enum IconID : uint
 {
-    Icon381 = 381, // player
-    Icon23 = 23, // player
+    CrushHelm = 381, // player
+    Chariot = 23, // player
 }

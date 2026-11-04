@@ -12,7 +12,8 @@ public abstract class GenericGaze(BossModule module, uint aid = default) : CastC
         ulong actorID = default,
         WPos? eyeCenter = null,
         int? arenaProjectionLayer = null,
-        bool? restrictToArenaProjectionLayer = false)
+        bool? restrictToArenaProjectionLayer = false,
+        float facingHalfAngle = 45f)
     {
         public readonly WPos Position = position;
         public readonly DateTime Activation = activation;
@@ -23,6 +24,8 @@ public abstract class GenericGaze(BossModule module, uint aid = default) : CastC
         public readonly WPos? EyeCenter = eyeCenter; // optional world position where the eye should be drawn
         public readonly int? ArenaProjectionLayer = arenaProjectionLayer;
         public readonly bool? RestrictToArenaProjectionLayer = restrictToArenaProjectionLayer;
+        public readonly float FacingHalfAngle = facingHalfAngle;
+        internal readonly float FacingDot = facingHalfAngle == 45f ? 0.707107f : MathF.Cos(facingHalfAngle.Degrees().Rad);
     }
 
     public abstract ReadOnlySpan<Eye> ActiveEyes(int slot, Actor actor);
@@ -72,7 +75,7 @@ public abstract class GenericGaze(BossModule module, uint aid = default) : CastC
                 var inv = eye.Inverted;
                 var direction = inv ? Angle.FromDirection(pos - eyepos) - eye.Forward : Angle.FromDirection(eyepos - pos) - eye.Forward;
 
-                var angle = inv ? 135f.Degrees() : 45f.Degrees();
+                var angle = (inv ? 180f - eye.FacingHalfAngle : eye.FacingHalfAngle).Degrees();
                 hints.ForbiddenDirections.Add((direction, angle, eye.Activation));
             }
         }
@@ -113,7 +116,8 @@ public abstract class GenericGaze(BossModule module, uint aid = default) : CastC
                 using (Arena.WorldProjectionLayer(Module.ResolveArenaProjectionLayer(pc)))
                 {
                     var eyeF = eye.Forward;
-                    var (min, max) = inverted ? (45f, 315f) : (-45f, 45f);
+                    var halfAngle = eye.FacingHalfAngle;
+                    var (min, max) = inverted ? (halfAngle, 360f - halfAngle) : (-halfAngle, halfAngle);
                     Arena.PathArcTo(pcpos, 1f, (rot + eyeF + min.Degrees()).Rad, (rot + eyeF + max.Degrees()).Rad);
                     Arena.PathStroke(false, Colors.Enemy);
                 }
@@ -122,7 +126,7 @@ public abstract class GenericGaze(BossModule module, uint aid = default) : CastC
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool HitByEye(Actor actor, in Eye eye) => (actor.Rotation + eye.Forward).ToDirection().Dot((eye.Position - actor.Position).Normalized()) >= 0.707107f; // 45-degree
+    public static bool HitByEye(Actor actor, in Eye eye) => (actor.Rotation + eye.Forward).ToDirection().Dot((eye.Position - actor.Position).Normalized()) >= eye.FacingDot;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal WPos IndicatorWorldPos(WPos position)

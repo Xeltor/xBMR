@@ -257,7 +257,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
         }
     }
 
-    private void AddTargetSpecificHints(Actor actor, ref Bait bait, AIHints hints)
+    protected virtual void AddTargetSpecificHints(Actor actor, ref Bait bait, AIHints hints)
     {
         if (bait.Source == bait.Target)
         {

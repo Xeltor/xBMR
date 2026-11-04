@@ -22,8 +22,7 @@ class GateGuidance(BossModule module) : BossComponent(module)
 
     public override void AddGlobalHints(Actor actor, GlobalHints hints)
     {
-        if (PortalSafety.InPortal(actor))
-            return;
+        var inPortal = PortalSafety.InPortal(actor);
         foreach (var gate in _gates.Values)
         {
             if (gate.IsDeadOrDestroyed || WorldState.Actors.Find(gate.InstanceID) != gate)
@@ -32,13 +31,14 @@ class GateGuidance(BossModule module) : BossComponent(module)
             {
                 // Targetability changes the preparation wording, not a claim that
                 // entering is now safe or that any particular actor must enter.
-                hints.Add(gate.IsTargetable
-                    ? "Diabolic Gate: a group must enter manually and defeat Shadow Dahak!"
-                    : "Diabolic Gate forming: prepare a group to enter manually!");
+                if (!inPortal)
+                    hints.Add(gate.IsTargetable
+                        ? "Diabolic Gate: a group must enter manually and defeat Shadow Dahak!"
+                        : "Diabolic Gate forming: prepare a group to enter manually!");
                 if (gate.CastInfo is { Action.ID: (uint)AID.DeepFlow, RemainingTime: > 0 } flow)
                     hints.Add($"Deep Flow: defeat the portal add before the cast finishes ({flow.NPCRemainingTime:f1}s)!");
             }
-            else if (gate.CastInfo is { Action.ID: (uint)AID.VoidCall, RemainingTime: > 0 } call)
+            else if (!inPortal && gate.CastInfo is { Action.ID: (uint)AID.VoidCall, RemainingTime: > 0 } call)
                 hints.Add($"Void Call: destroy the Deathgate before adds spawn ({call.NPCRemainingTime:f1}s)!");
         }
     }

@@ -32,11 +32,11 @@ internal static class NativeMovementSearch
         var assessingApproach = true;
         void Publish(MovementPlan plan)
         {
-            // An inside search incumbent is not an outside-space fallback until
-            // the current search pass has actually returned. Native safety
-            // recovery remains independently available while it runs.
-            if (plan.Status == MovementSearchStatus.Searching && (!context.PreferredEnemyEndpoint(plan.UsefulDestination)
-                || !context.PreferredArenaEndpoint(plan.UsefulDestination))) return;
+            // Publish a verified range recovery as soon as it is available.
+            // Other nonpreferred endpoints can wait for the current search pass.
+            var restoresRange = context.Range?.NeedsRecovery(context.Origin) == true && context.RetainsAttackRange(plan.UsefulDestination);
+            if (plan.Status == MovementSearchStatus.Searching && !restoresRange
+                && (!context.PreferredEnemyEndpoint(plan.UsefulDestination) || !context.PreferredArenaEndpoint(plan.UsefulDestination))) return;
             publish(Refine(plan with { ApproachPending = assessingApproach }));
         }
         if (context.ForcedMovement != null || context.Native is not { } native)
@@ -52,8 +52,16 @@ internal static class NativeMovementSearch
         // finishes. Publish it promptly, with recovery status rather than a safety proof.
         Publish(recoveryPlan with { OptimizationPending = true });
         var incumbent = recovery.Publication is { } publication ? NativeMovementIncumbent.Capture(context, publication) : null;
-        if (NativeWalkingApproach.Search(context, cancel, plan => Publish(plan with { NativeRecovery = recovery })) is { } approach)
-            incumbent = approach;
+        // A direct dash can be the first useful route at engagement. Compare
+        // it with ordinary walking before spending the opening action window
+        // on a separate walking-only search.
+        var directApproach = context.Range is { } approachRange && approachRange.NeedsRecovery(context.Origin)
+            && context.MobilityMechanics.Any(m => m.Mechanic == MobilityMechanic.Target && m.RequiredEarlierActions == 0
+                && m.Anchors.Any(a => a.Id == approachRange.TargetId)
+                && m.From(context, context.Origin).Any(edge => edge.AnchorId == approachRange.TargetId
+                    && edge.LandingPosition is { } landing && approachRange.Loss(landing) == 0));
+        if (!directApproach)
+            FindWalkingApproach();
         if (!context.Actions.IsEmpty || context.Range?.NeedsRecovery(context.Origin) == true
             || context.PartyContact?.Loss(context.Origin) > 0
             || context.HealingCoverage?.Satisfied(context.Origin) == false
@@ -87,6 +95,8 @@ internal static class NativeMovementSearch
                 incumbent = opportunity;
                 Publish(opportunity with { NativeRecovery = recovery });
             }
+            if (directApproach && (incumbent == null || !context.RetainsAttackRange(incumbent.UsefulDestination)))
+                FindWalkingApproach();
         }
         assessingApproach = false;
         var result = JointMovementSearch.Search(context, cancellation: cancel, nativeIncumbent: incumbent,
@@ -95,5 +105,11 @@ internal static class NativeMovementSearch
             return result;
         return result.HasVerifiedRoute ? Refine(result with { NativeRecovery = recovery })
             : recoveryPlan with { Bound = result.Bound, ExpandedStates = result.ExpandedStates, SearchMilliseconds = result.SearchMilliseconds };
+
+        void FindWalkingApproach()
+        {
+            if (NativeWalkingApproach.Search(context, cancel, plan => Publish(plan with { NativeRecovery = recovery })) is { } approach)
+                incumbent = approach;
+        }
     }
 }

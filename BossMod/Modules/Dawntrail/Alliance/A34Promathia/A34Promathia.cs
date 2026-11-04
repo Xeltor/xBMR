@@ -236,33 +236,57 @@ sealed class FalseGenesis(BossModule module) : BossComponent(module)
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
-        if (ReferenceEquals(_cast, spell))
+        if (ReferenceEquals(_cast, spell) && !spell.EventHappened)
+            _cast = null;
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (ArenaChanges.IsGenesisImpact(caster, spell))
             _cast = null;
     }
 
     public override void OnMapEffect(byte index, uint state)
     {
-        if (index == 0x0C && state == 0x00080004u)
+        if (index == 0x0C && state is 0x00020001u or 0x00080004u)
+            _cast = null;
+    }
+
+    public override void Update()
+    {
+        if (_cast != null && WorldState.CurrentTime > _activation.AddSeconds(2))
             _cast = null;
     }
 }
 
 sealed class ArenaChanges(BossModule module) : BossComponent(module)
 {
+    internal static bool IsGenesisImpact(Actor caster, ActorCastEvent spell)
+        => caster.OID == (uint)OID.EmptyThinker && spell.Action.ID == (uint)AID.FalseGenesis1;
+
+    private void ShowIslands()
+    {
+        if (Arena.Bounds is ArenaBoundsCustom)
+            return;
+        var bounds = new ArenaBoundsCustom(A34Promathia.Platforms.Select(p => new Square(p.Center, 6.5f, p.Rotation)).ToArray());
+        Arena.Bounds = bounds;
+        Arena.Center = bounds.Center;
+    }
+
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        // Cast-finish also fires on interruption; only successful resolution removes the floor.
-        if (spell.Action.ID == (uint)AID.FalseGenesis)
-        {
-            var bounds = new ArenaBoundsCustom(A34Promathia.Platforms.Select(p => new Square(p.Center, 6.5f, p.Rotation)).ToArray());
-            Arena.Bounds = bounds;
-            Arena.Center = bounds.Center;
-        }
+        // The boss's visual action precedes the helper hit and island map effect.
+        if (IsGenesisImpact(caster, spell))
+            ShowIslands();
     }
 
     public override void OnMapEffect(byte index, uint state)
     {
-        if (index == 0x0C && state == 0x00080004u)
+        if (index != 0x0C)
+            return;
+        if (state == 0x00020001u)
+            ShowIslands();
+        else if (state == 0x00080004u)
         {
             Arena.Bounds = new ArenaBoundsCircle(25f);
             Arena.Center = new(-820f, -820f);

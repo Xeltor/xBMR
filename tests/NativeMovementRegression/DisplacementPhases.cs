@@ -166,5 +166,31 @@ public static partial class Checks
             null, true, false, "Ready", null, world.CurrentTime, displacement: new(1, 1, 0, true, false, false, false, 0, "observed immunity")));
         Check(!json.RootElement.GetProperty("snapshot").GetProperty("displacement").GetProperty("AuthoredAbsenceVerified").GetBoolean(),
             "Current diagnostics distinguish no interrupting forecast from a proven empty authored inventory.");
+
+        module.Components.Remove(owner);
+        var swell = new BossMod.Stormblood.Dungeon.D06AlaMhigo.D063ZenosYaeGalvus.ArtOfTheSwell1(module);
+        var clone = new BossMod.Stormblood.Dungeon.D06AlaMhigo.D063ZenosYaeGalvus.ArtOfTheSwell2(module);
+        foreach (var (component, origin) in new (SimpleKnockbacks, WPos)[] { (swell, default), (clone, new(8, 9)) })
+        {
+            module.Components.Add(component);
+            var caster = (Actor)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Actor));
+            caster.InstanceID = 10;
+            var cast = new ActorCastInfo { Action = new(ActionType.Spell, component.WatchedAction),
+                Location = new(origin.X, 0, origin.Z), TotalTime = 5.7f };
+            component.OnCastStarted(caster, cast);
+            AIHints SwellHints()
+            {
+                var result = new AIHints { ProjectionSourcesRequested = true, PathfindMapCenter = default, PathfindMapBounds = module.Bounds };
+                result.CollectComponentHints(component, 0, actor, default);
+                return result;
+            }
+            Check(Freeze(SwellHints()).Phases is [{ SeparatedLeaves: 1, LandingEnvelopes: [{ } ring] }]
+                && ring.Origin == origin && ring.PushDistance == 15 && ring.Limit == 20,
+                "Both Swell casters publish early, source-specific preparation that the native phase can separate.");
+            component.OnCastFinished(caster, cast);
+            Check(SwellHints().ForbiddenZones.Count == 0,
+                "Resolved Swell casts remove their preparation hint.");
+            module.Components.Remove(component);
+        }
     }
 }

@@ -8,12 +8,13 @@ public enum OID : uint
     Heartless = 0x1F98, // R1.000, x?
     Shade = 0x1F99, // R0.500, x?
     ShardOfEmptiness = 0x1F9A, // R1.600, x?
+    BleedingTile = 0x1EA7ED, // EventObj at the active Judgment Blade floor square
 }
 
 public enum AID : uint
 {
     AutoAttack = 870, // Boss/Shade->player, no cast, single-target
-    Coldblood1 = 9765, // Boss->self, no cast, single-target
+    ColdbloodDeparture = 9765, // Boss->self, visual before either Coldblood cast
     Coldblood2 = 9767, // Boss->self, 8.0s cast, range 66 circle
 
     CripplingBlow = 9773, // Boss->player, 3.0s cast, single-target

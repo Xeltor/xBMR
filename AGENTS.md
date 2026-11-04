@@ -43,6 +43,22 @@ geometry, server snapshots or last-safe movement timing. Keep those uncertaintie
 explicit. If no suitable written guide is available, document the search and
 continue with the available evidence without inventing missing details.
 
+## Encounter modules: autonomous play by default
+
+When creating or fixing any encounter module, assume xBMR AI will run the fight
+without human help. Within the module's scope, expose the evidence-backed hazards,
+timing, assignments, movement goals, targeting priorities and required interactions
+through native AI hints and supported actions wherever the encounter needs them.
+Radar and text warnings complement those signals. Never rely on a player to read
+a warning, select a target, interact with an object or correct the AI's movement.
+
+Validate the affected mechanics from the AI's perspective, including relevant
+overlaps, alternate patterns and resets. Check that the AI gets enough information
+and time to respond without manual input. When evidence or native capabilities
+leave a required step unsupported, document the exact gap and its impact on
+autonomous play. Treat a gap that requires human intervention as a material
+omission under the module maturity rules. Preserve manual override.
+
 ## New encounter modules: arena first
 
 For fights with no module at all, the first implementation priority is a minimal

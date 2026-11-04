@@ -60,9 +60,11 @@ class ActivateOvoo(BossModule module) : BossComponent(module)
 
         foreach (var e in hints.PotentialTargets)
         {
+            if (e.Priority < 0 || e.Actor.IsDeadOrDestroyed || !e.Actor.IsTargetable || e.Actor.IsAlly)
+                continue;
             if (e.Actor.TargetID == actor.InstanceID)
                 beingAttacked = true;
-            else
+            else if (e.Actor.FindStatus(SID.EarthenAccord) == null)
                 e.Priority = AIHints.Enemy.PriorityForbidden;
         }
 
@@ -79,6 +81,8 @@ class ProtectOvoo(BossModule module) : BossComponent(module)
         for (var i = 0; i < hints.PotentialTargets.Count; ++i)
         {
             var e = hints.PotentialTargets[i];
+            if (e.Priority < 0 || e.Actor.IsDeadOrDestroyed || !e.Actor.IsTargetable || e.Actor.IsAlly)
+                continue;
             if (e.Actor.FindStatus(SID.EarthenAccord) != null)
                 e.Priority = 5;
             else if (e.Actor.OID == (uint)OID.StellarChuluu)
@@ -134,7 +138,7 @@ class OvooStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Contributed, GroupType = BossModuleInfo.GroupType.Quest, GroupID = 68051, PrimaryActorOID = (uint)OID.Ovoo)]
+[ModuleInfo(BossModuleInfo.Maturity.WIP, GroupType = BossModuleInfo.GroupType.Quest, GroupID = 68051, PrimaryActorOID = (uint)OID.Ovoo)]
 public class Ovoo(WorldState ws, Actor primary) : BossModule(ws, primary, new(354, 296.5f), new ArenaBoundsCircle(20))
 {
     protected override bool CheckPull() => Raid.Player()?.Position.InCircle(PrimaryActor.Position, 15) ?? false;

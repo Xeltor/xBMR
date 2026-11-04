@@ -42,7 +42,8 @@ class ParticleTowers(BossModule module) : Components.GenericTowers(module)
     {
         var previous = new Dictionary<ulong, ulong>(_assignments);
         _assignments.Clear();
-        var players = Raid.WithoutSlot().Where(p => !p.IsDeadOrDestroyed && p.Type == ActorType.Player && Arena.InBounds(p.Position) && Module.FindComponent<FeintParticleBeam>()?.IsChased(p) != true).ToArray();
+        var players = Raid.WithSlot().Where(p => !p.Item2.IsDeadOrDestroyed && p.Item2.Type == ActorType.Player
+            && Arena.InBounds(p.Item2.Position) && CanSoak(p.Item1, p.Item2)).Select(p => p.Item2).ToArray();
         var used = new HashSet<ulong>();
         // Honor players already soaking a circle, including manually controlled alliance members.
         foreach (var tower in Towers.OrderBy(t => t.ActorID))
@@ -69,8 +70,13 @@ class ParticleTowers(BossModule module) : Components.GenericTowers(module)
             }
         }
     }
+    private bool CanSoak(int slot, Actor actor) => Module.FindComponent<FeintParticleBeam>()?.IsChased(actor) != true
+        && Module.FindComponent<CloudAssignments>()?.HasBoxAssignment(slot) != true;
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
+        if (!CanSoak(slot, actor))
+            return;
         foreach (var tower in Towers)
             if (_assignments.GetValueOrDefault(tower.ActorID) == actor.InstanceID)
                 hints.Add("Soak your assigned meteor tower!", !tower.IsInside(actor));
@@ -82,6 +88,8 @@ class ParticleTowers(BossModule module) : Components.GenericTowers(module)
     }
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
+        if (!CanSoak(slot, actor))
+            return;
         foreach (var tower in Towers)
             if (_assignments.GetValueOrDefault(tower.ActorID) == actor.InstanceID)
                 hints.AddForbiddenZone(new SDInvertedCircle(tower.Position, 4.5f), tower.Activation);

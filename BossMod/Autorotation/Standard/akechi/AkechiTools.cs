@@ -398,7 +398,7 @@ public abstract class AkechiTools<AID, TraitID>(RotationModuleManager manager, A
     {
         var tn = HasTrueNorth;
         var target = enemy?.Actor;
-        if ((target?.Omnidirectional ?? true) || target?.TargetID == Player.InstanceID && target?.CastInfo == null && positional.pos != Positional.Front && target?.NameID != 541)
+        if ((target?.Omnidirectional ?? true) || PositionalMovement.ForTarget(positional.pos, target, Player, World.Actors) != positional.pos)
             positional = (Positional.Any, false);
 
         NextPositionalImminent = !tn && positional.imm;

@@ -67,14 +67,25 @@ internal sealed class NativeMovementHost : IDisposable
     }
 
     internal static bool RequestsCombatOptimization(Runtime.MovementCombatIntent? combat, MovementIntent intent,
-        bool engaged, bool encounterActive)
-        => intent.ExplicitDestination == null && combat is { Enabled: true, NativeRecoveryReason: null,
+        bool engaged, bool encounterActive, bool useNativeSteering = false)
+        => !useNativeSteering && intent.ExplicitDestination == null && combat is { Enabled: true, NativeRecoveryReason: null,
             UnlockSeconds: <= MovementPlanningContext.MaximumHorizonSeconds }
             && (engaged || encounterActive || combat.ForcedMovement != null);
 
-    // Walking continuity prevents jitter, but cannot veto a faster, freshly
-    // executable mobility or outside-footprint alternative for the same need.
-    internal static bool MobilityImprovesWalking(MovementPlan walking, int stage, MovementPlan candidate,
+    internal static string? NativeSteeringReason(AIHints hints, MovementIntent intent, Runtime.MovementCombatIntent? combat, DateTime now)
+    {
+        if (intent.ExplicitDestination != null || combat?.ForcedMovement != null)
+            return null;
+        if (intent.HandleMisdirection && hints.IsMisdirectionActive(now))
+            return "native arrow steering during misdirection";
+        if (hints.UseNativeNavigation)
+            return "native navigation for authored encounter traversal";
+        return hints.HasPriorityInteraction ? "native approach during priority interaction" : null;
+    }
+
+    // Walking continuity prevents jitter. Switch only for a freshly executable
+    // improvement to attack access, mobility, or the useful endpoint.
+    internal static bool ImprovesCommittedWalk(MovementPlan walking, int stage, MovementPlan candidate,
         MovementPlanningContext current, long? timestamp = null)
     {
         var oldProof = MovementPlanValidation.Validate(walking, current, stage, true, timestamp, continuingCommittedRoute: true);
@@ -83,13 +94,20 @@ internal sealed class NativeMovementHost : IDisposable
         var outsideImproved = !current.PreferredEnemyEndpoint(walking.UsefulDestination) && current.PreferredEnemyEndpoint(candidate.UsefulDestination);
         var interiorImproved = !current.PreferredArenaEndpoint(walking.UsefulDestination) && current.PreferredArenaEndpoint(candidate.UsefulDestination)
             && current.PreferredEnemyEndpoint(walking.UsefulDestination) == current.PreferredEnemyEndpoint(candidate.UsefulDestination);
-        if (!outsideImproved && !interiorImproved && !candidate.Stages.Any(s => s.Kind is MovementStageKind.TargetDash or MovementStageKind.GroundMovement
+        var restoresRange = current.RetainsAttackRange(candidate.UsefulDestination) && !current.RetainsAttackRange(walking.UsefulDestination);
+        var fasterRangeAccess = current.Range?.NeedsRecovery(current.Origin) == true
+            && float.IsFinite(newProof.RangeAccessSeconds)
+            && (!float.IsFinite(oldProof.RangeAccessSeconds)
+                || PlanningMovementValue.Compare(newProof.RangeAccessSeconds, oldProof.RangeAccessSeconds) < 0);
+        var quickerWalk = fasterRangeAccess && candidate.Stages.All(s => s.Kind is
+            MovementStageKind.Walk or MovementStageKind.Wait or MovementStageKind.Cast);
+        if (!restoresRange && !quickerWalk && !outsideImproved && !interiorImproved && !candidate.Stages.Any(s => s.Kind is MovementStageKind.TargetDash or MovementStageKind.GroundMovement
                 or MovementStageKind.DirectionalMovement or MovementStageKind.Return
                 || s.Kind == MovementStageKind.UtilityAction && current.Utilities.Any(u => u.ActionId == s.ActionId
                     && u.Effect == PlanningUtilityEffect.MovementSpeed))
             || !current.PreservesPresent(candidate.DeliveredActions)
-            || current.PreferredEnemyEndpoint(walking.UsefulDestination) && !current.PreferredEnemyEndpoint(candidate.UsefulDestination)
-            || !outsideImproved && current.PreferredArenaEndpoint(walking.UsefulDestination) && !current.PreferredArenaEndpoint(candidate.UsefulDestination)
+            || !restoresRange && (current.PreferredEnemyEndpoint(walking.UsefulDestination) && !current.PreferredEnemyEndpoint(candidate.UsefulDestination)
+                || !outsideImproved && current.PreferredArenaEndpoint(walking.UsefulDestination) && !current.PreferredArenaEndpoint(candidate.UsefulDestination))
             || current.NativePriority(current.Cell(candidate.UsefulDestination)) < current.NativePriority(current.Cell(walking.UsefulDestination))
             || current.HealingCoverage?.Compare(candidate.UsefulDestination, walking.UsefulDestination) < 0
             || current.Range is { } range && range.Loss(candidate.UsefulDestination) > range.Loss(walking.UsefulDestination)
@@ -116,7 +134,7 @@ internal sealed class NativeMovementHost : IDisposable
             || current.HealingCoverage?.Satisfied(current.Origin) == false
             || !current.CanRemain(current.Origin) || current.RequiredDestination != null
             || current.MovementValue.CastBound;
-        return outsideImproved || interiorImproved || executionImproved || needsArrival
+        return restoresRange || quickerWalk || outsideImproved || interiorImproved || executionImproved || needsArrival
             && PlanningMovementValue.Compare(newProof.CompletionSeconds, oldProof.CompletionSeconds) < 0;
     }
 
@@ -348,8 +366,9 @@ internal sealed class NativeMovementHost : IDisposable
         var combat = Assistance?.Capture(world, hints, player, displacement);
         _combatCost = System.Diagnostics.Stopwatch.GetTimestamp() - phase;
         phase = System.Diagnostics.Stopwatch.GetTimestamp();
+        var nativeSteering = NativeSteeringReason(hints, intent, combat, world.CurrentTime);
         var optimizeCombat = RequestsCombatOptimization(combat, intent,
-            Runtime.NativeCombatEngagement.Active(world, hints, player), Assistance?.HasActiveEncounter == true);
+            Runtime.NativeCombatEngagement.Active(world, hints, player), Assistance?.HasActiveEncounter == true, nativeSteering != null);
         var optimize = optimizeCombat || explicitInstruction;
         var map = native.CopyStrictMap();
         var origin = map.WorldToGrid(player.Position);
@@ -360,7 +379,15 @@ internal sealed class NativeMovementHost : IDisposable
         optimize &= unlock <= MovementPlanningContext.MaximumHorizonSeconds;
         optimizeCombat &= optimize;
         PlansOwnerTiming = optimize;
-        if (combat?.NativeRecoveryReason is { } nativeReason)
+        if (nativeSteering != null)
+        {
+            // Release elective actions and keep the frame's native safety route.
+            LastInputChange = nativeSteering;
+            _escape = null;
+            _committed = null;
+            _executor.Release();
+        }
+        else if (combat?.NativeRecoveryReason is { } nativeReason)
         {
             LastInputChange = nativeReason;
             _committed = null;
@@ -481,12 +508,12 @@ internal sealed class NativeMovementHost : IDisposable
             if (escaping == null && !_executor.AwaitingActionEffect && !ReferenceEquals(candidate, _lastCandidate))
             {
                 _lastCandidate = candidate;
-                // Retain soft walking continuity unless a complete mobility
-                // alternative proves an actual execution/arrival improvement.
+                // Retain the current corridor unless the fresh route proves
+                // an execution, arrival, or endpoint improvement.
                 var walking = _committed != null && _executor.CanContinueWalking(_committed, context);
                 if (candidate != null && !(_committed != null && candidate.Input == _committed.Input && candidate.Stages == _committed.Stages)
                     && CommitCandidate(_executor.RebindInitialMobility(candidate, context), context) is { } verified
-                    && (!walking || MobilityImprovesWalking(_committed!, _executor.StageIndex, verified, context)))
+                    && (!walking || ImprovesCommittedWalk(_committed!, _executor.StageIndex, verified, context)))
                     _committed = verified;
             }
             if (_committed != null)

@@ -147,6 +147,8 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
         return false;
     }
 
+    protected virtual bool RequireStackGathering(int slot, Actor actor, in Stack stack) => true;
+
     protected bool StackAppliesToArenaProjectionLayer(Actor actor, in Stack stack)
         => ArenaProjectionLayerApplies(actor, stack.ResolveArenaProjectionLayer(Module), stack.RestrictToArenaProjectionLayer);
 
@@ -444,6 +446,8 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
             if (s.Target == actor)
             {
                 isStackTarget = true;
+                if (!RequireStackGathering(slot, actor, s))
+                    continue;
 
                 var stacksIFzTarget = new List<ShapeDistance>(lenPWOS - 1);
                 var gatheringPeers = new List<WPos>(lenPWOS - 1);
@@ -516,6 +520,9 @@ public abstract class GenericStackSpread(BossModule module, bool raidwideOnResol
                 {
                     goto addfz;
                 }
+                if (!RequireStackGathering(slot, actor, s))
+                    continue;
+
                 var numInside = s.NumInside(Module);
                 var isInside = s.IsInside(actor);
                 var max = s.MaxSize;

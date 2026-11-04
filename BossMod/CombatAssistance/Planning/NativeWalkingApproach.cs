@@ -45,9 +45,9 @@ internal static class NativeWalkingApproach
         MovementPlan? accepted = null;
         void Accept(MovementPlan plan)
         {
+            var restoresRange = goal == context.Range && context.RetainsAttackRange(plan.UsefulDestination);
             if (!plan.HasVerifiedRoute || !context.PreservesPresent(plan.DeliveredActions) || !context.CompletePreparation(plan.DeliveredActions)
-                || !context.PreferredEnemyEndpoint(plan.UsefulDestination)
-                || !context.PreferredArenaEndpoint(plan.UsefulDestination)
+                || !restoresRange && (!context.PreferredEnemyEndpoint(plan.UsefulDestination) || !context.PreferredArenaEndpoint(plan.UsefulDestination))
                 || goal.Loss(plan.UsefulDestination) >= goal.Loss(context.Origin)
                 || !MovementPlanValidation.Validate(plan, context, 0, true).Allowed) return;
             accepted = plan with { Status = MovementSearchStatus.Bounded, Bound = MovementSearchBound.SearchInProgress,

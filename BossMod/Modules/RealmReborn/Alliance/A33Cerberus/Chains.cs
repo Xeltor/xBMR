@@ -22,7 +22,8 @@ class Chains(BossModule module) : BossComponent(module)
         foreach (var anchor in WorldState.Actors.Where(a => Anchor(a) && a.IsTargetable && !a.IsDeadOrDestroyed).OrderBy(a => a.InstanceID))
         {
             var eligible = players.Where(p => !used.Contains(p.Item2.InstanceID) && !BellyAndChains.Inside(p.Item2) && p.Item2.Role != Role.Tank
-                && p.Item2.FindStatus(SID.Transporting) == null && p.Item2.FindStatus(SID.Seized) == null);
+                && p.Item2.FindStatus(SID.Transporting) == null && p.Item2.FindStatus(SID.Seized) == null
+                && p.Item2.FindStatus(SID.Abandonment) == null);
             if (Service.Config.Get<WorldOfDarknessConfig>().CerberusBelly == WorldOfDarknessConfig.BellyStrategy.AllianceB)
                 eligible = eligible.Where(p => WorldOfDarknessAlliance.Group(Raid, p.Item1) == 2);
             var actor = previous.TryGetValue(anchor, out var id) ? eligible.Select(p => p.Item2).FirstOrDefault(p => p.InstanceID == id) : null;
@@ -36,7 +37,7 @@ class Chains(BossModule module) : BossComponent(module)
     }
     private Actor? Destination(Actor actor)
     {
-        if (!Rechaining || BellyAndChains.Inside(actor))
+        if (!Rechaining || BellyAndChains.Inside(actor) || actor.FindStatus(SID.Abandonment) != null)
             return null;
         if (actor.FindStatus(SID.Transporting) != null)
         {

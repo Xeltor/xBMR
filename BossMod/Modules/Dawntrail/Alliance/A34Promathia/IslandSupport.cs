@@ -129,7 +129,7 @@ sealed class IslandSupport(BossModule module) : BossComponent(module)
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if (spell.Action.ID == (uint)AID.FalseGenesis)
+        if (ArenaChanges.IsGenesisImpact(caster, spell))
             _islands = true;
     }
 

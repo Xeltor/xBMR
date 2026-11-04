@@ -483,9 +483,8 @@ public abstract class Basexan<AID, TraitID, TValues>(RotationModuleManager manag
         if (
             // positionals irrelevant
             target is { Omnidirectional: true }
-            // enemy is targeting us and is not busy casting, so we assume they will turn to face the player
-            // (excluding striking dummies, which don't move)
-            || target is { TargetID: var t, CastInfo: null, IsStrikingDummy: false } && t == Player.InstanceID
+            // Only pursue rear/flank when another actor holds the target or it is fixed.
+            || PositionalMovement.ForTarget(positional.pos, target, Player, World.Actors) != positional.pos
             || enemy?.Priority < 0
         )
             positional = (Positional.Any, false);

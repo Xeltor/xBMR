@@ -78,9 +78,13 @@ class AddsAndPrey(BossModule module) : BossComponent(module)
         if (Module.PrimaryActor.CastInfo?.Action.ID == (uint)AID.Discordance)
             hints.Add("Destroy all four heads before Discordance finishes!");
     }
+    private bool CanPassPrey(Actor actor) => actor.FindStatus(SID.Pyretic) == null && actor.FindStatus(SID.DeepFreeze) == null
+        && Module.FindComponent<HeatWavePreparation>()?.Active != true
+        && Module.FindComponent<Markers>()?.ActiveStacks.Count is not > 0;
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (HasPrey(actor))
+        if (HasPrey(actor) && CanPassPrey(actor))
             hints.Add(Handoff(slot, actor) == null ? "Prey: no safe eligible handoff player found!" : "Pass Prey to a player without Slippery Prey!");
         if (actor.FindStatus(SID.Pyretic) != null)
             hints.Add("Pyretic: stop moving and acting!");
@@ -98,9 +102,9 @@ class AddsAndPrey(BossModule module) : BossComponent(module)
                     (uint)OID.Boss => 1,
                     _ => target.Priority
                 };
-        if (HasPrey(actor) && actor.FindStatus(SID.Pyretic) == null && actor.FindStatus(SID.DeepFreeze) == null
-            && Module.FindComponent<HeatWavePreparation>()?.Active != true
-            && Handoff(slot, actor) is { } recipient)
+        // Thunder already assigns players a required stack destination. Resume the
+        // handoff after that hit instead of intersecting two independent destinations.
+        if (HasPrey(actor) && CanPassPrey(actor) && Handoff(slot, actor) is { } recipient)
             // Required contact response, not an optional uptime preference. The 0.5y
             // arrival tolerance aims through the recipient; it is not a measured transfer radius.
             hints.AddForbiddenZone(new SDInvertedCircle(recipient.Position, 0.5f), WorldState.CurrentTime);

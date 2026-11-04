@@ -2,11 +2,13 @@ namespace BossMod.Stormblood.Alliance.A12Hashmal;
 
 public enum OID : uint
 {
+    HammerShadow = 0x1EA7E1,
     FallingTower = 0x1EA7DF, // Direction-bearing falling object.
     Boss = 0x1F83, // R6.000, x?
     CommandTower1 = 0x18D6, // R0.500, x?, mixed types
     LinaMewrilah = 0x23E, // R0.500, x?
     CommandTower2 = 0x1F86, // R7.300, x?
+    CommandTowerVisual = 0x1EA1A1, // EventObj, layout 7075821
     SandSphere = 0x1F84, // R2.000, x?
     PennantstoneGolem = 0x1F85, // R1.100-3.300, x0 (spawn during fight)
 
@@ -62,6 +64,6 @@ public enum SID : uint
 public enum IconID : uint
 {
     Icon62 = 62, // player
-    Icon120 = 120, // player
+    FallingRock = 120, // player
     Icon230 = 230, // player
 }

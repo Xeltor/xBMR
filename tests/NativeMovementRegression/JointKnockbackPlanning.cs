@@ -78,6 +78,31 @@ public static partial class Checks
             "The unconfirmed-buff fallback uses native launch/flight/landing deadlines including the spent action lock.");
         var stationaryBefore = NativeNavigationSnapshot.Capture(beforeInput with { Goals = new([]) });
         var stationaryAfter = NativeNavigationSnapshot.Capture(afterInput with { Goals = new([]) });
+        var recoveryPhase = boundPhase with { After = stationaryAfter };
+        MovementPlanningContext RecoverMelee(float ready, bool canPrevent, bool canDash = false)
+            => new(identity, stationaryBefore.CopyStrictMap(), 0, 0,
+                Enumerable.Repeat(true, context.Cells).ToArray(), new float[context.Cells], [], [], resources: 1,
+                targetId: 11, native: stationaryBefore, utilities: canPrevent ? [immunity] : [],
+                range: new(11, identity.Origin, .55f, RecoverExecution: true, RecoveryReadyIn: ready),
+                mobilityMechanics: canDash ? [new(36951, MobilityMechanic.Target, 20, 0, 0, 0, .1f, 0, [new(11, identity.Origin, 0)])] : [],
+                knockbackPhases: boundPhases with { Phases = [recoveryPhase] });
+        var stayContext = RecoverMelee(0, true);
+        var stayInRange = JointMovementSearch.Search(stayContext, Exhaustive);
+        var stayProof = MovementPlanValidation.Validate(stayInRange, stayContext, 0, true, identity.CapturedTimestamp);
+        Check(stayInRange.Stages.Any(stage => stage.PreventedByActionId == 7559)
+            && stayInRange.RangeAccess?.At == 2
+            && stayProof.RangeAccessSeconds == 2,
+            $"Immunity retains melee at onset when a real push takes that access away: {stayInRange.RangeAccess}, {stayProof}, stages {string.Join(',', stayInRange.Stages.Select(s => (s.Kind, s.ActionId, s.PreventedByActionId)))}.");
+        var dashContext = RecoverMelee(0, false, true);
+        var dashBack = JointMovementSearch.Search(dashContext, Exhaustive);
+        var walkBack = JointMovementSearch.Search(RecoverMelee(0, false), Exhaustive);
+        Check(dashBack.Stages.Any(stage => stage.Kind == MovementStageKind.TargetDash && stage.StartSeconds >= 3)
+            && dashBack.RangeAccess?.At < walkBack.RangeAccess?.At
+            && MovementPlanValidation.Validate(dashBack, dashContext, 0, true, identity.CapturedTimestamp).Allowed,
+            "A legal dash can restore attack access after the observed flight window sooner than walking.");
+        var freeRecovery = JointMovementSearch.Search(RecoverMelee(5, true, true), Exhaustive);
+        Check(freeRecovery.RangeAccess?.At == 5 && freeRecovery.RemainingResources == 1,
+            "When walking restores range before the next GCD, the push does not spend a dash or immunity charge.");
         var stationaryImmunity = new MovementPlanningContext(identity, stationaryBefore.CopyStrictMap(), 0, 0,
             Enumerable.Repeat(true, context.Cells).ToArray(), new float[context.Cells], [throughPush], [], resources: 1,
             native: stationaryBefore, utilities: [immunity], knockbackPhases: boundPhases with

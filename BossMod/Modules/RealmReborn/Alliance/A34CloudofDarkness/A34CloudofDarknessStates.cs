@@ -9,6 +9,7 @@ class A34CloudofDarknessStates : StateMachineBuilder
             .ActivateOnEnter<ZeroFormParticleBeam>()
             .ActivateOnEnter<ParticleBeam2>()
             .ActivateOnEnter<ParticleTowers>()
-            .ActivateOnEnter<CloudAssignments>();
+            .ActivateOnEnter<CloudAssignments>()
+            .ActivateOnEnter<FloodOfDarkness>();
     }
 }

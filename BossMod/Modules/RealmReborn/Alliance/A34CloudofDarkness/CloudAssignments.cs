@@ -6,7 +6,7 @@ class CloudAssignments(BossModule module) : BossComponent(module)
     private readonly HashSet<Actor> _preexisting = [.. module.Enemies((uint)OID.HyperchargedCloud)];
     private readonly HashSet<uint> _closed = [];
     private static int Group(Actor cloud) => cloud.Position.Z < -407 ? 1 : cloud.Position.X < -300 ? 0 : 2;
-    private static uint Barrier(int group) => group switch { 0 => (uint)OID.Actor1e9750, 1 => (uint)OID.Actor1e9751, _ => (uint)OID.Actor1e9752 };
+    private static uint Barrier(int group) => group switch { 0 => (uint)OID.Actor1e9752, 1 => (uint)OID.Actor1e9750, _ => (uint)OID.Actor1e9751 };
     public override void OnActorCreated(Actor actor)
     {
         if (actor.OID == (uint)OID.HyperchargedCloud && !actor.IsDeadOrDestroyed)
@@ -23,26 +23,46 @@ class CloudAssignments(BossModule module) : BossComponent(module)
         }
     }
     public override void OnActorDeath(Actor actor) => _entry.Remove(actor);
-    public override void OnActorDestroyed(Actor actor) => _entry.Remove(actor);
+    public override void OnActorDestroyed(Actor actor)
+    {
+        _entry.Remove(actor);
+        _closed.Remove(actor.OID);
+    }
     public override void Update()
     {
         foreach (var cloud in _entry.Keys.Where(c => c.IsDeadOrDestroyed).ToArray())
             _entry.Remove(cloud);
     }
     private Actor? Assigned(int slot) => _entry.Keys.FirstOrDefault(c => Group(c) == WorldOfDarknessAlliance.Group(Raid, slot));
+    private Actor? EntryDestination(int slot, Actor actor) => Assigned(slot) is { } cloud && !_closed.Contains(Barrier(Group(cloud)))
+        && Module.FindComponent<FeintParticleBeam>()?.IsChased(actor) != true ? cloud : null;
+
+    public bool HasBoxAssignment(int slot) => Assigned(slot) != null;
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (_entry.Count != 0)
-            hints.Add(WorldOfDarknessAlliance.Group(Raid, slot) < 0 ? "Hypercharged clouds: alliance unknown; enter your group's box!" : "Hypercharged clouds: A west, B north, C east!", Assigned(slot) is { } cloud && !actor.Position.InCircle(cloud.Position, 3));
+        if (EntryDestination(slot, actor) is { } entry)
+            hints.Add("Enter your alliance's marked box!", !actor.Position.InCircle(entry.Position, 3));
+        else if (Assigned(slot) != null)
+            hints.Add("Defeat your alliance's Hypercharged Cloud!", false);
+        else if (_entry.Count != 0 && WorldOfDarknessAlliance.Group(Raid, slot) < 0)
+            hints.Add("Hypercharged clouds: A southwest, B north, C southeast!", false);
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (EntryDestination(pcSlot, pc) is { } entry)
+            Arena.AddCircleUnfilled(entry.Position, 3, Colors.Safe);
     }
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         var own = Assigned(slot);
         var group = WorldOfDarknessAlliance.Group(Raid, slot);
-        if (own != null)
+        if (EntryDestination(slot, actor) is { } entry)
         {
-            // Three yards is an arrival tolerance at the box center, not the barrier's physical radius.
-            hints.AddForbiddenZone(new SDInvertedCircle(own.Position, 3), _entry[own]);
+            // Reach the center before closure. Once sealed, release the staging
+            // restriction so the player can fight and dodge within the box.
+            hints.AddForbiddenZone(new SDInvertedCircle(entry.Position, 3), _entry[entry]);
         }
         foreach (var enemy in hints.PotentialTargets)
         {

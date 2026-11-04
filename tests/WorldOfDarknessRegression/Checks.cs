@@ -68,12 +68,33 @@ static class Checks
         using var game = new Lumina.GameData(Path.Combine(gameDirectory, "sqpack"));
         Service.LuminaGameData = game; Service.Config.Initialize();
         var failures=new List<Exception>();
-        foreach(var test in new Action[]{AngraColors,AngraLevelsAndDoom,AngraDoomRotation,AngraRoulette,AngraAddAOE,DragonMarkers,DragonResponses,DragonIce,DragonAssignments,CloudChase,CloudTowers,CloudGroups,CerberusFloorsAndBelly,CerberusChains,InterveningEncounters,AtomosMechanics,AtomosAdds,FrontalResponses})
+        foreach(var test in new Action[]{ModuleRegistration,AngraColors,AngraLevelsAndDoom,AngraDoomRotation,AngraRoulette,AngraAddAOE,DragonMarkers,DragonResponses,DragonIce,DragonAssignments,DragonPreyAndThunder,CloudChase,CloudTowers,CloudGroups,CloudFlood,CerberusFloorsAndBelly,CerberusIngestionOverlap,CerberusChains,InterveningEncounters,AtomosMechanics,AtomosAdds,FrontalResponses})
             try { test(); } catch(Exception e) { failures.Add(e); Console.Error.WriteLine(test.Method.Name+": "+e.Message); }
         if(failures.Count!=0)throw new AggregateException(failures);
         Console.WriteLine($"World of Darkness synthetic regression: {assertions} checks passed; physical collision and live gameplay remain separate.");
     }
     static BossMod.Components.GenericAOEs AOE(Fixture f, string name) => f.Module.Components.OfType<BossMod.Components.GenericAOEs>().Single(c => c.GetType().Name == name);
+    static void ModuleRegistration()
+    {
+        (uint OID, WPos Center, Type ModuleType, string Mechanic)[] bosses =
+        [
+            (0xE00, new(-147.07f, 296.92f), typeof(Angra.A31AngraMainyu), "Roulette"),
+            (0xDFC, new(200, 179), typeof(Dragon.A32FiveheadedDragon), "Markers"),
+            (0xDF6, new(0, -198), typeof(Cerberus.A33Cerberus), "BellyAndChains"),
+            (0xCFA, new(-300, -400), typeof(Cloud.A34CloudofDarkness), "FloodOfDarkness")
+        ];
+        foreach (var (oid, center, type, mechanic) in bosses)
+        {
+            using var f = new Fixture(oid, center);
+            var info = BossModuleRegistry.FindByOID(oid);
+            Check(info?.ModuleType == type && info.GroupID == 111, $"{type.Name} registers under World of Darkness");
+            var module = BossModuleRegistry.CreateModuleForActor(f.World, f.Boss);
+            Check(module?.GetType() == type, $"{type.Name} loads through the normal factory");
+            f.Start(module!);
+            Check(module!.Components.Any(c => c.GetType().Name == mechanic), $"{type.Name} activates the expected mechanic");
+            Check(f.Hints().PathfindMapBounds == module.Bounds, $"{type.Name} publishes its arena to AI");
+        }
+    }
     static void FrontalResponses()
     {
         using(var f=new Fixture(0xDFC,new(200,179)))
@@ -142,10 +163,12 @@ static class Checks
         var glass=f.Create(502,0xE02,f.Boss.Position);
         var roulette=AOE(f,"Roulette");
         f.EState(quarter,8); f.Tick(.5);
-        Check(roulette.ActiveAOEs(0,f.Players[0]).Length==0,"spinning Roulette does not forbid a transient quadrant");
+        var preview = roulette.ActiveAOEs(0, f.Players[0]);
+        Check(preview.Length == 1 && !preview[0].Risky && preview[0].Color == Colors.AOE, "spinning Roulette shows one shaded quadrant");
+        Check(f.Hints().ForbiddenZones.Count == 0, "spinning Roulette does not forbid a transient quadrant");
         f.World.Execute(new ActorState.OpDead(glass.InstanceID,true)); f.Tick(.7);
         var hazard=roulette.ActiveAOEs(0,f.Players[0]);
-        Check(hazard.Length==1,"last hourglass death warns before the late attack animation");
+        Check(hazard.Length == 1 && hazard[0].Risky && hazard[0].Color == Colors.Danger, "last hourglass death promotes the preview before the late lock animation");
         Check(hazard[0].Check(f.Boss.Position+new WDir(-10,10)) && !hazard[0].Check(f.Boss.Position+new WDir(10,10)),"recorded final quadrant is southwest");
         Check(f.Hints().ForbiddenZones.Count==1,"Roulette radar shape also constrains AI");
         f.EAnim(quarter,1,16);Check(roulette.ActiveAOEs(0,f.Players[0]).Length==1,"lock animation preserves early warning");
@@ -320,10 +343,28 @@ static class Checks
         var h=f.Hints(3,f.Boss,head);Check(h.PotentialTargets[1].Priority>h.PotentialTargets[0].Priority,"living heads take priority over boss");
         f.Icon(f.Players[3],318);f.Tick(8);Check(markers.Stacks.Count==0,"missed marker events cannot leave stale assignments indefinitely");
     }
+    static void DragonPreyAndThunder()
+    {
+        using var f = new Fixture(0xDFC, new(200, 179));
+        f.Start(new Dragon.A32FiveheadedDragon(f.World, f.Boss));
+        f.Move(f.Players[0], new(195, 180));
+        f.Move(f.Players[1], new(196, 180));
+        f.Move(f.Players[3], new(219, 180));
+        f.Status(f.Players[0], 420);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(f.Players[1].Position) > 0, "Prey initially routes to a nearby recipient");
+        f.Icon(f.Players[3], 318);
+        var zone = f.Hints().ForbiddenZones.Single().shapeDistance;
+        Check(zone.Distance(f.Players[3].Position) > 0 && zone.Contains(f.Players[1].Position), "Thunder stack suspends a conflicting Prey route");
+        f.Event(f.Boss, 3287, f.Players[3].Position, f.Players[3]);
+        Check(f.Hints().ForbiddenZones.Single().shapeDistance.Distance(f.Players[1].Position) > 0, "Thunder resolution resumes the still-active Prey handoff");
+    }
     static void CloudChase()
     {
         using var f=new Fixture(0xCFA,new(-300,-400));f.Start(new Cloud.A34CloudofDarkness(f.World,f.Boss));var aoe=AOE(f,"FeintParticleBeam");
-        f.Icon(f.Players[3],197);f.Cast(f.Boss,3298,3.5f);Check(aoe.ActiveAOEs(0,f.Players[0])[0].Shape is AOEShapeCircle {Radius:8},"initial chasing hit is8y");
+        f.Icon(f.Players[3], 197);
+        f.Move(f.Players[3], new(-290, -400));
+        Check(aoe.ActiveAOEs(0, f.Players[0])[0].Origin == f.Players[3].Position, "initial beam preview follows the marker before its cast locks");
+        f.Cast(f.Boss,3298,3.5f);Check(aoe.ActiveAOEs(0,f.Players[0])[0].Shape is AOEShapeCircle {Radius:8},"initial chasing hit is8y");
         f.Event(f.Boss,3298,f.Boss.Position);f.Finish(f.Boss);f.Move(f.Players[3],new(-280,-400));
         var a=aoe.ActiveAOEs(0,f.Players[0])[0];Check(a.Shape is AOEShapeCircle {Radius:3} && a.Origin.AlmostEqual(new(-297,-400),.01f),"followup is3y and advances3y toward marked player");
         Check(Math.Abs((a.Activation-Now).TotalSeconds-3.1)<.001,"initial followup delay is distinct from repeat interval");
@@ -351,13 +392,58 @@ static class Checks
     {
         using var f=new Fixture(0xCFA,new(-300,-400));f.Start(new Cloud.A34CloudofDarkness(f.World,f.Boss));
         WPos[] positions=[new(-313,-392.5f),new(-300,-415),new(-287,-392.5f)];
-        for(var i=0;i<3;++i)f.Create((ulong)(501+i),0xE03,positions[i]);f.Module.Update();
+        uint[] barrierOids = [0x1E9752, 0x1E9750, 0x1E9751];
+        var barriers = new Actor[3];
+        var clouds = new Actor[3];
+        for (var i = 0; i < 3; ++i)
+        {
+            barriers[i] = f.Create((ulong)(510 + i), barrierOids[i], positions[i], ActorType.EventObj);
+            clouds[i] = f.Create((ulong)(501 + i), 0xE03, positions[i]);
+            f.World.Execute(new ActorState.OpCombat(clouds[i].InstanceID, true));
+        }
+        f.Module.Update();
         for(var i=0;i<3;++i)
         {
             var h=f.Hints(i*8);Check(h.ForbiddenZones.Count==1 && h.ForbiddenZones[0].shapeDistance.Distance(positions[i])>0,"each alliance enters its own hypercloud center");
             Check(Math.Abs((h.ForbiddenZones[0].activation-Now).TotalSeconds-7)<.001,"box entry warning precedes observed closure");
         }
-        f.World.Party.SetAllianceGroups(-1,-1,-1);Check(f.Hints().ForbiddenZones.Count==0,"unknown alliance creates no arbitrary box assignment");
+        f.Create(520, 0x1E974E, new(-310, -400), ActorType.EventObj);
+        f.Module.Update();
+        Check(f.Hints(1).ForbiddenZones.Count == 1, "tower volunteers cannot receive a second destination during a box assignment");
+        f.EAnim(barriers[0], 16, 32);
+        var west = f.Hints(0, f.Boss, clouds[0], clouds[1]);
+        var north = f.Hints(8, f.Boss);
+        Check(west.ForbiddenZones.Count == 0 && west.PotentialTargets[0].Priority == AIHints.Enemy.PriorityUndesirable
+            && west.PotentialTargets[1].Priority > west.PotentialTargets[2].Priority, "west closure releases staging and keeps the west cloud as the local target");
+        Check(north.ForbiddenZones.Count == 1 && north.PotentialTargets[0].Priority == 0, "west closure does not affect north");
+        f.EAnim(barriers[0], 1, 64);
+        Check(f.Hints(0, f.Boss).PotentialTargets[0].Priority == 0, "west reopen clears the local boss targeting restriction");
+        f.Icon(f.Players[8], 197);
+        Check(f.Hints(8).ForbiddenZones.Count == 1 && f.Hints(8).ForbiddenZones[0].shapeDistance.Contains(f.Players[8].Position),
+            "chased player receives beam avoidance without a conflicting box destination");
+        f.World.Party.SetAllianceGroups(-1,-1,-1);Check(f.Hints().ForbiddenZones.Count==1,"unknown alliance receives only the beam hazard without a fabricated box assignment");
+    }
+    static void CloudFlood()
+    {
+        using var f = new Fixture(0xCFA, new(-300, -400));
+        f.Start(new Cloud.A34CloudofDarkness(f.World, f.Boss));
+        Check(f.Hints().PredictedDamage.Count == 0, "Flood has no deadline before the wave starts");
+        f.Create(501, 0xE1C, new(-313, -392.5f));
+        var flood = f.Hints().PredictedDamage.Single();
+        Check(flood.Activation == Now.AddSeconds(68.5) && flood.Players[0] && flood.Players[23], "the first cloud forecasts Flood across the alliance");
+        f.Tick(62);
+        f.Create(502, 0xE1D, new(-287, -392.5f));
+        Check(f.Hints().PredictedDamage.Single().Activation == flood.Activation, "later clouds cannot shift Flood's deadline");
+        Check(f.Module.CalculateGlobalHints(f.Players[0]).Any(h => h.Contains("Flood of Darkness")), "near-term Flood has an actionable player warning");
+        f.Event(f.Boss, 3305, f.Boss.Position);
+        Check(f.Hints().PredictedDamage.Count == 0, "Flood impact clears the forecast");
+        f.Create(503, 0xE1C, new(-315, -393));
+        Check(f.Hints().PredictedDamage.Count == 0, "post-Flood actors cannot start another forecast");
+        using var old = new Fixture(0xCFA, new(-300, -400));
+        old.Create(501, 0xE1C, new(-313, -392.5f));
+        old.Start(new Cloud.A34CloudofDarkness(old.World, old.Boss));
+        old.Create(502, 0xE1D, new(-287, -392.5f));
+        Check(old.Hints().PredictedDamage.Count == 0, "mid-wave activation cannot infer a new Flood deadline");
     }
     static void CerberusFloorsAndBelly()
     {
@@ -375,6 +461,32 @@ static class Checks
         f.World.Execute(new ActorState.OpEventState(puddle.InstanceID,7));f.Move(f.Players[3],new(0,-198),129.3f);f.Finish(f.Boss);Check(!f.Hints(3).ForbiddenZones.Any(z=>z.shapeDistance.Distance(puddle.Position)>0),"spent puddle is no longer an entrance");
         Service.Config.Get<WorldOfDarknessConfig>().CerberusBelly=WorldOfDarknessConfig.BellyStrategy.Manual;
         using var manual=new Fixture(0xDF6,new(0,-198));manual.Start(new Cerberus.A33Cerberus(manual.World,manual.Boss));var j=manual.Create(501,0xDF9,new(12,-190));manual.Module.Update();manual.Cast(j,3249,3);Check(AOE(manual,"Mini").ActiveAOEs(3,manual.Players[3]).Length==1,"manual strategy never volunteers a player for ingestion");
+    }
+    static void CerberusIngestionOverlap()
+    {
+        Service.Config.Get<WorldOfDarknessConfig>().CerberusBelly = WorldOfDarknessConfig.BellyStrategy.AllDPSAndOneHealer;
+        using var f = new Fixture(0xDF6, new(0, -198));
+        f.Start(new Cerberus.A33Cerberus(f.World, f.Boss));
+        f.Create(501, 0xDF9, new(12, -190));
+        var puddle = f.Create(502, 0x1E968C, new(-7, -194), ActorType.EventObj);
+        f.Module.Update();
+        var ingestion = AOE(f, "BellyAndChains");
+        var player = f.Players[3];
+        Check(ingestion.ActiveAOEs(3, player).Length == 1, "puddle warns until the assigned player gains Minimum");
+        f.Status(player, 438);
+        Check(ingestion.ActiveAOEs(3, player).Length == 0, "only the chosen entrance becomes safe for the Mini player");
+        f.Status(player, 609, 1);
+        Check(f.Hints(3).ForbiddenZones.Count == 0, "a Seized player receives no ingestion movement");
+        f.World.Execute(new ActorState.OpStatus(player.InstanceID, 1, default));
+        f.Move(f.Boss, puddle.Position, 129.3f);
+        f.Cast(f.Boss, 3241, 3);
+        Check(f.Hints(3).ForbiddenZones.All(z => z.shapeDistance.Contains(puddle.Position)), "a live Slabber hit cannot be used as a safe entrance");
+        f.Finish(f.Boss);
+        f.Cast(f.Boss, 3507, 50);
+        Check(f.Hints(3).ForbiddenZones.Single().shapeDistance.Contains(puddle.Position), "Reawakening ends ingestion even with a lingering puddle");
+        f.Finish(f.Boss);
+        f.Module.Update();
+        Check(f.Hints(3).ForbiddenZones.Single().shapeDistance.Contains(puddle.Position), "the same puddle cannot reopen for ingestion when Reawakening ends");
     }
     static void CerberusChains()
     {

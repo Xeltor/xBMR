@@ -5,13 +5,24 @@ namespace BossMod.CombatAssistance.Planning;
 // area still needs its independently verified onward escape and useful endpoint.
 internal readonly record struct PlanningRangeAccess(float ReadyAt, float Loss = float.PositiveInfinity, float At = float.PositiveInfinity)
 {
-    internal PlanningRangeAccess Advance(PlanningRange range, float ready, ImmutableArray<MovementStage> stages, WPos endpoint, float end)
+    internal PlanningRangeAccess Advance(PlanningRange range, float ready, ImmutableArray<MovementStage> stages, WPos endpoint, float end, DateTime worldTime)
     {
         var result = ready > ReadyAt ? new(ready) : this;
         foreach (var stage in stages)
+        {
+            result = result.AfterKnockback(stage.Knockback, worldTime);
             result = result.Advance(range, ready, stage.Kind, stage.From, stage.To, stage.StartSeconds, stage.EndSeconds);
-        return end >= ready ? result.Observe(range, endpoint, end) : result;
+        }
+        return result.Observe(range, endpoint, end);
     }
+
+    // Contact before a push cannot stand in for the next usable attack window.
+    // A prevented push uses the same onset clock but has no flight to wait out.
+    internal PlanningRangeAccess AfterKnockback(NativeKnockbackPhase? phase, DateTime worldTime)
+        => phase?.Timing is { } timing
+            ? new(Math.Max(ReadyAt, (float)((timing.EarliestUtc < phase.Source.Activation
+                ? timing.EarliestUtc : phase.Source.Activation) - worldTime).TotalSeconds))
+            : this;
 
     internal PlanningRangeAccess Advance(PlanningRange range, float ready, MovementStageKind kind, WPos from, WPos to, float start, float end)
     {

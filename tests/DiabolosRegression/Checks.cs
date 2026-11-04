@@ -315,6 +315,7 @@ static partial class Checks
         var portal = Component<BossComponent>(module, "PortalSafety");
         Check(module.Components.Last() == portal, "portal fallback executes last and cannot be overwritten by a main-floor component");
         var manualTarget = Actor(70, 0xFFFF, new(350, -445));
+        manualTarget.PosRot.Y = -300;
         var focusTarget = Actor(71, 0xFFFE, new(351, -445));
         var action = new ActionID(ActionType.Spell, 119);
         var forcedMovement = new Vector3(0.25f, 0, -0.5f);
@@ -338,6 +339,7 @@ static partial class Checks
             hints.ForbiddenDirections.Add((default, 45.Degrees(), Now.AddSeconds(5)));
             hints.PredictedDamage.Add(new(BitMask.Build(0), Now.AddSeconds(5)));
             hints.PotentialTargets.Add(new(manualTarget, 7, false));
+            hints.PotentialTargets.Add(new(module.PrimaryActor, 1, false));
             hints.ActionsToExecute.Push(action, manualTarget, ActionQueue.Priority.ManualGCD, manual: true);
             return hints;
         }
@@ -363,10 +365,11 @@ static partial class Checks
                 && !module.Arena.InBounds(player.Position), "inherited main-floor bounds remain metadata under the pause rather than fabricated portal geometry");
             Check(hints.ForcedTarget == manualTarget && hints.ForcedFocusTarget == focusTarget && hints.ForcedMovement == forcedMovement,
                 "portal fallback preserves explicit target, focus and movement input");
-            Check(hints.PotentialTargets.Count == 1 && hints.PotentialTargets[0].Actor == manualTarget && hints.PotentialTargets[0].Priority == 7
+            Check(hints.PotentialTargets.Count == 2 && hints.PotentialTargets[0].Actor == manualTarget && hints.PotentialTargets[0].Priority == 7
+                && hints.PotentialTargets[1].Priority == AIHints.Enemy.PriorityUndesirable
                 && hints.ActionsToExecute.Entries.Count == 1 && hints.ActionsToExecute.Entries[0].Action == action
                 && hints.ActionsToExecute.Entries[0].Target == manualTarget && hints.ActionsToExecute.Entries[0].Manual,
-                "portal fallback preserves attack candidates and the manually queued attack");
+                "portal keeps local targets and manual actions while excluding surface targets from automatic selection");
             var personal = new BossComponent.TextHints { ("main-floor personal assignment", true) };
             var global = new BossComponent.GlobalHints { "main-floor global instruction" };
             portal.AddHints(0, player, personal);
@@ -393,6 +396,8 @@ static partial class Checks
                     && !hints.ForbidDashes && hints.ForbiddenZones.Count > 0 && hints.GoalZones.Count == 1
                     && hints.TemporaryObstacles.Count == 1 && hints.Teleporters.Count == 1 && hints.PredictedDamage.Count == 1,
                     "main floor and unrelated coordinates do not activate the narrow known-portal classifier " + position);
+                Check(hints.PotentialTargets[0].Priority == AIHints.Enemy.PriorityUndesirable && hints.PotentialTargets[1].Priority == 1,
+                    "return to the main floor excludes the remote portal candidate");
                 personal = [("retained personal", true)];
                 global = ["retained global"];
                 portal.AddHints(0, player, personal);

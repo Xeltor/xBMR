@@ -3,7 +3,16 @@ namespace BossMod.Stormblood.Alliance.A11Mateus;
 class IceSpiral(BossModule module) : Components.GenericAOEs(module)
 {
     private static readonly AOEShapeCircle circle = new(2f);
-    public readonly List<AOEInstance> _aoes = [with(228)];
+    private const float RadialGrowth = 1.178f; // yalms per radian, from the observed skating path
+    private readonly List<AOEInstance> _aoes = [with(228)];
+    private readonly AOEInstance[] _forecast = new AOEInstance[8];
+    private readonly Queue<(DateTime Time, WPos Position)> _motion = [];
+    private Actor? _skater;
+    private WPos _lastPosition;
+    private DateTime _lastMotionAt;
+    private DateTime _lastPulseAt;
+    private int _forecastCount;
+    private bool _trackedMotion;
     private static readonly WPos[] coordinates =
     [   // Note: the spiral coordinates are slightly different (different from normal quantization  errors) in each replay I looked at. I assume they somehow get 
         // generated on the fly based on the actor movement along the spiral, which would have variations depending on the server tick
@@ -58,41 +67,163 @@ class IceSpiral(BossModule module) : Components.GenericAOEs(module)
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
+        if (_forecastCount > 0)
+            return _forecast.AsSpan(0, Math.Min(5, _forecastCount));
+
         var count = _aoes.Count;
-        if (count == 0)
+        if (count == 0 || _trackedMotion)
             return [];
         var max = count > 20 ? 20 : count;
         var aoes = CollectionsMarshal.AsSpan(_aoes);
         var maxC = Math.Min(max, count - NumCasts);
-        if (NumCasts < 227)
-            aoes[NumCasts].Color = Colors.Danger;
+        aoes[NumCasts].Color = Colors.Danger;
         return aoes.Slice(NumCasts, maxC);
     }
 
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        for (var i = 5; i < _forecastCount; ++i)
+        {
+            ref readonly var pulse = ref _forecast[i];
+            hints.AddForbiddenZone(pulse.Shape, pulse.Origin, pulse.Rotation, pulse.Activation);
+        }
+    }
+
+    internal DateTime? EstimatedPassage(WPos position, float objectiveRadius)
+    {
+        var clearance = circle.Radius + objectiveRadius;
+        foreach (ref readonly var pulse in _forecast.AsSpan(0, _forecastCount))
+        {
+            if (position.InCircle(pulse.Origin, clearance))
+                return pulse.Activation;
+        }
+
+        var index = NumCasts + _forecastCount;
+        // Keep the sampled timetable for deciding whether to attempt a soak
+        // during a telemetry gap. It is too uncertain to draw as a live lane.
+        if (index >= _aoes.Count)
+            return null;
+
+        var offset = _lastPulseAt != default && NumCasts > 0 ? _lastPulseAt - _aoes[NumCasts - 1].Activation : TimeSpan.Zero;
+        foreach (ref readonly var pulse in CollectionsMarshal.AsSpan(_aoes)[index..])
+        {
+            if (position.InCircle(pulse.Origin, clearance))
+                return pulse.Activation + offset;
+        }
+        return null;
+    }
+
+    public override void Update()
+    {
+        _forecastCount = 0;
+        if ((_aoes.Count == 0 && _lastPulseAt == default) || _skater is not { IsDeadOrDestroyed: false } skater)
+            return;
+
+        var now = WorldState.CurrentTime;
+        if (_lastMotionAt == default || skater.Position != _lastPosition)
+        {
+            _lastPosition = skater.Position;
+            _lastMotionAt = now;
+            _motion.Enqueue((now, _lastPosition));
+        }
+        while (_motion.TryPeek(out var oldest) && oldest.Time < now.AddSeconds(-0.48d))
+            _motion.Dequeue();
+
+        if (!_motion.TryPeek(out var sample) || (_lastMotionAt - sample.Time).TotalSeconds < 0.25d || (now - _lastMotionAt).TotalSeconds > 0.2d)
+            return;
+
+        // The recorded path is an Archimedean spiral after the opening turn.
+        // Anchor its angle and radius to live motion rather than a replay pulse index.
+        var center = Arena.Center + new WDir(0f, 1.8f);
+        var radial = _lastPosition - center;
+        var radius = radial.Length();
+        var angle = Angle.FromDirection(radial);
+        var delta = Angle.FromDirection(sample.Position - center).DistanceToAngle(angle).Rad;
+        var observedSpeed = (_lastPosition - sample.Position).Length() / (float)(_lastMotionAt - sample.Time).TotalSeconds;
+        if (radius < 4f || MathF.Abs(delta) < 0.01f || observedSpeed is < 3f or > 8f)
+            return;
+
+        _trackedMotion = true;
+        var speed = 0.35f * observedSpeed + 0.65f * (5.4f + 0.028f * radius);
+        var direction = MathF.Sign(delta);
+        var next = _lastPulseAt == default ? WorldState.FutureTime(0.27d) : _lastPulseAt.AddSeconds(PulseInterval(NumCasts));
+        if (next < now)
+            next = now;
+
+        // Helper origins lead the skater's observed position by about a quarter second.
+        var projectedAt = _lastMotionAt.AddSeconds(-0.25d);
+        _forecastCount = _aoes.Count == 0 ? _forecast.Length : Math.Min(_forecast.Length, _aoes.Count - NumCasts);
+        for (var i = 0; i < _forecastCount; ++i)
+        {
+            var distance = speed * (float)(next - projectedAt).TotalSeconds;
+            var step = distance / MathF.Sqrt(radius * radius + RadialGrowth * RadialGrowth);
+            var middleRadius = radius + 0.5f * RadialGrowth * step;
+            step = distance / MathF.Sqrt(middleRadius * middleRadius + RadialGrowth * RadialGrowth);
+            radius += RadialGrowth * step;
+            angle += (direction * step).Radians();
+            _forecast[i] = new(circle, center + radius * angle.ToDirection(), activation: next, color: i == 0 ? Colors.Danger : Colors.AOE);
+
+            projectedAt = next;
+            next = next.AddSeconds(PulseInterval(NumCasts + i + 1));
+        }
+    }
+
+    private static double PulseInterval(int completedPulses) => (completedPulses & 1) != 0 ? 0.23d : 0.30d;
+
     public override void OnActorCreated(Actor actor)
     {
-        if (_aoes.Count == 0 && actor.OID == (uint)OID.AquaBubble)
+        if (actor.OID == (uint)OID.Totema)
+            _skater = actor;
+
+        if (_aoes.Count == 0 && _lastPulseAt == default && actor.OID == (uint)OID.AquaBubble && Module.PrimaryActor.CastInfo?.Action.ID != (uint)AID.Rebind)
         {
             var lastActivationTime = 8d;
             for (var i = 0; i < 228; ++i)
             {
-                var additionalTime = ((i & 1) == 0) ? 0.16d : 0.36d;
+                var additionalTime = PulseInterval(i + 1);
                 var activationTime = WorldState.FutureTime(lastActivationTime);
-                _aoes.Add(new(circle, coordinates[i], default, activationTime));
+                _aoes.Add(new(circle, coordinates[i], default, activationTime, Colors.AOE));
                 lastActivationTime += additionalTime;
             }
         }
     }
 
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.Rebind)
+            Clear();
+    }
+
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if (spell.Action.ID == (uint)AID.BallOfIce)
+        if (spell.Action.ID != (uint)AID.BallOfIce)
+            return;
+        if (_aoes.Count == 0 && (_skater is not { IsDeadOrDestroyed: false } || Module.PrimaryActor.CastInfo?.Action.ID == (uint)AID.Rebind))
+            return;
+
+        _lastPulseAt = WorldState.CurrentTime;
+        _forecastCount = 0;
+        ++NumCasts;
+        if (_aoes.Count > 0 && NumCasts >= _aoes.Count)
+            Clear();
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        if (actor == _skater)
         {
-            if (++NumCasts == 228)
-            {
-                _aoes.Clear();
-                NumCasts = 0;
-            }
+            Clear();
+            _skater = null;
         }
+    }
+
+    private void Clear()
+    {
+        _aoes.Clear();
+        _motion.Clear();
+        _lastMotionAt = _lastPulseAt = default;
+        _forecastCount = NumCasts = 0;
+        _trackedMotion = false;
     }
 }

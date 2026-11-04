@@ -143,8 +143,10 @@ abstract class ArtOfTheSwell(BossModule module, uint aid) : Components.SimpleKno
 {
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        if (Casters.Count != 0)
-            hints.AddForbiddenZone(new SDInvertedCircle(Arena.Center, 5f), Casters.Ref(0).Activation);
+        foreach (var kb in Casters)
+            if (!IsImmune(slot, kb.Activation))
+                hints.AddForbiddenZone(new SDKnockbackInCircleAwayFromOrigin(Arena.Center, kb.Origin, kb.Distance,
+                    D063ZenosYaeGalvus.DefaultBounds.Radius), kb.Activation, kb.ActorID);
     }
 }
 class ArtOfTheSwell1(BossModule module) : ArtOfTheSwell(module, (uint)AID.ArtOfTheSwell1);

@@ -15,7 +15,7 @@ sealed class DeadlyRebirthKnockback(BossModule module) : Components.GenericKnock
             var source = _sources[0];
             // p + 20 * facing must land inside the restored 25y arena.
             // Immunity effectiveness is unverified: retain the safe approach.
-            hints.AddForbiddenZone(new SDInvertedCircle(Arena.Center - source.Distance * source.Direction.ToDirection(), 25f), source.Activation);
+            hints.AddForbiddenZone(new SDKnockbackInCircleFixedDirection(Arena.Center, source.Distance * source.Direction.ToDirection(), 25f), source.Activation);
         }
     }
 
@@ -44,13 +44,13 @@ sealed class DeadlyRebirthKnockback(BossModule module) : Components.GenericKnock
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
-        if (!spell.EventHappened && (ReferenceEquals(_visual, spell) || ReferenceEquals(_helper, spell)))
+        if (!spell.EventHappened && (ReferenceEquals(_helper, spell) || _helper == null && ReferenceEquals(_visual, spell)))
             Reset();
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        if (spell.Action.ID == WatchedAction && _sources.Length != 0)
+        if (spell.Action.ID == WatchedAction && _sources.Length != 0 && (_helperSource == null || caster == _helperSource))
         {
             ++NumCasts;
             Reset();
@@ -59,7 +59,13 @@ sealed class DeadlyRebirthKnockback(BossModule module) : Components.GenericKnock
 
     public override void OnActorDestroyed(Actor actor)
     {
-        if (ReferenceEquals(_helperSource, actor) || ReferenceEquals(_visualSource, actor))
+        if (ReferenceEquals(_helperSource, actor) || _helperSource == null && ReferenceEquals(_visualSource, actor))
+            Reset();
+    }
+
+    public override void Update()
+    {
+        if (_sources.Length != 0 && WorldState.CurrentTime > _sources[0].Activation.AddSeconds(2))
             Reset();
     }
 

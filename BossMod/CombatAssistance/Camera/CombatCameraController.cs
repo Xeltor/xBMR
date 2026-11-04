@@ -94,6 +94,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
     private int prunedViews;
 
     public CombatCameraStatus Status { get; private set; } = new("disabled", 0, null, null);
+    internal bool CanBorrowMovementMode => this.eligible && this.inputHook != null;
 
     internal CombatCameraController(Func<Config.AssistancePreferences> preferences, IObjectTable objects,
         IPluginLog log, IGameInteropProvider interop, Func<bool> automationAllowed, LegacyMovementOption movementOption)
@@ -137,7 +138,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
             var fightCenter = scene.FightCenter;
             var manager = CameraManager.Instance();
             var camera = manager == null ? null : manager->GetActiveCamera();
-            if (camera == null || camera != manager->Camera)
+            if (camera == null || camera != manager->Camera || !SupportsCameraControl(camera))
             {
                 this.Hold("special camera");
                 return;
@@ -186,6 +187,11 @@ internal sealed unsafe class CombatCameraController : IDisposable
         }
     }
 
+    private static bool SupportsCameraControl(NativeCamera* camera)
+        => camera->ZoomMode == CameraZoomMode.ThirdPerson
+            && camera->ControlMode is CameraControlMode.ThirdPersonLegacy or CameraControlMode.ThirdPersonFixed
+            && !camera->ShouldResetAngles && !camera->IsEventCameraAutoControl;
+
     private void ReadCameraInput(NativeCamera* camera, int inputMode, float speedH, float speedV)
     {
         var frameworkInput = Environment.CurrentManagedThreadId == this.frameworkThread;
@@ -208,9 +214,7 @@ internal sealed unsafe class CombatCameraController : IDisposable
         {
             var manager = CameraManager.Instance();
             if (!this.config.CombatCamera || manager == null || manager->GetActiveCamera() != camera ||
-                (nint)camera != this.hookedCamera || camera->ZoomMode != CameraZoomMode.ThirdPerson ||
-                camera->ControlMode is not (CameraControlMode.ThirdPersonLegacy or CameraControlMode.ThirdPersonFixed) ||
-                camera->ShouldResetAngles || camera->IsEventCameraAutoControl)
+                (nint)camera != this.hookedCamera || !SupportsCameraControl(camera))
             {
                 this.Hold("camera released");
                 return;

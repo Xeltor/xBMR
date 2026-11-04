@@ -42,6 +42,35 @@ public static partial class Checks
         Check(NativeMovementHost.RequestsCombatOptimization(combat, new(), true, false)
             && NativeMovementHost.RequestsCombatOptimization(combat, new(), false, true),
             "Party engagement and active encounter downtime each retain combat optimization.");
+        var now = DateTime.UtcNow;
+        bool Optimizes(MovementIntent intent, DateTime time)
+            => NativeMovementHost.RequestsCombatOptimization(combat, intent, true, true,
+                NativeMovementHost.NativeSteeringReason(hints, intent, combat, time) != null);
+
+        hints.AddSpecialMode(AIHints.SpecialMode.Misdirection, now.AddSeconds(1));
+        Check(Optimizes(new(), now),
+            "A future arrow does not preempt ordinary combat planning before it starts.");
+        Check(!Optimizes(new(), now.AddSeconds(1)),
+            "Active misdirection uses native arrow steering instead of a free-steering combat plan.");
+        Check(Optimizes(new(HandleMisdirection: false), now.AddSeconds(1)),
+            "A preset that ignores special modes keeps its existing planning policy.");
+        hints.Clear();
+        Check(Optimizes(new(), now.AddSeconds(2)),
+            "Clearing the arrow restores ordinary combat planning.");
+
+        var circle = (Actor)RuntimeHelpers.GetUninitializedObject(typeof(Actor));
+        circle.InstanceID = 2;
+        circle.IsTargetable = true;
+        hints.InteractWithTarget = circle;
+        Check(Optimizes(new(), now), "An ordinary interaction request does not reserve the encounter action window.");
+        hints.PriorityInteraction = circle;
+        Check(!Optimizes(new(), now) && !Optimizes(new(HandleMisdirection: false), now),
+            "An eligible required interaction keeps elective mobility from claiming its action window.");
+        circle.IsTargetable = false;
+        Check(Optimizes(new(), now), "An unavailable circle releases the action window immediately.");
+        circle.IsTargetable = true;
+        hints.InteractWithTarget = player;
+        Check(Optimizes(new(), now), "A replaced interaction target does not inherit the previous target's priority.");
         var frame = new OffensiveTargetFrame(new(1, default, 0, 0, default), 0, 0, false, true, true, 0, []);
         Check(!frame.NeedsActionConstraints && (frame with { Current = 10 }).NeedsActionConstraints
             && (frame with { Forced = 10 }).NeedsActionConstraints,

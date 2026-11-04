@@ -169,7 +169,8 @@ internal static class JointMovementSearch
                 && (context.HealingCoverage == null || context.HealingCoverage.Satisfied(best.Position))
                 && context.Zones.Where(zone => zone.EndsIn > best.Time).All(zone => context.Zones.Any(covered =>
                     covered.Benefit == zone.Benefit && covered.Contains(best.Position, best.Time, best.RelocatedField)))
-                && (context.Range?.RecoverExecution != true || RangeOutcome(best) is { Loss: 0 })
+                && (context.Range?.RecoverExecution != true || RangeOutcome(best) is { Loss: 0 }
+                    && (!context.HasEndpointPreferences || context.RetainsAttackRange(best.Position)))
                 && queue.Peek().Time > (context.Range?.RecoverExecution == true
                     || context.PartyContact?.Loss(context.Origin) > 0
                     || context.HealingCoverage?.Satisfied(context.Origin) == false
@@ -699,6 +700,7 @@ internal static class JointMovementSearch
             // Earlier inside delivery cannot discard an outside endpoint before
             // its complete usable route and current coverage are compared.
             if (context.HasEndpointPreferences && (!PreferredEndpoint(best)
+                || context.Range?.RecoverExecution == true && !context.RetainsAttackRange(best.Position)
                 || frames[best.Knockbacks].NativePriority(best.Cell) != maximumNativePriority
                 || context.HealingCoverage != null || best.Values.Where((value, i) => value < maximumActionValues[i]).Any())) return false;
             // This is an objective upper bound against a COMPLETE verified plan,
@@ -828,7 +830,7 @@ internal static class JointMovementSearch
                         ready = Math.Max(ready, Math.Max(stage.StartSeconds + (float.IsFinite(stage.PlannedRecastSeconds) ? stage.PlannedRecastSeconds : 0),
                             float.IsFinite(stage.ActionLockUntil) ? stage.ActionLockUntil : stage.EndSeconds));
                 }
-                label.RangeAccess = access.Advance(range, ready, label.Stages, label.Position, label.Time);
+                label.RangeAccess = access.Advance(range, ready, label.Stages, label.Position, label.Time, context.Identity.WorldTime);
             }
             var comboReady = Math.Max(label.ComboReadyAt, label.Parent?.ComboReadyAt ?? 0);
             var fieldEntry = label.Parent?.FieldEntryByAbility ?? false;
@@ -1042,6 +1044,10 @@ internal static class JointMovementSearch
                 if (assignment != 0) return assignment > 0;
                 var configuredHealing = context.HealingCoverage?.Compare(a.Position, b.Position) ?? 0;
                 if (configuredHealing != 0) return configuredHealing > 0;
+                // A safe position in attack range outranks optional clearance
+                // from the boss footprint or the edge of the arena.
+                var attackRange = context.RetainsAttackRange(a.Position).CompareTo(context.RetainsAttackRange(b.Position));
+                if (attackRange != 0) return attackRange > 0;
                 var outside = PreferredEnemyEndpoint(a).CompareTo(PreferredEnemyEndpoint(b));
                 if (outside != 0) return outside > 0;
                 var interior = context.PreferredArenaEndpoint(a.Position).CompareTo(context.PreferredArenaEndpoint(b.Position));

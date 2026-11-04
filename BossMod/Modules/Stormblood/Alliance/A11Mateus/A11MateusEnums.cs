@@ -34,6 +34,8 @@ public enum AID : uint
     BallOfIce = 9780, // Helper->self, no cast, range 2 circle
     ConcealmentVisual = 9783, // Helper->self, no cast, single-target
     DarkBlizzardIII = 10045, // IceSlave->players, 3.0s cast, range 5 circle
+    Frosting = 9786, // range 8 circle
+    Hydrowave = 9796, // ground-targeted circle
     Rebind = 9781, // Boss->self, 5.0s cast, single-target
     ReturnToBody = 9782, // Totema->Boss, no cast, single-target
     Dualcast = 9788, // Boss->self, 5.0s cast, single-target

@@ -146,6 +146,20 @@ public static partial class Checks
         hints.Normalize();
         Check(CombatAssistanceRuntime.CaptureCombatRange(hints, player) is { Radius: 5.1f, RecoverExecution: true },
             "Runtime melee recovery includes both native hitboxes and the retained melee-uptime distance.");
+        var previous = (Actor)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Actor));
+        previous.InstanceID = 11;
+        player.TargetID = previous.InstanceID;
+        hints.NativeTargetIntentCollectionRequested = true;
+        hints.SetAutomaticTarget(previous);
+        Check(CombatAssistanceRuntime.CaptureMeleeFallbackRange(hints, player, 10, 10) is { TargetId: 10, Radius: 5.1f }
+            && CombatAssistanceRuntime.CaptureMeleeFallbackRange(hints, player, 10, 11) == null
+            && CombatAssistanceRuntime.CaptureMeleeFallbackRange(hints, player, 11, 11) == null,
+            "A newly selected eligible hard target may await planning, while a mismatched or ineligible action recipient cannot.");
+        hints.SetNativeTarget(previous);
+        Check(CombatAssistanceRuntime.CaptureMeleeFallbackRange(hints, player, 10, 10) == null,
+            "A native target assignment keeps authority across a live RSR target handoff.");
+        hints.SetNativeTarget(null);
+        player.TargetID = target.InstanceID;
         player.Class = Class.BLM;
         Check(CombatAssistanceRuntime.CaptureCombatRange(hints, player) is { Radius: 27.5f },
             "Caster recovery retains its role range rather than requesting melee movement.");
@@ -177,9 +191,9 @@ public static partial class Checks
             "A departure that precedes the next readiness window wins over retained melee access; no future attack or expiry is invented.");
         var rangeWindow = new PlanningRange(10, Point(warningMap, 2), .5f, true);
         var walked = new PlanningRangeAccess(0).Advance(rangeWindow, 0,
-            [new(MovementStageKind.Walk, Point(warningMap, 0), Point(warningMap, 3), 0, 3)], Point(warningMap, 3), 3);
+            [new(MovementStageKind.Walk, Point(warningMap, 0), Point(warningMap, 3), 0, 3)], Point(warningMap, 3), 3, warningIdentity.WorldTime);
         var displaced = new PlanningRangeAccess(0).Advance(rangeWindow, 0,
-            [new(MovementStageKind.TargetDash, Point(warningMap, 0), Point(warningMap, 3), 0, 3)], Point(warningMap, 3), 3);
+            [new(MovementStageKind.TargetDash, Point(warningMap, 0), Point(warningMap, 3), 0, 3)], Point(warningMap, 3), 3, warningIdentity.WorldTime);
         Check(walked.Loss == 0 && Math.Abs(walked.At - 1.5f) < .001f && displaced.Loss > 0,
             "Walking measures first actual range entry; an unsupported point along a displacement cannot certify an intermediate attack opportunity.");
 

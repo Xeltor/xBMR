@@ -22,8 +22,8 @@ static partial class Regression
         var hints = new AIHints();
         component.AddAIHints(0, player, default, hints);
         Check(hints.Teleporters.Count == 0 && hints.GoalZones.Count == 0, "ordinary arena has no island support routing");
-        component.OnEventCast(boss, Effect(50343));
-        changes.OnEventCast(boss, Effect(50343));
+        component.OnMapEffect(0x0C, 0x00020001);
+        changes.OnMapEffect(0x0C, 0x00020001);
         AIHints Read()
         {
             var result = new AIHints { PathfindMapBounds = module.Bounds, PathfindMapCenter = module.Center };
@@ -106,7 +106,7 @@ static partial class Regression
         component.OnMapEffect(0x0C, 0x00080004);
         Check(Read().Teleporters.Count == 0 && Read().GoalZones.Count == 0, "restored arena retires all transfer state");
         Check(Read().ForbiddenZones.Count == 0, "arena restore also removes physical pad avoidance");
-        component.OnEventCast(boss, Effect(50343));
+        component.OnMapEffect(0x0C, 0x00020001);
         Check(Read().Teleporters.Count == 0, "a new island phase cannot reuse previously enabled pads");
         component.OnMapEffect(0x5F, 0x00020001);
         component.OnMapEffect(0x60, 0x00020001);
@@ -124,7 +124,7 @@ static partial class Regression
         })
         {
             component.OnCastStarted(boss, Cast(50343, boss.Position));
-            component.OnEventCast(boss, Effect(50343));
+            component.OnMapEffect(0x0C, 0x00020001);
             foreach (var index in new byte[] { 0x0D, 0x0E, 0x0F, 0x5E, 0x5F, 0x60 })
                 component.OnMapEffect(index, 0x00020001);
             for (var i = 0; i < 3; ++i) adds[i].IsDead = i != destination;

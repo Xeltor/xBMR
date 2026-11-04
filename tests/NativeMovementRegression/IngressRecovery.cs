@@ -1,14 +1,17 @@
 using BossMod;
 using BossMod.CombatAssistance.Planning;
 using BossMod.Pathfinding;
+using Lakelord = BossMod.Shadowbringers.Dungeon.D02DohnMheg.D031AencThon;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 public static partial class Checks
 {
     private static void IngressRecovery()
     {
         RecoveryDeferral();
+        DohnMhegBridgeRecovery();
         var now = DateTime.UtcNow;
         var hints = new AIHints();
         Vector3? Flat(Vector3 p, Vector3 direction, float _) => direction.Y < -0.9f ? new(p.X, 0, p.Z) : null;
@@ -41,6 +44,54 @@ public static partial class Checks
         hints.PathfindMapArenaProjectionLayer = null;
         hints.Teleporters.Add(new(new(3, 0), new(6, 0), 1, false));
         Check(!Route(), "entry does not mistake an authored teleporter for ordinary ground");
+    }
+
+    private static void DohnMhegBridgeRecovery()
+    {
+        // Recorded at the last bend, with the boss untargetable and no action
+        // selected while xBMR kept deferring the native route toward the lyre.
+        var (world, player, module) = ProjectionFixture();
+        player.PosRot = new(-115.26202f, -144.53662f, -244.64418f, 2.9939642f);
+        var lyre = (Actor)RuntimeHelpers.GetUninitializedObject(typeof(Actor));
+        lyre.InstanceID = 2;
+        lyre.OID = (uint)Lakelord.OID.LiarsLyre;
+        lyre.IsTargetable = true;
+        lyre.PosRot = new(-128.5268f, -144.5215f, -259.02197f, 0);
+        typeof(BossModule).GetField(nameof(BossModule.RelevantEnemies))!.SetValue(module,
+            new Dictionary<uint, List<Actor>> { [(uint)Lakelord.OID.LiarsLyre] = [lyre] });
+        module.Arena.Center = Lakelord.D033AencThon.BuildArena().center;
+        var bridge = new Lakelord.FunambulistsFantasia(module);
+        var hints = new AIHints();
+        bridge.OnCastFinished(lyre, new ActorCastInfo { Action = ActionID.MakeSpell(Lakelord.AID.FunambulistsFantasia) });
+        bridge.AddAIHints(0, player, default, hints);
+        Check(hints.UseNativeNavigation && hints.ForbidDashes && hints.GoalZones.Count == 1, "the bridge keeps the lyre goal and forbids player dashes");
+
+        var identity = new NavigationIdentity(1, world.CurrentTime, DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(),
+            player.Position, false, 6, 0, null, player.InstanceID, 821, 649);
+        var input = new NavigationDecision.CapturedInput(new(module.Bounds, module.Center, null, default), [],
+            [], NavigationDecision.CaptureGoals(hints), true, [], identity, true);
+        var native = NativeNavigationSnapshot.Capture(input);
+        var intent = new MovementIntent();
+        var steerNatively = NativeMovementHost.NativeSteeringReason(hints, intent, null, world.CurrentTime) != null;
+        Check(steerNatively && NativeMovementHost.NativeSteeringReason(hints, intent with { ExplicitDestination = player.Position },
+            null, world.CurrentTime) == null, "the bridge uses native steering under the existing movement authority");
+        var context = new MovementPlanningContext(identity, native.CopyStrictMap(), 0, 0,
+            Enumerable.Repeat(true, native.Cells).ToArray(), native.CopyPresentation(), [], [], native: native, optimize: !steerNatively);
+        var recovery = NativeMovementSearch.Recover(context, new());
+        var publication = recovery.NativeRecovery!.Value.Publication!;
+        var executor = new MovementPlanExecutor();
+        var step = executor.AdvanceRecovery(recovery, identity, true, native.CanExecuteRecovery(publication, player.Position),
+            timestamp: identity.CapturedTimestamp);
+        Check(publication is { NativeMaxGoalReached: true, WitnessComplete: true }
+            && recovery.UsefulDestination.InCircle(lyre.Position, 1) && !NativeMovementHost.CanDeferRecovery(context, recovery)
+            && step.Kind == MovementExecutionKind.Walk && step.Waypoint == publication.Destination,
+            "native recovery follows the recorded bridge route to the lyre without waiting for attack planning");
+        Check(executor.AdvanceRecovery(recovery, identity, false, true, timestamp: identity.CapturedTimestamp)
+            .Kind == MovementExecutionKind.Invalidated, "bridge navigation yields to manual movement authority");
+        bridge.OnCastFinished(lyre, new ActorCastInfo { Action = ActionID.MakeSpell(Lakelord.AID.Finale) });
+        hints = new();
+        bridge.AddAIHints(0, player, default, hints);
+        Check(!hints.UseNativeNavigation && !hints.ForbidDashes && hints.GoalZones.Count == 0, "Finale ending clears the bridge-specific instructions");
     }
 
     private static void RecoveryDeferral()

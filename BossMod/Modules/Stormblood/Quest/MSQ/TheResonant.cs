@@ -39,13 +39,11 @@ class TerminusEst(BossModule module) : Components.GenericAOEs(module)
 
         var aoes = new AOEInstance[count];
         var act = Activation.Value;
+        // The four Terminus Est sources can fire from the center of the arena.
         for (var i = 0; i < count; ++i)
         {
             var t = terminii[i];
-            if (!t.Position.AlmostEqual(Arena.Center, 0.5f))
-            {
-                aoes[i] = new(rect, t.Position, t.Rotation, activation: act);
-            }
+            aoes[i] = new(rect, t.Position, t.Rotation, activation: act);
         }
         return aoes;
     }

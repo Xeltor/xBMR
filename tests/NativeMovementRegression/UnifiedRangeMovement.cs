@@ -45,10 +45,10 @@ public static partial class Checks
             var exhaustive = Search(allInput, true);
             Check(PlanningMovementValue.Compare(all.DurationSeconds, exhaustive.DurationSeconds) == 0,
                 "Finite approach choices and full spatial enumeration agree on the useful arrival.");
-            Check(NativeMovementHost.MobilityImprovesWalking(walk, 0, all, allInput, allInput.Identity.CapturedTimestamp),
+            Check(NativeMovementHost.ImprovesCommittedWalk(walk, 0, all, allInput, allInput.Identity.CapturedTimestamp),
                 "A better fresh mobility alternative can replace a still-valid active walking approach.");
-            Check(!NativeMovementHost.MobilityImprovesWalking(all, 0, walk, allInput, allInput.Identity.CapturedTimestamp)
-                && !NativeMovementHost.MobilityImprovesWalking(walk, 0, all, allInput,
+            Check(!NativeMovementHost.ImprovesCommittedWalk(all, 0, walk, allInput, allInput.Identity.CapturedTimestamp)
+                && !NativeMovementHost.ImprovesCommittedWalk(walk, 0, all, allInput,
                     allInput.Identity.CapturedTimestamp + Stopwatch.Frequency),
                 "A slower walk or stale mobility alternative cannot evict the current route.");
             var blocked = Input(0x111, healing, true);
@@ -92,5 +92,30 @@ public static partial class Checks
             mobilityMechanics: [new(155, MobilityMechanic.Target, 25, 0, 0, 0, .01f, 0, [new(20, Point(shortMap, 2), 0)])]);
         Check(Search(combatClock).Stages.Any(s => s.ActionId == 155),
             "Already-satisfied offensive readiness cannot prune a faster arrival for an injured healing recipient.");
+
+        var routes = Grid(5, 3);
+        var routeBase = Context(routes, 5, speed: 6);
+        var start = routeBase.Origin;
+        var destination = Point(routes, 9);
+        MovementPlanningContext Pursuit(float ready, float unlock = 0)
+            => new(routeBase.Identity, routes, 0, unlock, Enumerable.Repeat(true, 15).ToArray(),
+                new float[15], [], [], range: new(10, destination, .5f, RecoverExecution: true, RecoveryReadyIn: ready));
+        var pursuit = Pursuit(0);
+        var detour = NativeMovementIncumbent.CaptureRoute(pursuit, [start, Point(routes, 1), Point(routes, 3), destination])!;
+        var shortcut = NativeMovementIncumbent.CaptureRoute(pursuit, [start, destination])!;
+        var timestamp = pursuit.Identity.CapturedTimestamp;
+        Check(NativeMovementHost.ImprovesCommittedWalk(detour, 0, shortcut, pursuit, timestamp)
+            && !NativeMovementHost.ImprovesCommittedWalk(shortcut, 0, detour, pursuit, timestamp),
+            "A newly clear walking corridor can restore attack access sooner without a dash or a change of target.");
+        var coolingDown = Pursuit(1);
+        var detourProof = MovementPlanValidation.Validate(detour, coolingDown, 0, true, timestamp);
+        var shortcutProof = MovementPlanValidation.Validate(shortcut, coolingDown, 0, true, timestamp);
+        Check(detourProof is { Allowed: true, RangeAccessSeconds: 1 }
+            && shortcutProof is { Allowed: true, RangeAccessSeconds: 1 }
+            && !NativeMovementHost.ImprovesCommittedWalk(detour, 0, shortcut, coolingDown, timestamp),
+            "If both safe routes arrive before the GCD, retain the committed walk and credit its endpoint at readiness.");
+        routes.PixelMaxG[7] = -1;
+        Check(!NativeMovementHost.ImprovesCommittedWalk(detour, 0, shortcut, Pursuit(0), timestamp),
+            "A newly obstructed shortcut cannot replace the committed route.");
     }
 }

@@ -11,6 +11,7 @@ public enum OID : uint
     Wolfsbane = 0xDF8, // R0.800, x?
     Unknown = 0xDF7, // R1.800, x?
     Electron = 0xDFB, // R1.000, x?
+    SlabberPuddle = 0x1E968C, // EventObj, persistent ingestion puddle
     OpenFetter1 = 0x1E9735, // R0.500, x?, EventObj type
     OpenFetter2 = 0x1E9733, // R0.500, x?, EventObj type
     MagickedFetter1 = 0x1E9736, // R2.000, x?, EventObj type

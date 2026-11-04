@@ -48,6 +48,7 @@ public sealed unsafe partial class ActionManagerEx : IDisposable
     public static readonly ActionTweaksConfig Config = Service.Config.Get<ActionTweaksConfig>();
     public static ActionManagerEx? Instance;
     public ActionQueue.Entry AutoQueue;
+    internal bool HasPendingManualAction => _inst->ActionQueued || _manualQueue.HasPendingInput || AutoQueue.Manual;
     public bool MoveMightInterruptCast; // if true, moving now might cause cast interruption (for current or queued cast)
     public readonly CastTracker CastTracker = new();
     private readonly ActionManager* _inst = ActionManager.Instance();
@@ -139,7 +140,7 @@ public sealed unsafe partial class ActionManagerEx : IDisposable
     }
 
     // finish gathering candidate actions for this frame: sort by priority and select best action to execute
-    public void FinishActionGather()
+    public void FinishActionGather(bool prioritizeInteraction)
     {
         AutoQueue = default;
         var player = _ws.Party.Player();
@@ -149,7 +150,7 @@ public sealed unsafe partial class ActionManagerEx : IDisposable
         }
 
         _oocActionsTweak.FillActions(player, _hints);
-        AutoQueue = _hints.ActionsToExecute.FindBest(_ws, player, _ws.Client.Cooldowns, EffectiveAnimationLock, _hints, _animLockTweak.DelayEstimate, _dismountTweak.AutoDismountEnabled);
+        AutoQueue = _hints.ActionsToExecute.FindBest(_ws, player, _ws.Client.Cooldowns, EffectiveAnimationLock, _hints, _animLockTweak.DelayEstimate, _dismountTweak.AutoDismountEnabled, manualOnly: prioritizeInteraction);
         if (AutoQueue.Delay > 0)
         {
             AutoQueue = default;

@@ -356,7 +356,8 @@ internal static class MovementPlanValidation
             if (current.Range is { RecoverExecution: true } range)
                 // Use this validation's actual pose, remaining travel and action
                 // locks. A route may enter attack range before its final endpoint.
-                rangeAccess = rangeAccess.Advance(range, Math.Max(range.RecoveryReadyIn, Math.Max(actionReadyAt, gcdReadyAt)),
+                rangeAccess = rangeAccess.AfterKnockback(stage.Knockback, current.Identity.WorldTime)
+                    .Advance(range, Math.Max(range.RecoveryReadyIn, Math.Max(actionReadyAt, gcdReadyAt)),
                     stage.Kind, position, landing, time, time + duration + landingLock);
             time += duration + landingLock;
             previousWait = stage.Kind == MovementStageKind.Wait ? duration : 0;
@@ -387,6 +388,15 @@ internal static class MovementPlanValidation
         if (plan.UsefulZones.Any(zone => !current.Zones.Any(z => z.ActionId == zone.ActionId && z.OwnerId == zone.OwnerId
             && z.Benefit == zone.Benefit && z.EffectiveCenter(relocatedField) == zone.Center && z.Contains(plan.UsefulDestination, time, relocatedField))))
             return new(false, "friendly effect no longer covers the executable arrival");
+        // A proved permanent endpoint can hold until the observed readiness
+        // window, even when the route ends before that window opens.
+        if (current.Range is { RecoverExecution: true } remainingRange)
+        {
+            var ready = Math.Max(remainingRange.RecoveryReadyIn, Math.Max(actionReadyAt, gcdReadyAt));
+            if (ready > rangeAccess.ReadyAt)
+                rangeAccess = new(ready);
+            rangeAccess = rangeAccess.Observe(remainingRange, position, Math.Max(time, rangeAccess.ReadyAt));
+        }
         var departureDeadline = firstDeparture ?? (slack == float.MaxValue ? float.MaxValue : slack + (departure ?? 0));
         return new(true, "fresh complete executable route", Math.Min(departureDeadline, plan.RemainingDepartureSeconds(timestamp ?? Stopwatch.GetTimestamp())), time,
             rangeAccess.Loss == 0 ? rangeAccess.At : float.NaN);
