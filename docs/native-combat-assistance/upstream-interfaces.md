@@ -5,6 +5,44 @@ class identities, strategy tracks, presets and native configuration identities
 are retained. The inventory below describes implemented boundaries, not final
 cutover acceptance; the adjacent status file lists remaining work.
 
+## Upstream 7.5.8.6 integration (2026-11-18)
+
+Integrated the exact [7.5.8.6 release tag](https://github.com/FFXIV-CombatReborn/BossmodReborn/releases/tag/7.5.8.6),
+commit `8d5ff8e2195ebbd519334852eab478414cdea67b`, from the previous
+7.5.7.3 base. The fork revision resets to zero: source label `7.5.8.6.0`,
+install version `7.5.8.600`. This imports the upstream encounter and rotation
+updates, Duty Finder support labels, Material theme/motion controls and
+missing-address guards for the legacy map-effect and action-range hooks.
+
+The merge applied without conflicts. All ten paths changed on both sides were
+reviewed. Upstream targeting and action-duration changes coexist with the fork's
+automatic-target provenance, manual handoff and positional eligibility rules.
+The unified Automovement page, Questionable on/off control, native planning,
+saved opt-outs, module-enablement ownership, alliance-group capture and frame
+freshness observations are retained. Plugin startup and disposal include the
+Duty Finder indicator alongside the existing assistance lifecycle. Packaging
+retains fork identity, API 15 compatibility, legacy XCAI retirement metadata,
+licences and upstream public IPC; RebornMaterial advances to 7.5.8.1. Upstream
+`CONTRIBUTING.md` remains unchanged and the fork overrides still apply.
+
+Validation: release metadata and all nine Python checks passed. The Release
+build succeeded with zero errors and two existing obsolete-API warnings in
+unchanged gauge/healer code. Sixteen focused native checks passed 449 assertions
+against that exact DLL, covering frozen goals, Material settings, ownership,
+settings import/session, legacy commands and retirement, RSR assembly layouts,
+positional eligibility, native target choices/options/handoff, module enablement,
+linked rotation and cast timing. The selected checks use the existing frozen-goal
+fixture to initialize native configuration before constructing AI hints. The
+regression project also retains three existing nullable warnings in unchanged
+test code. Broad replay and benchmark suites were deferred under the local test
+resource policy. No new encounter replay or live gameplay acceptance is claimed;
+the imported UI behavior remains visually unverified.
+
+Validated DLL SHA-256:
+`9b6590d38002c7155b16ee8834fb3a9d53d61788686c3ce48dacddfecb2ab2cb`;
+MVID: `cfdc9a0a-48a3-4a47-9113-5c13954edc00`.
+This source update does not publish a release or create a source tag.
+
 ## Upstream 7.5.7.3 interface integration (2026-11-01)
 
 Integrated the exact [7.5.7.3 tag](https://github.com/FFXIV-CombatReborn/BossmodReborn/releases/tag/7.5.7.3),

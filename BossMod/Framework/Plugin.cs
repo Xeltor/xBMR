@@ -51,6 +51,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
     private DateTime _throttleFateSync;
     private DateTime _throttleLeaveDuty;
     private WorldOverlayNode? _worldOverlayNode;
+    private ContentsFinderIndicator? _contentsFinderIndicator;
 
     // windows
     private ConfigUI _configUI = null!; // TODO: should be a proper window!
@@ -114,6 +115,7 @@ public sealed class Plugin : IAsyncDalamudPlugin
         Camera.Instance = new();
         _worldOverlayNode = new();
         Dx11ArenaRenderer.SetWorldOverlayNode(_worldOverlayNode);
+        _contentsFinderIndicator = new();
 
         Service.Config.Modified.Subscribe(() => Task.Run(() => Service.Config.SaveToFile(_dalamud.ConfigFile)));
 
@@ -186,6 +188,8 @@ public sealed class Plugin : IAsyncDalamudPlugin
             Dx11ArenaRenderer.SetWorldOverlayNode(null);
             _worldOverlayNode?.Dispose();
             _worldOverlayNode = null;
+            _contentsFinderIndicator?.Dispose();
+            _contentsFinderIndicator = null;
             Dx11ArenaRenderer.Shutdown();
             RebornUI.MaterialUI.Stop();
         });
