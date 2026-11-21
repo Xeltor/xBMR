@@ -17,7 +17,7 @@ namespace BossMod.CombatAssistance.Sharing;
 /// queues no work and touches no game objects. The worker cancels its own work during combat.</summary>
 internal sealed class FightEvidenceUploader : IAsyncDisposable
 {
-    private const int ReaderVersion = 2;
+    private const int ReaderVersion = 3;
     private const string UploadUrl = "https://bmr-fights.xel-serv.com/v1/batches";
     private readonly string configDirectory;
     private readonly string pluginConfigRoot;

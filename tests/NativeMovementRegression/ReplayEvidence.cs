@@ -14,20 +14,27 @@ public static partial class Checks
         try
         {
             var path = Path.Combine(directory, "closed.log");
-            void Recording(string file, int rows, bool compressed = false)
+            void Recording(string file, int rows, bool compressed = false, int version = 31)
             {
+                var startTime = new DateTime(2026, 1, 1);
                 using var payload = new MemoryStream();
                 using (var header = new BinaryWriter(payload, Encoding.UTF8, true))
                 {
-                    header.Write(0x20524556u); header.Write(31); header.Write(10_000_000UL);
-                    header.Write("7.5"); header.Write(new DateTime(2026, 1, 1).Ticks);
+                    header.Write(0x20524556u); header.Write(version); header.Write(10_000_000UL);
+                    header.Write("7.5"); header.Write(startTime.Ticks);
                 }
                 using var output = new ReplayRecorder.BinaryOutput(payload);
-                new WorldState.OpZoneChange(1, 2).Write(output);
+                if (version == 32)
+                {
+                    output.EnableCompactV32(startTime, 10_000_000);
+                    output.WriteOp(new WorldState.OpFrameStart(new(startTime, 123, 0, 0.05f, 0.05f, 1), default, default, default));
+                    output.WriteOp(new ClientState.OpBeastmasterBeastsChanged([1, 2, 3]));
+                }
+                output.WriteOp(new WorldState.OpZoneChange(1, 2));
                 new ActorState.OpRename(42, "PrivateName", 1).Write(output);
                 new WorldState.OpUserMarker("PrivateMarker").Write(output);
                 new WorldState.OpDirectorUpdate(10, 20, 1, 2, 3, 4).Write(output);
-                for (var i = 0; i < rows; ++i) new ActorState.OpMove(42, new(i, 0, 1, 0.2f)).Write(output);
+                for (var i = 0; i < rows; ++i) output.WriteOp(new ActorState.OpMove(42, new(i, 0, 1, 0.2f)));
                 output.Flush();
                 using var source = File.Create(file);
                 using var magic = new BinaryWriter(source, Encoding.UTF8, true);
@@ -63,6 +70,28 @@ public static partial class Checks
             var compressed = Path.Combine(directory, "compressed.log"); Recording(compressed, 2, true);
             new ReplayEvidenceDecoder().DecodeAsync(compressed, (_, _) => Task.CompletedTask, default, 1024, true, 1).GetAwaiter().GetResult();
             Check(true, "Native decoder accepts Brotli recordings and historical projection schema 1.");
+            foreach (var brotli in new[] { false, true })
+            {
+                var compact = Path.Combine(directory, "compact.log");
+                Recording(compact, 2, brotli, version: 32);
+                foreach (var anonymous in new[] { true, false })
+                {
+                    JsonDocument? batch = null;
+                    new ReplayEvidenceDecoder().DecodeAsync(compact, (chunk, _) =>
+                    {
+                        batch = JsonSerializer.SerializeToDocument(chunk);
+                        return Task.CompletedTask;
+                    }, default, 1024, anonymous, 3).GetAwaiter().GetResult();
+                    using var result = batch ?? throw new InvalidOperationException("Compact replay did not emit a batch.");
+                    var root = result.RootElement;
+                    Check(root.GetProperty("complete").GetBoolean(), "Compact recording reaches verified EOF.");
+                    Check(root.GetProperty("replay_version").GetInt32() == 32, "Compact recording reports the original format version.");
+                    Check(root.GetProperty("events").EnumerateArray().Any(e => e.GetProperty("kind").GetString() == "director"),
+                        "Compact Beastmaster and frame operations preserve alignment for subsequent events.");
+                    Check(root.GetRawText().Contains("PrivateName") == !anonymous && !root.GetRawText().Contains("PrivateMarker"),
+                        "Compact recording sharing preserves anonymization and excludes markers.");
+                }
+            }
             File.WriteAllBytes(compressed, File.ReadAllBytes(compressed)[..^3]);
             var truncated = false;
             try { new ReplayEvidenceDecoder().DecodeAsync(compressed, (_, _) => Task.CompletedTask, default).GetAwaiter().GetResult(); }

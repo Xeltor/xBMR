@@ -5,6 +5,43 @@ class identities, strategy tracks, presets and native configuration identities
 are retained. The inventory below describes implemented boundaries, not final
 cutover acceptance; the adjacent status file lists remaining work.
 
+## Upstream 7.5.8.7 integration (2026-11-21)
+
+Merged tag `7.5.8.7` at `91fbb365a5f9c433f1e974e3d0f1b75d3b6e20f8`.
+The source release is `7.5.8.7.0` and the Dalamud version is `7.5.8.700`.
+The update brings Dawntrail module changes and the asynchronous compact replay
+writer. The fork's opt-in evidence reader parses closed v31 and v32 binary logs
+with the corresponding native codec and reports the original format version.
+It retains bounded parsing, anonymization and the existing projection schemas.
+[Upstream release](https://github.com/FFXIV-CombatReborn/BossmodReborn/releases/tag/7.5.8.7)
+
+- **Windurst: The Third Walk.** Al Zahbi retains source-owned exaflares that
+  retire on cancellation and despawn. Promathia takes upstream ring icons, the
+  2.5-yalm small puddle and the False Genesis raidwide forecast. The existing
+  archive-backed platform handoff, island support, tower-soak exception and
+  return knockback remain in use. Shinryu takes upstream floor markers and
+  Celestial Trail debuff-expiry handling. Twilight keeps its two-helper
+  resolution and avoids guessing a floor when the assignment is ambiguous.
+  [Written guide](https://ffxiv.consolegameswiki.com/wiki/Windurst:_The_Third_Walk)
+  [Promathia recording notes](../encounters/alliance-raid-follow-up.md)
+- **The Tyrant, normal.** Retained the fork implementation for its recorded
+  weapon ordering, early shelter and portal forecasts, and native launch
+  routing across the split arena. The upstream release still has a gap in
+  handling the doomed platform. The existing replay checks cover destruction,
+  restoration and the availability of timed landing constraints.
+  [Written guide](https://eorzeantavern.com/m11n-the-tyrant/)
+- **Hell on Rails, normal.** Retained event-driven car bounds, floor-specific
+  hazards, the rotating Arcane Revelation forecast and the full Derailment
+  Siege soak window. The written guide confirms the floor changes, rotating
+  circle and multi-hit soak. Upstream's Windpipe wall reuse now avoids extra
+  per-hint copies while keeping the cast deadline.
+  [Written guide](https://www.icy-veins.com/ffxiv/hell-on-rails-trial-guide)
+
+The guides establish mechanic intent. The existing recording and callback
+checks cover the retained fork behavior. Physical edges, server snapshots,
+live radar behavior and the logger's in-game performance remain unverified
+in this integration.
+
 ## Upstream 7.5.8.6 integration (2026-11-18)
 
 Integrated the exact [7.5.8.6 release tag](https://github.com/FFXIV-CombatReborn/BossmodReborn/releases/tag/7.5.8.6),

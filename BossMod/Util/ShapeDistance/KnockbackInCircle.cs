@@ -406,7 +406,6 @@ public sealed class SDInCircleAwayFromOriginPlusIntersectAOECircles(WPos Origin,
             {
                 return true;
             }
-
         }
         return false;
     }

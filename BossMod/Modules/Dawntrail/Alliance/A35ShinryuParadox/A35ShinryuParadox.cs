@@ -4,9 +4,15 @@
 sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
 {
     private AOEInstance[] _aoes = [];
-    private readonly AOEShapeDonut bottomTeleporter = new(2f, 50f);
-    private readonly AOEShapeDonut topHole = new(6f, 50f);
-    private readonly WPos holePos = new(820f, -826f);
+    private static readonly AOEShapeDonut bottomTeleporter = new(2f, 50f);
+    private static readonly AOEShapeDonut topHole = new(6f, 50f);
+    private static readonly WPos holePos = new(820f, -826f);
+    private static readonly ShapeDistance topDanger = topHole.Distance(holePos, default);
+    private static readonly ShapeDistance topSafe = topHole.InvertedDistance(holePos, default);
+    private static readonly ShapeDistance bottomDanger = bottomTeleporter.Distance(holePos, default);
+    private static readonly ShapeDistance bottomSafe = bottomTeleporter.InvertedDistance(holePos, default);
+    private static readonly SDCircle topTransition = new(holePos, topHole.InnerRadius);
+    private static readonly SDCircle bottomTransition = new(holePos, bottomTeleporter.InnerRadius);
     private bool twilight;
     private byte twilightHits;
     private uint activeAction;
@@ -26,10 +32,10 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
             }
             ref var aoe0 = ref _aoes[0];
             var safeColor = Colors.SafeFromAOE;
-            aoe0.ShapeDistance = shouldBeTop ? topHole.InvertedDistance(holePos, default) : topHole.Distance(holePos, default);
+            aoe0.ShapeDistance = shouldBeTop ? topSafe : topDanger;
             aoe0.Color = shouldBeTop ? safeColor : default;
             ref var aoe1 = ref _aoes[1];
-            aoe1.ShapeDistance = shouldBeTop ? bottomTeleporter.Distance(holePos, default) : bottomTeleporter.InvertedDistance(holePos, default);
+            aoe1.ShapeDistance = shouldBeTop ? bottomDanger : bottomSafe;
             aoe1.Color = !shouldBeTop ? safeColor : default;
         }
         return _aoes;
@@ -57,8 +63,8 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
                 var act = Module.CastFinishAt(spell);
                 _aoes =
                 [
-                    new(topHole, holePos, default, act, shapeDistance: topHole.Distance(holePos, default), arenaProjectionLayer: 1, restrictToArenaProjectionLayer: true),
-                    new(bottomTeleporter, holePos, default, act, color: Colors.SafeFromAOE, shapeDistance: bottomTeleporter.InvertedDistance(holePos, default), arenaProjectionLayer: 0, restrictToArenaProjectionLayer: true),
+                    new(topHole, holePos, default, act, shapeDistance: topDanger, arenaProjectionLayer: 1, restrictToArenaProjectionLayer: true),
+                    new(bottomTeleporter, holePos, default, act, color: Colors.SafeFromAOE, shapeDistance: bottomSafe, arenaProjectionLayer: 0, restrictToArenaProjectionLayer: true),
                 ];
                 wantLayer = 0;
                 break;
@@ -67,8 +73,8 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
                 var act2 = Module.CastFinishAt(spell);
                 _aoes =
                 [
-                    new(bottomTeleporter, holePos, default, act2, shapeDistance: bottomTeleporter.Distance(holePos, default), arenaProjectionLayer: 0, restrictToArenaProjectionLayer: true),
-                    new(topHole, holePos, default, act2, color: Colors.SafeFromAOE, shapeDistance: topHole.InvertedDistance(holePos, default), arenaProjectionLayer: 1, restrictToArenaProjectionLayer: true),
+                    new(bottomTeleporter, holePos, default, act2, shapeDistance: bottomDanger, arenaProjectionLayer: 0, restrictToArenaProjectionLayer: true),
+                    new(topHole, holePos, default, act2, color: Colors.SafeFromAOE, shapeDistance: topSafe, arenaProjectionLayer: 1, restrictToArenaProjectionLayer: true),
                 ];
                 wantLayer = 1;
                 break;
@@ -163,9 +169,21 @@ sealed class FloorAOEs(BossModule module) : Components.GenericAOEs(module)
             var onBottom = actor.PosRot.Y < -890f;
             if (wantLayer == -1 || ShouldBeOnBottom(slot) == onBottom)
             {
-                hints.AddForbiddenZone(new SDCircle(holePos, onBottom ? bottomTeleporter.InnerRadius : topHole.InnerRadius));
+                hints.AddForbiddenZone(onBottom ? bottomTransition : topTransition);
             }
         }
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (Arena.Bounds is not ArenaBoundsCustom { WorldProjectionLayers.Length: > 1 })
+            return;
+
+        var bottom = ShouldBeOnBottom(pcSlot);
+        using (Arena.WorldProjectionLayer(1, true))
+            Arena.ZoneCircleOutline(holePos, topHole.InnerRadius, bottom == true ? Colors.Safe : Colors.Border, 2f);
+        using (Arena.WorldProjectionLayer(0, true))
+            Arena.ZoneCircleOutline(holePos, bottomTeleporter.InnerRadius, bottom == false ? Colors.Safe : Colors.Object, 2f);
     }
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
@@ -301,10 +319,16 @@ sealed class CelestialTrail(BossModule module) : Components.CastTowers(module, (
 
     public override void OnStatusGain(Actor actor, ref ActorStatus status)
     {
-        if (status.ID == (uint)SID.HPRecoveryDown)
+        if (status.ID == (uint)SID.HPRecoveryDown && Raid.FindSlot(actor.InstanceID) is >= 0 and var slot)
         {
-            _forbidden.Set(Raid.FindSlot(actor.InstanceID));
+            _forbidden.Set(slot);
         }
+    }
+
+    public override void OnStatusLose(Actor actor, ref ActorStatus status)
+    {
+        if (status.ID == (uint)SID.HPRecoveryDown && Raid.FindSlot(actor.InstanceID) is >= 0 and var slot)
+            _forbidden.Clear(slot);
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

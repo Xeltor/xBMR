@@ -167,6 +167,8 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
         }
     }
 
+    private readonly List<AOEInstance> _incomingAOEsBuffer = [];
+    private readonly List<(Actor caster, int turns)> _processedGolemsBuffer = [];
     public override void Update()
     {
         if (golemCasters.Count == 0)
@@ -174,8 +176,10 @@ sealed class Acclaim(BossModule module) : Components.GenericAOEs(module)
             return;
         }
 
-        List<AOEInstance> incomingAOEs = [];
-        List<(Actor caster, int turns)> processedGolems = [];
+        var incomingAOEs = _incomingAOEsBuffer;
+        incomingAOEs.Clear();
+        var processedGolems = _processedGolemsBuffer;
+        processedGolems.Clear();
         foreach (var golem in CollectionsMarshal.AsSpan(golemCasters))
         {
             var count = golem.turns;
@@ -271,5 +275,5 @@ public sealed class CE213QuarriedAway : BossModule
         Arena.Actors(Enemies((uint)OID.LightAether));
     }
 
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 25f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is Actor player && player.Position.InCircle(Arena.Center, 25f);
 }

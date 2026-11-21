@@ -13,6 +13,7 @@ sealed class A34PromathiaStates : StateMachineBuilder
             .ActivateOnEnter<PestilentPenance>()
             .ActivateOnEnter<Comet>()
             .ActivateOnEnter<FalseGenesis>()
+            .ActivateOnEnter<FalseGenesisRaidwide>()
             .ActivateOnEnter<ArenaChanges>()
             .ActivateOnEnter<MemoryReceptacle>()
             .ActivateOnEnter<IslandSupport>()

@@ -142,7 +142,7 @@ static partial class Regression
         Check(hints.ForbiddenZones.Any(z => z.shapeDistance.Contains(first.Position + new WDir(7, 0))), "expanded pool rejects an otherwise tempting exit point");
         puddles.OnActorEAnim(selectedPool, 0x00011000);
         var small = puddles.ActiveAOEs(0, actor).ToArray().Single(a => a.ActorID == selectedPool.InstanceID);
-        Check(small.Risky && small.Shape is AOEShapeCircle { Radius: 4 }, "small pool returns after the follow-up");
+        Check(small.Risky && small.Shape is AOEShapeCircle { Radius: 2.5f }, "small pool returns after the follow-up");
         puddles.OnActorEAnim(selectedPool, 0x00800100);
         Check(puddles.ActiveAOEs(0, actor).Length == 6, "link animation does not erase a persistent pool");
         puddles.OnActorEAnim(selectedPool, 0x00040008);

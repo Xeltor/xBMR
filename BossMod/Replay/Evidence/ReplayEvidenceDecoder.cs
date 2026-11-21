@@ -16,7 +16,7 @@ using System.Text.Json;
 
 namespace BossMod.ReplayAnalysis.Evidence;
 
-/// <summary>Reads closed local BMR v31 recordings without a ReplayBuilder, WorldState or game service.
+/// <summary>Reads closed local BMR v31 and v32 recordings without a ReplayBuilder, WorldState or game service.
 /// Emits numeric evidence plus bounded names/content IDs only when xBMR anonymization is explicitly off.
 /// Markers, RSV, chat and packets remain excluded.
 /// Actor numbers and time origin are scoped to one source, not a persistent player identity.</summary>
@@ -74,11 +74,16 @@ internal sealed partial class ReplayEvidenceDecoder
         using var binary = new BinaryReader(source, Encoding.UTF8, true);
         var magic = binary.ReadUInt32();
         using Stream decoded = magic == 0x42434C42 ? new VerifiedBrotliStream(source)
-            : magic == 0x474F4C42 ? new LeaveOpenStream(source) : throw new InvalidDataException("binary_v31_required");
+            : magic == 0x474F4C42 ? new LeaveOpenStream(source) : throw new InvalidDataException("binary_replay_required");
         using var lookahead = new LookaheadReadStream(decoded);
         using var strict = new BoundedStream(lookahead);
         using var header = new GuardedBinaryReader(strict);
-        if (header.ReadUInt32() != 0x20524556 || header.ReadInt32() != 31)
+        if (header.ReadUInt32() != 0x20524556)
+        {
+            throw new InvalidDataException("unsupported_replay_version");
+        }
+        var version = header.ReadInt32();
+        if (version is not (31 or 32))
         {
             throw new InvalidDataException("unsupported_replay_version");
         }
@@ -94,7 +99,7 @@ internal sealed partial class ReplayEvidenceDecoder
         }
         var start = new DateTime(header.ReadInt64());
         using var guarded = new GuardedBinaryReader(strict);
-        using var parser = ReplayParserLog.CreateEvidenceInput(guarded, start, qpf);
+        using var parser = ReplayParserLog.CreateEvidenceInput(guarded, version, start, qpf);
         var registeredTags = parser.RegisteredTags;
         int? selectedBeastWidth = null;
         var timestamp = start;
@@ -118,7 +123,7 @@ internal sealed partial class ReplayEvidenceDecoder
                 ["bmr_version"] = assembly.GetName().Version!.ToString(),
                 ["parser_mvid"] = typeof(ReplayParserLog).Module.ModuleVersionId.ToString(),
                 ["parserRevision"] = typeof(ReplayParserLog).Module.ModuleVersionId.ToString(),
-                ["replay_version"] = 31,
+                ["replay_version"] = version,
                 ["game_version"] = gameVersion,
                 ["zone"] = zone,
                 ["duty"] = duty,
@@ -154,7 +159,7 @@ internal sealed partial class ReplayEvidenceDecoder
             }
             ++entries;
             WorldState.Operation? op;
-            if (tagText == "CBST")
+            if (version == 31 && tagText == "CBST")
             {
                 int width = BeastStateLayout.Detect(lookahead.Peek(), lookahead.EndOfSource, registeredTags, selectedBeastWidth);
                 selectedBeastWidth = width;
@@ -173,7 +178,7 @@ internal sealed partial class ReplayEvidenceDecoder
 
             guarded.NextIntegerLimit = tagText switch
             {
-                "CST!" => 64,
+                "CST!" when version == 31 => 64,
                 "SLOG" => 256,
                 "PATS" => 65536,
                 _ => null

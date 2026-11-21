@@ -74,8 +74,8 @@ sealed class WindpipeDrawIn(BossModule module) : Components.SimpleKnockbacks(mod
     private readonly CarGeometry _car = module.FindComponent<CarGeometry>()!;
 
     // need safe walls for car 2 and car 5
-    private readonly List<SafeWall> safeWalls2 = [new(new(100.1f, 150.1f), new(104.9f, 150.1f)), new(new(95.1f, 160.1f), new(99.9f, 160.1f))];
-    private readonly List<SafeWall> safeWalls5 = [new(new(105.1f, 305.1f), new(109.9f, 305.1f))];
+    private static readonly SafeWall[] safeWalls2 = [new(new(100.1f, 150.1f), new(104.9f, 150.1f)), new(new(95.1f, 160.1f), new(99.9f, 160.1f))];
+    private static readonly SafeWall[] safeWalls5 = [new(new(105.1f, 305.1f), new(109.9f, 305.1f))];
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
@@ -101,17 +101,8 @@ sealed class WindpipeDrawIn(BossModule module) : Components.SimpleKnockbacks(mod
             {
                 // It is a draw in, we use mirrorZ to make safe zones to keep us from moving towards boss.
                 var dir = kb.Direction.ToDirection().MirrorZ();
-                var _walls = _car.Car == 2 ? safeWalls2 : safeWalls5;
-                var len = _walls.Count;
-                if (len > 0)
-                {
-                    var swalls = new SafeWall[len];
-                    for (var i = 0; i < _walls.Count; ++i)
-                    {
-                        swalls[i] = _walls[i];
-                    }
-                    hints.AddForbiddenZone(new SDKnockbackFixedDirectionAgainstSafewalls(dir, swalls, 20f, len), kb.Activation);
-                }
+                var walls = _car.Car == 2 ? safeWalls2 : safeWalls5;
+                hints.AddForbiddenZone(new SDKnockbackFixedDirectionAgainstSafewalls(dir, walls, 20f, walls.Length), kb.Activation);
             }
         }
     }

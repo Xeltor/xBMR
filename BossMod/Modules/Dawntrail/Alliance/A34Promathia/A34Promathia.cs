@@ -6,6 +6,7 @@ sealed class Explosion(BossModule module) : Components.SimpleAOEs(module, (uint)
 
 sealed class WheelofImpregnability(BossModule module) : Components.GenericAOEs(module, (uint)AID.WheelOfImpregnabilityFire)
 {
+    private static readonly AOEShapeCircle Shape = new(13f);
     private ActorCastInfo? _cast;
     private Actor? _source;
     private AOEInstance[] _aoes = [];
@@ -18,6 +19,15 @@ sealed class WheelofImpregnability(BossModule module) : Components.GenericAOEs(m
         return _aoes;
     }
 
+    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
+    {
+        if (iconID == (uint)IconID.WheelOfImpregnability && actor == Module.PrimaryActor)
+        {
+            _source = actor;
+            _aoes = [new(Shape, actor.Position, activation: WorldState.FutureTime(9.9d))];
+        }
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.WheelOfImpregnabilityCast && !ReferenceEquals(_cast, spell))
@@ -26,7 +36,8 @@ sealed class WheelofImpregnability(BossModule module) : Components.GenericAOEs(m
             _source = caster;
             // The uncast helper resolves about 10.6s after the boss visual finishes.
             // Freeze the forecast: moving it forward every frame prevents AI departure.
-            _aoes = [new(new AOEShapeCircle(13f), caster.Position, activation: Module.CastFinishAt(spell, 10.6d))];
+            if (_aoes.Length == 0)
+                _aoes = [new(Shape, caster.Position, activation: Module.CastFinishAt(spell, 10.6d))];
         }
     }
 
@@ -52,6 +63,7 @@ sealed class WheelofImpregnability(BossModule module) : Components.GenericAOEs(m
 
 sealed class BastionOfTwilight(BossModule module) : Components.GenericAOEs(module, (uint)AID.BastionOfTwilightFire)
 {
+    private static readonly AOEShapeDonut Shape = new(8f, 50f);
     private ActorCastInfo? _cast;
     private Actor? _source;
     private AOEInstance[] _aoes = [];
@@ -64,13 +76,23 @@ sealed class BastionOfTwilight(BossModule module) : Components.GenericAOEs(modul
         return _aoes;
     }
 
+    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
+    {
+        if (iconID == (uint)IconID.BastionOfTwilight && actor == Module.PrimaryActor)
+        {
+            _source = actor;
+            _aoes = [new(Shape, actor.Position, activation: WorldState.FutureTime(9.9d))];
+        }
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.BastionOfTwilightCast && !ReferenceEquals(_cast, spell))
         {
             _cast = spell;
             _source = caster;
-            _aoes = [new(new AOEShapeDonut(8f, 50f), caster.Position, activation: Module.CastFinishAt(spell, 10.6d))];
+            if (_aoes.Length == 0)
+                _aoes = [new(Shape, caster.Position, activation: Module.CastFinishAt(spell, 10.6d))];
         }
     }
 
@@ -96,13 +118,11 @@ sealed class BastionOfTwilight(BossModule module) : Components.GenericAOEs(modul
 
 sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(module, warningText: "Heavy puddle!")
 {
-    // Nominal small footprint follows the concentric 4y tower; the expanded
-    // footprint follows the 8y Infernal Deliverance helper. Physical edges need live checking.
     private readonly Dictionary<ulong, (Actor Source, float Radius, DateTime Activation)> _sources = [];
     private ActorCastInfo? _salvation;
     // Post-Rebirth objects have two endpoints 15y apart. Their layout event
     // ranges are nominal 2.5y circles; only the endpoints inflict Heavy.
-    private readonly AOEShapeCircle _small = new(4f), _large = new(8f), _linked = new(2.5f);
+    private readonly AOEShapeCircle _small = new(2.5f), _large = new(8f);
     private readonly List<AOEInstance> _aoes = [];
 
     public override void OnActorCreated(Actor actor)
@@ -114,7 +134,7 @@ sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(m
             return;
         var cast = Module.PrimaryActor.CastInfo;
         var activation = cast?.Action.ID == (uint)AID.EmptySalvation ? Module.CastFinishAt(cast, 0.8d) : WorldState.CurrentTime;
-        _sources[actor.InstanceID] = (actor, actor.OID == (uint)OID.LinkedPuddle ? 2.5f : 4f, activation);
+        _sources[actor.InstanceID] = (actor, 2.5f, activation);
     }
 
     public override void OnActorEAnim(Actor actor, uint state)
@@ -125,12 +145,13 @@ sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(m
         {
             case 0x00010002u: // small puddle becomes active
             case 0x00011000u: // returns to small after the tower follow-up
-                _sources[actor.InstanceID] = (actor, actor.OID == (uint)OID.LinkedPuddle ? 2.5f : 4f, WorldState.CurrentTime);
+                _sources[actor.InstanceID] = (actor, 2.5f, WorldState.CurrentTime);
                 break;
             case 0x04000800u: // tower puddle expands
                 _sources[actor.InstanceID] = (actor, 8f, WorldState.CurrentTime);
                 break;
             case 0x00040008u: // puddle disappears, before its object is destroyed
+            case 0x00042000u:
                 _sources.Remove(actor.InstanceID);
                 break;
         }
@@ -174,7 +195,7 @@ sealed class EmptySalvationPuddles(BossModule module) : Components.GenericAOEs(m
             if (source.Source.IsDestroyed)
                 continue;
             var soaking = tower is { } t && t.Position.AlmostEqual(source.Source.Position, 1f);
-            var shape = source.Radius == 2.5f ? _linked : source.Radius == 4f ? _small : _large;
+            var shape = source.Radius == 2.5f ? _small : _large;
             _aoes.Add(new(shape, source.Source.Position, activation: source.Activation,
                 risky: !soaking, actorID: source.Source.InstanceID));
             if (source.Source.OID == (uint)OID.LinkedPuddle)
@@ -504,6 +525,8 @@ sealed class InfernalDeliveranceTower(BossModule module) : Components.CastTowers
 sealed class InfernalDeliveranceAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.InfernalDeliveranceAOE, 8f);
 
 sealed class Meteor(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.Meteor, (uint)AID.Meteor2, 6f, 5f);  // this is the regular spreads only, Tankbuster is handled in Comet.
+
+sealed class FalseGenesisRaidwide(BossModule module) : Components.RaidwideCastDelay(module, (uint)AID.FalseGenesis, (uint)AID.FalseGenesis1, 0.6d);
 
 sealed class DeadlyRebirth(BossModule module) : Components.RaidwideCast(module, (uint)AID.DeadlyRebirth);
 

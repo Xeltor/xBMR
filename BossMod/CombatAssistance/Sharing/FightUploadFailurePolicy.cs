@@ -11,9 +11,9 @@ internal static class FightUploadFailurePolicy
 {
     private static readonly HashSet<string> SourceFailures = new(StringComparer.Ordinal)
     {
-        "source_size_limit", "binary_v31_required", "unsupported_replay_version", "invalid_frequency",
+        "source_size_limit", "binary_v31_required", "binary_replay_required", "unsupported_replay_version", "invalid_frequency",
         "invalid_game_version", "unsupported_writer_contract", "inconsistent_writer_contract",
-        "invalid_beast_count", "unsupported_tag", "truncated_entry", "truncated_tag",
+        "invalid_beast_count", "unsupported_tag", "invalid_native_recording_tag", "truncated_entry", "truncated_tag",
         "truncated_brotli", "invalid_brotli", "trailing_brotli_data", "nonmonotonic_timestamp",
         "allocation_limit", "target_limit", "actor_limit", "decoded_byte_limit", "decode_budget",
         "identity_name_limit", "identity_slot_limit", "identity_batch_limit", "no_supported_events",
