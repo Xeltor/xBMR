@@ -35,7 +35,7 @@ static class Regression
         var module = BossModuleRegistry.CreateModuleForActor(world, boss)!;
         Check(module is V31Quaqua, "generated registry selects Variant Quaqua");
         module.Update();
-        Check(module.Components.Count == 8, "generated state/component factories activate all eight components");
+        Check(module.Components.Count == 13, "generated state/component factories activate all thirteen components");
         return module;
     }
 
@@ -110,7 +110,7 @@ static class Regression
     {
         // Independent installed layout placement is the expected centre; the source actor is deliberately
         // on each side of the arena, matching the condition when enabling the module during Rout.
-        var expected = new WPos(-538, 94);
+        foreach (var expected in new[] { new WPos(-538, 94), new WPos(50, -160), new WPos(850, 49) })
         foreach (var displacement in new[] { new WDir(17, 0), new WDir(-17, 0), new WDir(0, 17), new WDir(0, -17) })
         {
             using var module = Module(expected + displacement);

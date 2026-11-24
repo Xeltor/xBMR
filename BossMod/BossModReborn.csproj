@@ -2,8 +2,8 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>7.5.8.700</Version>
-    <InformationalVersion>7.5.8.7.0</InformationalVersion>
+    <Version>7.5.8.1000</Version>
+    <InformationalVersion>7.5.8.10.0</InformationalVersion>
     <Description>Xel's Boss Mods Reborn (xBMR).</Description>
     <Copyright></Copyright>
     <PackageProjectUrl></PackageProjectUrl>
@@ -56,7 +56,7 @@
 
   <ItemGroup>
     <PackageReference Include="DalamudPackager" Version="15.0.0" />
-    <PackageReference Include="RebornMaterial" Version="7.5.8.2" />
+    <PackageReference Include="RebornMaterial" Version="7.5.8.4" />
     <PackageReference Include="TerraFX.Interop.Windows" Version="10.0.28000" />
     <Reference Include="FFXIVClientStructs">
       <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>

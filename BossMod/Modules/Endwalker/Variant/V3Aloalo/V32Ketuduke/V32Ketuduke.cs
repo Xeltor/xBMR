@@ -2,7 +2,7 @@ namespace BossMod.Endwalker.VariantCriterion.V3Aloalo.V32Ketuduke;
 
 // Variant OIDs/actions are different from Another Aloalo Island (Criterion).
 // Reference: awgil/ffxiv_bossmod 40b0abdd35e81517409bdc81446910f943a75a49,
-// V03Aloalo/V032Ketuduke.cs (BSD-3-Clause). Evidence/limits: docs/ketuduke-variant.md.
+// V03Aloalo/V032Ketuduke.cs (BSD-3-Clause). Evidence/limits: docs/aloalo-variant.md.
 public enum OID : uint
 {
     Boss = 0x4091,
@@ -15,7 +15,8 @@ public enum OID : uint
     SummonedAnila = 0x4097,
     AloaloZaratan = 0x409A,
     AloaloOgrebon = 0x4098,
-    BubbleStrewer = 0x1EB936
+    BubbleStrewer = 0x1EB936,
+    WavefoamBubble = 0x4094,
 }
 
 public enum AID : uint
@@ -45,12 +46,23 @@ public enum AID : uint
     HydroblastAOE = 35492,
     WaterIII = 36116,
     WaterIIIApply = 36125,
-    WaterIIIApplyUnstretched = 36126
+    WaterIIIApplyUnstretched = 36126,
+    TidalWaveAOE = 36114,
+    HydrosurgeAOE = 35468,
+    FlukeTyphoonAnila = 35471,
+    Roar = 35474,
+    BubbleNetSandAOE = 35476,
+    HundredLashingsVisual = 35480,
+    HundredLashings = 35479,
+    HundredLashingsElevated = 35481,
+    UpdraftStoneAOE = 35478,
+    AerialShockAOE = 35484,
 }
 
 public enum SID : uint
 {
-    Bubble = 3745
+    Bubble = 3745,
+    BubbleNet = 3744,
 }
 
 public enum TetherID : uint
@@ -105,7 +117,7 @@ sealed class Hydroblast(BossModule module) : Components.BaitAwayCast(module, (ui
 sealed class RouteCoverage(BossModule module) : BossComponent(module)
 {
     public override void AddGlobalHints(Actor actor, GlobalHints hints)
-        => hints.Add("Partial support: routes 2–4 mechanics are not implemented");
+        => hints.Add("Routes 2–4 guidance awaits replay validation");
 }
 
 sealed class V32KetudukeStates : StateMachineBuilder
@@ -122,16 +134,23 @@ sealed class V32KetudukeStates : StateMachineBuilder
             .ActivateOnEnter<Hydrobomb>()
             .ActivateOnEnter<Hydroblast>()
             .ActivateOnEnter<BlowingBubbles>()
-            .ActivateOnEnter<WaterIII>();
+            .ActivateOnEnter<WaterIII>()
+            .ActivateOnEnter<BubbleNetSand>()
+            .ActivateOnEnter<TidalWave>()
+            .ActivateOnEnter<Hydrosurge>()
+            .ActivateOnEnter<WavefoamBubbles>()
+            .ActivateOnEnter<FlukeTyphoonAnila>()
+            .ActivateOnEnter<Roar>()
+            .ActivateOnEnter<HundredLashings>()
+            .ActivateOnEnter<AerialShock>();
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xeltor; reference: croizat", GroupType = BossModuleInfo.GroupType.CFC,
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xeltor; croizat (ported by LTS)", GroupType = BossModuleInfo.GroupType.CFC,
     GroupID = 961u, NameID = 12605u, SortOrder = 2, Category = BossModuleInfo.Category.VariantCriterion, Expansion = BossModuleInfo.Expansion.Endwalker)]
 public sealed class V32Ketuduke(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaCenter, new ArenaBoundsSquare(20f))
 {
-    // The perimeter is a DoT zone. These reference bounds also become native AI
-    // pathfinding bounds, from the first active frame, on every route.
-    // Physical boundary calibration and routes 2–4 remain pending.
+    // o5d1/bg.lgb places the nominal 40-yalm square perimeter here.
+    // Exact DoT eligibility and route 2–4 interactions remain unverified.
     public static readonly WPos ArenaCenter = new(-790f, -395f);
 }

@@ -2,7 +2,7 @@ namespace BossMod.Endwalker.VariantCriterion.V3Aloalo.V31Quaqua;
 
 // Quaqua, Variant Aloalo Island. Reference IDs/shapes: awgil/ffxiv_bossmod
 // fff7f6e98541fcd6b23d7c2ccbac88e1fa4c9c75, V031Quaqua.cs (BSD-3-Clause).
-// Route 1 thunder recording and remaining uncertainty: docs/quaqua-variant.md.
+// Arena evidence and route coverage: docs/aloalo-variant.md.
 public enum OID : uint
 {
     Boss = 0x40BA,
@@ -11,7 +11,10 @@ public enum OID : uint
     DrakeFamiliar = 0x4135,
     HammerBeacon = 0x40E0,
     AnalaFamiliar = 0x4134,
-    AnalaFamiliarLarge = 0x40BE
+    AnalaFamiliarLarge = 0x40BE,
+    SpearMarker = 0x40BD,
+    PoisonPuddle = 0x1EB94A,
+    PursuitCharge = 0x40BC,
 }
 
 public enum AID : uint
@@ -30,13 +33,22 @@ public enum AID : uint
     ScaldingWavesFirst = 35735,
     ScaldingWavesRest = 35736,
     CloudToGroundFirst = 35740,
-    CloudToGroundRest = 35741
+    CloudToGroundRest = 35741,
+    ElementalImpact = 35744,
+    FlowingLanceCW = 35745,
+    FlowingLanceCCW = 36049,
+    FlowingLanceRest = 35746,
+    ArcaneArmamentsPoisonSpears = 35747,
+    ArcaneIntervention = 35758,
+    ArcanePursuitLaser = 35750,
+    ArcanePursuitLaserSecond = 35757,
 }
 
 public enum TetherID : uint
 {
     Axe = 256,
-    Quoit = 257
+    Quoit = 257,
+    WaterSpear = 258,
 }
 
 sealed class MadeMagic(BossModule module) : Components.RaidwideCast(module, (uint)AID.MadeMagic);
@@ -45,7 +57,7 @@ sealed class VioletStorm(BossModule module) : Components.SimpleAOEs(module, (uin
 sealed class RouteCoverage(BossModule module) : BossComponent(module)
 {
     public override void AddGlobalHints(Actor actor, GlobalHints hints)
-        => hints.Add("Partial support: left path; middle/right path mechanics unsupported");
+        => hints.Add("Middle and right path guidance awaits replay validation");
 }
 
 sealed class V31QuaquaStates : StateMachineBuilder
@@ -60,16 +72,23 @@ sealed class V31QuaquaStates : StateMachineBuilder
             .ActivateOnEnter<VioletStorm>()
             .ActivateOnEnter<CloudToGround>()
             .ActivateOnEnter<HammerLanding>()
-            .ActivateOnEnter<ScaldingWaves>();
+            .ActivateOnEnter<ScaldingWaves>()
+            .ActivateOnEnter<ElementalImpact>()
+            .ActivateOnEnter<ArcaneArmamentsPoison>()
+            .ActivateOnEnter<FlowingLance>()
+            .ActivateOnEnter<ArcaneIntervention>()
+            .ActivateOnEnter<ArcanePursuit>();
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xeltor; reference: croizat", GroupType = BossModuleInfo.GroupType.CFC,
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Xeltor; croizat (ported by LTS)", GroupType = BossModuleInfo.GroupType.CFC,
     GroupID = 961u, NameID = 12527u, SortOrder = 1, Category = BossModuleInfo.Category.VariantCriterion, Expansion = BossModuleInfo.Expansion.Endwalker)]
-public sealed class V31Quaqua(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaCenter, new ArenaBoundsCircle(20f))
+public sealed class V31Quaqua(WorldState ws, Actor primary) : BossModule(ws, primary, ClosestArenaCenter(primary.Position), new ArenaBoundsCircle(20f))
 {
-    // Exact o5d1/bg.lgb CollisionBox10146156 places the nominal R20 perimeter mesh here.
-    // A module loaded during Rout must not recenter the arena on the dashing boss.
-    // See docs/quaqua-variant.md for independent layout/mesh provenance and DoT limits.
+    // Three o5d1/bg.lgb placements of the same radius-20 perimeter mesh.
     public static readonly WPos ArenaCenter = new(-538f, 94f);
+    private static readonly WPos[] ArenaCenters = [ArenaCenter, new(50f, -160f), new(850f, 49f)];
+
+    private static WPos ClosestArenaCenter(WPos position)
+        => ArenaCenters.MinBy(center => (center - position).LengthSq());
 }

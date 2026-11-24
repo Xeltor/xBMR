@@ -30,7 +30,7 @@ static class KetudukeChecks
         party[0] = player;
         var module = new V32Ketuduke(world, boss);
         module.Update();
-        Check(module.Components.Count == 10, "all ten components activate through generated factories");
+        Check(module.Components.Count == 18, "all eighteen components activate through generated factories");
         return (module, player);
     }
     private static T Component<T>(BossModule module, string name) where T : BossComponent
@@ -55,7 +55,40 @@ static class KetudukeChecks
         Water();
         BootstrapAndRaidwide();
         BubbleLifecycle();
+        WavefoamLifecycle();
         Console.WriteLine($"{count} Ketuduke assertions passed (synthetic callback/geometry checks; no physical or live acceptance).");
+    }
+    private static void WavefoamLifecycle()
+    {
+        var (module, player) = Setup();
+        using var active = module;
+        var waves = Component<GenericTowers>(module, "WavefoamBubbles");
+        var ogrebon = Add(module.WorldState, 301, (uint)OID.AloaloOgrebon, module.Center);
+        module.Enemies((uint)OID.AloaloOgrebon).Add(ogrebon);
+        var bubble = Add(module.WorldState, 302, (uint)OID.WavefoamBubble, module.Center + new WDir(5, 0));
+        module.Enemies((uint)OID.WavefoamBubble).Add(bubble);
+        waves.OnActorCreated(bubble);
+        waves.OnActorCreated(bubble);
+        Check(waves.ActiveTowers(0, player).Length == 1, "duplicate creation preserves one Wavefoam bubble");
+
+        player.Statuses[0] = new(3744, 0x64, Now.AddSeconds(12), bubble.InstanceID);
+        Check(waves.ActiveTowers(0, player).IsEmpty, "Bubble Net suppresses another soak for a bubbled player");
+        player.Statuses[0] = default;
+
+        ogrebon.Statuses[0] = new((uint)SID.Bubble, 0xC8, Now.AddSeconds(12), bubble.InstanceID);
+        waves.Update();
+        var hints = new AIHints();
+        waves.AddAIHints(0, player, default, hints);
+        Check(waves.ActiveTowers(0, player).IsEmpty && hints.ForbiddenZones.Count == 1, "bubbled Ogrebon changes the active bubble into a hazard");
+
+        waves.OnEventCast(module.PrimaryActor, Effect(AID.AerialShockAOE));
+        waves.Update();
+        hints = new();
+        waves.AddAIHints(0, player, default, hints);
+        Check(hints.ForbiddenZones.Count == 0, "resolution removes the hazard even while the bubble actor still exists");
+        ogrebon.Statuses[0] = default;
+        waves.Update();
+        Check(waves.ActiveTowers(0, player).IsEmpty, "lingering bubble does not become a soak again after resolution");
     }
     private static void ArenaAndReset()
     {

@@ -5,6 +5,37 @@ class identities, strategy tracks, presets and native configuration identities
 are retained. The inventory below describes implemented boundaries, not final
 cutover acceptance; the adjacent status file lists remaining work.
 
+## Upstream 7.5.8.10 integration (2026-11-24)
+
+Integrated the exact tag `7.5.8.10` at `05bdf3abd1963c84105784273a8c171bb7cf0b7c`.
+The fork label is `7.5.8.10.0` and the Dalamud version is `7.5.8.1000`.
+This takes the Endwalker encounter pass, normal raids, Variant Aloalo and
+Crucible updates. The fork keeps its unified Automovement page, native planning,
+manual handoff, saved opt-outs and Questionable control. Material settings retain
+the fork's density for the main and legacy assistance windows. Upstream preset
+visibility applies to menus, while Movement Only and VBM Multibox remain
+available to their existing callers.
+[Upstream release](https://github.com/FFXIV-CombatReborn/BossmodReborn/releases/tag/7.5.8.10)
+
+- **Aloalo Island (Variant).** Retains the fork's Quaqua and Ketuduke module
+  identities and existing mechanic forecasts, with upstream route components
+  added. Quaqua selects among three arena anchors from the game layout.
+  Later-route interactions in both modules remain WIP.
+  [Aloalo implementation notes](../aloalo-variant.md)
+- **Dragonsong's Reprise (Ultimate).** Uses upstream's phase-five Wrath of the
+  Heavens fix. The divebomb bait guide looks up the current Charibert and withholds
+  the position when that actor's position is unavailable. The written phase-five
+  guide confirms the relative bait assignment. Exact snapshots remain unverified.
+  [Upstream fix](https://github.com/FFXIV-CombatReborn/BossmodReborn/pull/1403)
+  [Written guide](https://naurffxiv.com/ultimate/dsr#wrath-of-the-heavens)
+- **Crucible of the Unbroken.** Adds the `ActiveModuleType` and
+  `Crucible.PreferredKinships` endpoints consumed by RSR 7.5.8.10. The optional
+  Beastmaster rotation module uses encounter hints for utility actions.
+  [RSR release](https://github.com/FFXIV-CombatReborn/RotationSolverReborn/releases/tag/7.5.8.10)
+- **Replay compatibility.** Compact recording stays on v32 and flushes deferred
+  actor movement when recording ends. The uploader retains native v31/v32 parsing
+  and the archive's existing projection schema.
+
 ## Upstream 7.5.8.7 integration (2026-11-21)
 
 Merged tag `7.5.8.7` at `91fbb365a5f9c433f1e974e3d0f1b75d3b6e20f8`.

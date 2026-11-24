@@ -14,6 +14,8 @@ public static partial class Checks
         try
         {
             var path = Path.Combine(directory, "closed.log");
+            const long deferredMoveTicks = TimeSpan.TicksPerSecond / 16;
+            const float deferredMoveX = 0.025f;
             void Recording(string file, int rows, bool compressed = false, int version = 31)
             {
                 var startTime = new DateTime(2026, 1, 1);
@@ -35,6 +37,17 @@ public static partial class Checks
                 new WorldState.OpUserMarker("PrivateMarker").Write(output);
                 new WorldState.OpDirectorUpdate(10, 20, 1, 2, 3, 4).Write(output);
                 for (var i = 0; i < rows; ++i) output.WriteOp(new ActorState.OpMove(42, new(i, 0, 1, 0.2f)));
+                if (version == 32)
+                {
+                    output.WriteOp(new ActorState.OpCreate(43, 0, 1, 0, "", 0, ActorType.Player, Class.BLM, 1,
+                        default, 0.5f, default, true, true, 0, 0, 0));
+                    const float duration = (float)deferredMoveTicks / TimeSpan.TicksPerSecond;
+                    var finalFrame = new FrameState(startTime.AddTicks(deferredMoveTicks), 123 + (ulong)deferredMoveTicks, 1, duration, duration, 1);
+                    output.WriteOp(new WorldState.OpFrameStart(finalFrame, default, default, default));
+                    // The small non-POV move is held until the recording is finalized.
+                    output.WriteOp(new ActorState.OpMove(43, new(deferredMoveX, 0, 0, 0)));
+                    output.FlushPending();
+                }
                 output.Flush();
                 using var source = File.Create(file);
                 using var magic = new BinaryWriter(source, Encoding.UTF8, true);
@@ -90,6 +103,10 @@ public static partial class Checks
                         "Compact Beastmaster and frame operations preserve alignment for subsequent events.");
                     Check(root.GetRawText().Contains("PrivateName") == !anonymous && !root.GetRawText().Contains("PrivateMarker"),
                         "Compact recording sharing preserves anonymization and excludes markers.");
+                    var last = root.GetProperty("events").EnumerateArray().Last();
+                    Check(last.GetProperty("kind").GetString() == "move" && last.GetProperty("ticks").GetInt64() == deferredMoveTicks
+                        && Math.Abs(last.GetProperty("position").GetProperty("x").GetSingle() - deferredMoveX) < 0.0001f,
+                        "The final compact frame retains the last deferred position of a non-POV player.");
                 }
             }
             File.WriteAllBytes(compressed, File.ReadAllBytes(compressed)[..^3]);

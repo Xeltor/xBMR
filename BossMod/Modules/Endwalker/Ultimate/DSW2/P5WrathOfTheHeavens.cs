@@ -121,11 +121,15 @@ sealed class P5WrathOfTheHeavensTwister(BossModule module) : Components.GenericA
         return pos;
     }
 
+    private AOEInstance[] _aoesBuffer = [];
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
         var lenP = _predicted.Length;
         var countV = _voidzones.Count;
-        var aoes = new AOEInstance[lenP + countV];
+        var aoesLen = lenP + countV;
+        if (_aoesBuffer.Length < aoesLen)
+            _aoesBuffer = new AOEInstance[aoesLen];
+        var aoes = _aoesBuffer;
         for (var i = 0; i < lenP; ++i)
         {
             aoes[i] = new(_shape, _predicted[i]); // TODO: activation
@@ -134,7 +138,7 @@ sealed class P5WrathOfTheHeavensTwister(BossModule module) : Components.GenericA
         {
             aoes[lenP + i] = new(_shape, _voidzones[i].Position);
         }
-        return aoes;
+        return aoes.AsSpan(0, aoesLen);
     }
 
     public override void OnActorCreated(Actor actor)
@@ -150,7 +154,6 @@ sealed class P5WrathOfTheHeavensTwister(BossModule module) : Components.GenericA
 sealed class P5WrathOfTheHeavensCauterizeBait(BossModule module) : BossComponent(module)
 {
     private Actor? _target;
-    private readonly DSW2 bossmodule = (DSW2)module;
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
@@ -161,15 +164,14 @@ sealed class P5WrathOfTheHeavensCauterizeBait(BossModule module) : BossComponent
 
     public override void AddMovementHints(int slot, Actor actor, MovementHints movementHints)
     {
-        if (_target != actor)
-            return;
-        movementHints.Add(actor.Position, SafeSpot(), Colors.Safe);
+        if (_target == actor && SafeSpot() is { } safespot)
+            movementHints.Add(actor.Position, safespot, Colors.Safe);
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
-        if (_target == pc)
-            Arena.ZoneCircleOutline(SafeSpot(), 1f, Colors.Safe);
+        if (_target == pc && SafeSpot() is { } safespot)
+            Arena.ZoneCircleOutline(safespot, 1f, Colors.Safe);
     }
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
@@ -178,13 +180,14 @@ sealed class P5WrathOfTheHeavensCauterizeBait(BossModule module) : BossComponent
             _target = actor;
     }
 
-    private WPos SafeSpot()
+    private WPos? SafeSpot()
     {
-        if (bossmodule._SerCharibert is not Actor charibert)
-        {
-            return default;
-        }
-        return Arena.Center + 20f * (charibert.Position - Arena.Center).Normalized();
+        // P5 spawns a new Charibert; the intermission reference is stale.
+        var charibert = Module.Enemies((uint)OID.SerCharibert).FirstOrDefault(a => !a.IsDeadOrDestroyed);
+        if (charibert == null)
+            return null;
+        var offset = charibert.Position - Arena.Center;
+        return offset.LengthSq() > 0.01f ? Arena.Center + 20f * offset.Normalized() : null;
     }
 }
 

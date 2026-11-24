@@ -1150,9 +1150,13 @@ public sealed partial class ReplayParserLog : IDisposable
     {
         var contents = new uint[ClientState.NumBlueMageSpells];
         var count = _input.ReadByte(false);
-        for (var i = 0; i < count && i < contents.Length; ++i)
+        for (var i = 0; i < count; ++i)
         {
-            contents[i] = _input.ReadUInt(false);
+            var spell = _input.ReadUInt(false);
+            if (i < contents.Length)
+            {
+                contents[i] = spell;
+            }
         }
 
         return new(contents);
@@ -1162,9 +1166,13 @@ public sealed partial class ReplayParserLog : IDisposable
     {
         var contents = new byte[ClientState.NumBeastmasterBeasts];
         var count = _input.ReadByte(false);
-        for (var i = 0; i < count && i < contents.Length; ++i)
+        for (var i = 0; i < count; ++i)
         {
-            contents[i] = _input.ReadByte(false);
+            var beast = _input.ReadByte(false);
+            if (i < contents.Length)
+            {
+                contents[i] = beast;
+            }
         }
         return new(contents);
     }
